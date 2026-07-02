@@ -1,0 +1,11 @@
+Task: Translate the true meaning of this sarcastic tweet.
+
+Goal:
+Provide exactly one natural, non-sarcastic sentence that captures the author's real intent.
+
+Rules:
+- Output only the sentence.
+- No commentary.
+
+Tweet:
+{tweet}

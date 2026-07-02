@@ -1,0 +1,13 @@
+﻿experiment,model,average,median,count_1,count_2,count_3,total
+experiment_01,gemini run 01,1.672,1.0,164,24,77,265
+experiment_01,liquid run 01,1.57,1.0,164,51,50,265
+experiment_01,nvidia run 01,2.079,3.0,117,10,138,265
+experiment_02,gemini run 02,2.23,3.0,95,14,156,265
+experiment_02,liquid run 02,1.351,1.0,202,33,30,265
+experiment_02,nvidia run 02,2.185,3.0,98,20,147,265
+experiment_03,gemini run 03,1.475,1.0,196,12,57,265
+experiment_03,liquid run 03,1.106,1.0,245,12,8,265
+experiment_03,nvidia run 03,1.66,1.0,173,9,83,265
+experiment_04,gemini run 04,2.2,3.0,91,30,144,265
+experiment_04,liquid run 04,1.272,1.0,212,34,19,265
+experiment_04,nvidia run 04,2.208,3.0,99,12,154,265

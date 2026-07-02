@@ -1,0 +1,2 @@
+﻿file,avg_bleu,avg_rouge1_recall,avg_rouge2_recall,avg_pinc,avg_combined_pinc_sigmoid_bleu,rows
+nvidia_run_01.csv,0.05475256187416069,0.2729092645171267,0.10112014647429785,0.7286918843634199,0.37219055187850597,265

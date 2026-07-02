@@ -1,0 +1,34 @@
+Task: Convert the intended meaning of the following sarcastic tweet into a sincere, non-sarcastic statement.
+
+Goal: Express what the author actually means rather than what is literally written.
+
+Rules:
+- Output exactly one sentence.
+- No explanations or additional text.
+- Preserve the original meaning and sentiment.
+- Convert sarcasm into its intended literal meaning.
+
+Examples:
+
+Sarcastic tweet:
+love how a lot of ppl quit clash for agar io
+
+Output:
+hate how a lot of people quit clash for agar io
+
+Sarcastic tweet:
+oh yay looks like australia is heading to the election booth early july here comes 8 annoying weeks of campaigning
+
+Output:
+oh no looks like australia is heading to the election booth early july here comes 8 annoying weeks of campaigning
+
+Sarcastic tweet:
+jorge navarro is quite the trainer isn't he ? his horses can flat out run
+
+Output:
+jorge navarro is quite the trainer isn't he ? his horses cant make moves
+
+Sarcastic tweet:
+{sarcastic_sentence}
+
+Output:

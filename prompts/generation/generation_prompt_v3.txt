@@ -1,0 +1,12 @@
+The following tweet is sarcastic.
+
+Rewrite it as a sincere statement that conveys the author's intended meaning.
+
+Use proper spacing between words.
+
+Do not merge words together.
+
+Output only one grammatical sentence.
+
+Tweet:
+{tweet}

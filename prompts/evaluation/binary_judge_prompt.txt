@@ -1,0 +1,9 @@
+Task: Binary evaluation.
+
+Sarcastic sentence:
+{sarcastic_sentence}
+
+Interpretation:
+{model_interpretation}
+
+Return ONLY 1 or 0.

@@ -1,0 +1,11 @@
+Task: Interpret the following sarcastic tweet.
+
+Goal: Write one natural, non-sarcastic sentence that preserves the intended meaning.
+
+Rules:
+- Output only the interpretation.
+- Do not explain.
+- Do not mention sarcasm.
+
+Tweet:
+{tweet}
