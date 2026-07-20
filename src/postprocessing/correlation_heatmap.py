@@ -1,6 +1,6 @@
 """Spearman correlation between structural/NLP metrics and the quality score.
 
-Reproduces the finding in docs/meeting_notes_summary.md (2026-07-16 meeting):
+Reproduces the finding in docs/project_history.md (2026-07-16 meeting):
 structural metrics (sentence length, word overlap) correlate weakly with
 quality -- sarcasm interpretation quality is not explainable by simple
 structural rules.

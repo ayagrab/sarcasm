@@ -4,7 +4,7 @@ Builds its data by joining data/alt_test/{humans,llm}_annotations.json with
 the model interpretation text in data/model_outputs/ -- no separate copy of
 this data is stored anywhere.
 
-Reproduces the findings in docs/meeting_notes_summary.md (2026-07-16
+Reproduces the findings in docs/project_history.md (2026-07-16
 meeting): Fleiss' Kappa ~0.282 among human annotators (fair agreement,
 confirming sarcasm scoring is subjective even for humans); Nvidia leads
 human-rated quality with Liquid a distant last; ChatGPT is a harsher judge

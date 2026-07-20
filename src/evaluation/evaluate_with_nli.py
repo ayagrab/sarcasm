@@ -13,6 +13,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from config.models import JUDGE_MODELS
 from config.settings import settings
 from src.common.file_utils import read_csv_flexible, save_csv
+from src.common.nli_utils import classify_entailment
 from src.common.prompt_loader import load_prompt
 
 
@@ -36,9 +37,8 @@ def evaluate_with_nli(input_path: Path, output_path: Path, model_name: str = JUD
         hypothesis = hypothesis_template.format(model_interpretation=interpretation)
         inputs = tokenizer(premise, hypothesis, truncation=True, max_length=512, return_tensors="pt").to(device)
         with torch.no_grad():
-            probabilities = torch.softmax(model(**inputs).logits, dim=-1)[0]
-        label_probs = {model.config.id2label[i].lower(): probabilities[i].item() for i in range(len(probabilities))}
-        results.append(1 if label_probs.get("entailment", 0.0) > label_probs.get("contradiction", 0.0) else 0)
+            probabilities = torch.softmax(model(**inputs).logits, dim=-1)[0].tolist()
+        results.append(classify_entailment(probabilities, model.config.id2label))
 
     df["nli_success"] = results
     save_csv(df, output_path)

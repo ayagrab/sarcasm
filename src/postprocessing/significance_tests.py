@@ -1,6 +1,6 @@
 """Kruskal-Wallis significance tests: does prompt or model choice affect quality?
 
-Reproduces the project's documented result (see docs/meeting_notes_summary.md,
+Reproduces the project's documented result (see docs/project_history.md,
 2026-07-16 meeting): prompt effect p=9.45e-34, model effect p=5.13e-72 --
 both far below 0.05, i.e. both prompt and model choice have a statistically
 decisive impact on the LLM judge's classification score.

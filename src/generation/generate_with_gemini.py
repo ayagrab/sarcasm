@@ -29,7 +29,7 @@ def generate_interpretations(input_path: Path, output_path: Path, prompt_name: s
             response = model.generate_content(
                 prompt,
                 # Sarcastic tweets often contain mild profanity; without this, Gemini
-                # blocks them outright instead of translating (see docs/meeting_notes_summary.md,
+                # blocks them outright instead of translating (see docs/project_history.md,
                 # meeting 4 -- this workaround does not eliminate all refusals).
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,

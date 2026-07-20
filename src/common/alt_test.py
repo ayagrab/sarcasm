@@ -8,7 +8,7 @@ LLMs" (ACL 2025). https://arxiv.org/abs/2501.10970
 Used in this project to check whether the LLM judge (see
 `src/evaluation/evaluate_with_llm.py`) can replace the three human annotators
 for scoring sarcasm interpretations -- see `docs/alt_test_reference.md` and
-`docs/meeting_notes_summary.md` (2026-07-09 / 2026-07-16 meetings) for the
+`docs/project_history.md` (2026-07-09 / 2026-07-16 meetings) for the
 resulting Winning Rate / Advantage Probability and how epsilon was chosen.
 """
 from __future__ import annotations

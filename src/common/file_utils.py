@@ -12,12 +12,19 @@ def ensure_parent_dir(path: Path) -> None:
 def read_csv_flexible(path: Path, expected_columns: list[str] | None = None) -> pd.DataFrame:
     """Read a CSV and optionally normalize unnamed columns.
 
-    Many original files were created without headers. If expected_columns is
-    provided and the file does not contain those columns, the file is read again
-    with header=None and the provided column names.
+    Some original files (e.g. `data/raw/original_test_dataset.csv`) were
+    created without headers, so pandas would otherwise mistake their first
+    data row for a header. If none of `expected_columns` appear in the
+    parsed header at all, the file is re-read with header=None and the
+    first `len(expected_columns)` columns are assigned those names.
+
+    A file with a genuine, legitimate header that just doesn't yet contain
+    every expected column (e.g. `model_interpretation` before generation
+    has run) is left as-is -- callers are expected to add any missing
+    columns themselves, as the generation scripts already do.
     """
     df = pd.read_csv(path, encoding="utf-8-sig")
-    if expected_columns and not set(expected_columns).issubset(df.columns):
+    if expected_columns and not any(column in df.columns for column in expected_columns):
         df = pd.read_csv(path, header=None, encoding="utf-8-sig")
         df = df.iloc[:, : len(expected_columns)]
         df.columns = expected_columns

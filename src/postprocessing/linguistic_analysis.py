@@ -1,7 +1,7 @@
 """Structural/linguistic plots: sentence length and word-overlap patterns.
 
 Reproduces the three rewriting-strategy findings in
-docs/meeting_notes_summary.md (2026-07-16 meeting): Gemini expands sentences,
+docs/project_history.md (2026-07-16 meeting): Gemini expands sentences,
 Nvidia keeps length stable, Liquid drastically shortens and loses word
 overlap with the source; and high-quality (score 3) translations tend to
 keep moderate-to-high word overlap with the source.

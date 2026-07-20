@@ -1,7 +1,7 @@
 """Boxplots of BLEU/ROUGE/PINC, by model and by prompt.
 
 Reads the summary produced by `summarize_text_metrics.py`. Reproduces the
-NLP-metrics figures referenced in docs/meeting_notes_summary.md (2026-07-16
+NLP-metrics figures referenced in docs/project_history.md (2026-07-16
 meeting): as prompts progress 1->4, BLEU/ROUGE rise and PINC falls; Liquid's
 extreme PINC / near-zero BLEU explains its low human quality scores.
 """

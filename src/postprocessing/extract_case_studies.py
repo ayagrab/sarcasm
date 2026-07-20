@@ -3,7 +3,7 @@
 Builds on the same human/LLM comparison table as `human_llm_agreement.py`,
 with the model's actual interpretation text attached for qualitative
 review. Reproduces the case-study extraction described in
-docs/meeting_notes_summary.md (2026-07-16 meeting): the "semantic rigidity"
+docs/project_history.md (2026-07-16 meeting): the "semantic rigidity"
 and "fluency bias" examples came from reviewing exactly these discrepancy
 cases.
 """
