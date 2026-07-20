@@ -1,15 +1,24 @@
-# Meeting Notes Summary — Full Record
+# Project History
 
-This document consolidates everything presented across all four project
-meeting decks in `docs/meeting_slides/`, so you don't need to open the
-`.pptx` files to remember what was covered. It's organized chronologically
-by meeting date.
+The chronological, meeting-by-meeting record of how this project's methods
+and conclusions developed. This document was originally written from the
+project's four supervisor-meeting slide decks; that source material has
+since been fully absorbed here (and into `methodology.md` / `results.md`)
+and the original presentation files have been removed from the repository
+-- see `README.md` for the removal note. Nothing from the presentations was
+lost; everything unique is preserved below.
 
-Note on numbering: the title slides of the last three decks all say
-"Meeting 3" — this looks like the students reused a template without
-updating the label rather than an actual repeat of meeting 3. The dates
-(embedded in each file name) are unambiguous and are what this document
-uses to order things. Group: Anat, Sofia, Aya, Yehoraz. Supervisor: Lotem.
+For the technical "how" and "what was found" independent of chronology, see
+`methodology.md` and `results.md`. This document is for the narrative and
+decision history: what was tried, what was learned at each step, and why
+the project moved from interpretation-focused work toward the sarcasm
+*detection* fine-tuning plan (see `finetuning_plan.md`).
+
+Note on meeting numbering: the title slides of the last three decks all
+said "Meeting 3" -- this looks like a reused template label rather than an
+actual repeat of meeting 3. The dates (embedded in the original file names)
+are unambiguous and are what this document uses to order things. Group:
+Anat, Sofia, Aya, Yehoraz. Supervisor: Lotem.
 
 ---
 

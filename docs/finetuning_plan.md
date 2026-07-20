@@ -1,17 +1,17 @@
 # Sarcasm Detection Fine-Tuning — Plan
 
-This document summarizes the next phase of the project, as presented on the last
-two slides (27-28) of `docs/meeting_slides/meeting_2026-07-16_sarcasm_sign.pptx`
-(see `docs/meeting_notes_summary.md` for the full meeting-by-meeting record).
+This document summarizes the next phase of the project, first proposed at
+the project's fourth supervisor meeting (2026-07-16) -- see
+`docs/project_history.md` for the full meeting-by-meeting record.
 
-This is a **planning document only** — it describes what the fine-tuning phase
+This is a **planning document only** -- it describes what the fine-tuning phase
 is meant to do and what data it will use. The actual training code and Azure VM
 setup are a separate, later step, not covered here.
 
 ## Why this phase exists
 
-The interpretation/neutralization work so far (see `methodology_from_meetings.md`
-and `results_from_meetings.md`) assumed the input was already known to be
+The interpretation/neutralization work so far (see `methodology.md`
+and `results.md`) assumed the input was already known to be
 sarcastic. In practice, a recurring failure mode across all three generator
 models (Gemini, Nvidia, Liquid) was that they often couldn't tell a sentence
 was sarcastic at all, even when the system prompt said so explicitly (the
@@ -60,7 +60,7 @@ Each category is already perfectly balanced (50/50 sarc/notsarc).
    - In-depth qualitative error analysis: manually reviewing misclassified
      examples to map out which linguistic/syntactic/contextual patterns are
      hardest for the model — the same kind of manual review already done for
-     the interpretation outputs (see `results_from_meetings.md`).
+     the interpretation outputs (see `results.md`).
 
 ## Not yet decided / open questions for the next planning session
 

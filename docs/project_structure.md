@@ -3,7 +3,7 @@
 A complete, folder-by-folder and file-by-file walkthrough of everything in
 `sarcasm/`: what it is, what it does, and how it's used. For a quicker
 overview and setup instructions, see the main `README.md`. For what was
-decided at each meeting, see `docs/meeting_notes_summary.md`.
+decided at each meeting, see `docs/project_history.md`.
 
 ---
 
@@ -109,7 +109,7 @@ Google Sheets).
   columns.
 - **`anat.numbers`, `aya.numbers`, `yehoraz.numbers`** — each of the 3 team
   members' independently completed copy of the master sample, scored 1-3
-  (see `docs/meeting_notes_summary.md`, 2026-07-16 meeting, for how these
+  (see `docs/project_history.md`, 2026-07-16 meeting, for how these
   feed into the Alt-Test and Fleiss' Kappa analysis).
 
 ### `data/summaries/`
@@ -137,33 +137,26 @@ Aggregated result tables, produced by the `src/postprocessing/` scripts.
 
 Research documentation — the "why" and "what happened," as opposed to code.
 
-- **`meeting_notes_summary.md`** — full, meeting-by-meeting record of all
-  four project meetings (models tested, prompts, metrics, Alt-Test, error
-  analysis, decisions). Start here instead of opening the slide decks.
+- **`pipeline.md`** — technical, stage-by-stage map of the codebase: what
+  runs, in what order, and which stages need an API key or a model download.
+- **`methodology.md`** — *how* the dataset was prepared, models/prompts
+  selected, evaluation performed (automatic metrics, LLM judge, NLI,
+  human validation), and the Alt-Test / statistical methods used.
+- **`results.md`** — *what was found*: automatic-metric tables, prompt
+  sensitivity, Alt-Test outcome, Fleiss' Kappa, Kruskal-Wallis
+  significance, human-vs-LLM-judge agreement, and case studies.
+- **`project_history.md`** — the chronological, meeting-by-meeting
+  narrative of how the project's methods and conclusions developed
+  (originally sourced from the 4 supervisor-meeting slide decks, which
+  have since been removed -- their full content is preserved here).
 - **`alt_test_reference.md`** — what the Alt-Test is, citation for the
   paper it's from, how epsilon was chosen, and where the
   code/data/script live in this repo.
 - **`finetuning_plan.md`** — the plan for the next phase (BERT-based
-  sarcasm detection fine-tuning), based on the last 2 slides of the
-  2026-07-16 meeting.
-- **`methodology_from_meetings.md`** — narrative summary of *how* the
-  dataset was prepared, models selected, outputs generated, evaluation
-  performed, and prompt sensitivity tested.
-- **`results_from_meetings.md`** — narrative summary of *results*: model
-  comparisons, prompt sensitivity findings, good/bad interpretation
-  examples.
-- **`pipeline.md`** — step-by-step walkthrough of the interpretation
-  pipeline (complements the "Full Pipeline" diagram in the main README).
-- **`meeting_slides/`** — the original `.pptx` decks, one per meeting, named
-  `meeting_YYYY-MM-DD_sarcasm_sign.pptx`:
-  - `meeting_2026-05-28_sarcasm_sign.pptx` — model survey & automatic
-    metrics.
-  - `meeting_2026-06-16_sarcasm_sign.pptx` — judge architecture & prompt
-    sensitivity.
-  - `meeting_2026-07-09_sarcasm_sign.pptx` — Alt-Test draft.
-  - `meeting_2026-07-16_sarcasm_sign.pptx` — Alt-Test finalized, full error
-    analysis, and the fine-tuning plan (most complete deck; supersedes the
-    07-09 draft).
+  sarcasm detection fine-tuning). Planning only; not yet implemented.
+- **`validation.md`** — this repository's validation report: what has been
+  executed locally, what was validated with mocks, and what still needs a
+  real API key or model download to confirm.
 
 ---
 
