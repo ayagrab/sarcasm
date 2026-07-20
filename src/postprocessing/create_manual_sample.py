@@ -6,8 +6,6 @@ import pandas as pd
 from config.settings import settings
 from src.common.file_utils import save_csv
 
-MODEL_KEYWORDS = {"gemini": "gemini", "nvidia": "nvidia", "liquid": "liquid"}
-
 
 def find_one_csv(folder: Path, keyword: str) -> Path:
     """Find exactly one CSV file in a folder containing keyword in its name."""
@@ -26,14 +24,14 @@ def create_sample(outputs_dir: Path, output_file: Path, sample_size: int = 70, s
     experiments = sorted([p for p in outputs_dir.iterdir() if p.is_dir()])
     if not experiments:
         raise FileNotFoundError(f"No experiment folders found under {outputs_dir}")
-    first_gemini = pd.read_csv(find_one_csv(experiments[0], MODEL_KEYWORDS["gemini"]), encoding="utf-8-sig")
+    first_gemini = pd.read_csv(find_one_csv(experiments[0], "gemini"), encoding="utf-8-sig")
     random_indices = random.sample(range(len(first_gemini)), min(sample_size, len(first_gemini)))
     rows = []
     for idx in random_indices:
         experiment = random.choice(experiments)
-        gemini_df = pd.read_csv(find_one_csv(experiment, MODEL_KEYWORDS["gemini"]), encoding="utf-8-sig")
-        nvidia_df = pd.read_csv(find_one_csv(experiment, MODEL_KEYWORDS["nvidia"]), encoding="utf-8-sig")
-        liquid_df = pd.read_csv(find_one_csv(experiment, MODEL_KEYWORDS["liquid"]), encoding="utf-8-sig")
+        gemini_df = pd.read_csv(find_one_csv(experiment, "gemini"), encoding="utf-8-sig")
+        nvidia_df = pd.read_csv(find_one_csv(experiment, "nvidia"), encoding="utf-8-sig")
+        liquid_df = pd.read_csv(find_one_csv(experiment, "liquid"), encoding="utf-8-sig")
         rows.append({
             "experiment": experiment.name,
             "sarcastic_sentence": gemini_df.loc[idx, "sarcastic_sentence"],

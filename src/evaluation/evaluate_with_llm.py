@@ -34,7 +34,7 @@ Model interpretation:
 def classify_batch(batch_df: pd.DataFrame, model_id: str, max_retries: int = 5, wait_seconds: int = 15) -> list[int]:
     """Classify a batch using the LLM judge and return one score per row."""
     client = get_openrouter_client()
-    judge_prompt = load_prompt("llm_judge_prompt.txt")
+    judge_prompt = load_prompt("evaluation/llm_judge_prompt.txt")
     examples = build_batch_examples(batch_df)
 
     for attempt in range(1, max_retries + 1):

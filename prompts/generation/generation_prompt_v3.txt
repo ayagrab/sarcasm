@@ -9,4 +9,4 @@ Do not merge words together.
 Output only one grammatical sentence.
 
 Tweet:
-{tweet}
+{sarcastic_sentence}

@@ -10,20 +10,21 @@ from pathlib import Path
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from config.models import JUDGE_MODELS
 from config.settings import settings
 from src.common.file_utils import read_csv_flexible, save_csv
 from src.common.prompt_loader import load_prompt
 
 
-def evaluate_with_nli(input_path: Path, output_path: Path, model_name: str = "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli") -> None:
+def evaluate_with_nli(input_path: Path, output_path: Path, model_name: str = JUDGE_MODELS["nli"]) -> None:
     """Add an `nli_success` column: 1 if entailment > contradiction, else 0."""
     df = read_csv_flexible(input_path, ["sarcastic_sentence", "model_interpretation"])
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(model_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device).eval()
-    premise_template = load_prompt("nli_premise_template.txt")
-    hypothesis_template = load_prompt("nli_hypothesis_template.txt")
+    premise_template = load_prompt("evaluation/nli_premise_template.txt")
+    hypothesis_template = load_prompt("evaluation/nli_hypothesis_template.txt")
     results = []
 
     for _, row in df.iterrows():
@@ -47,8 +48,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate output CSV with an NLI model.")
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--model", default=JUDGE_MODELS["nli"])
     args = parser.parse_args()
-    evaluate_with_nli(args.input, args.output)
+    evaluate_with_nli(args.input, args.output, args.model)
 
 if __name__ == "__main__":
     main()

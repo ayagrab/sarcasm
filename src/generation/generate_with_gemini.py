@@ -10,12 +10,12 @@ from src.common.gemini_client import get_gemini_model
 from src.common.prompt_loader import load_prompt
 
 
-def generate_interpretations(input_path: Path, output_path: Path, start_row: int = 0, end_row: int | None = None, sleep_seconds: float = 2.0) -> None:
+def generate_interpretations(input_path: Path, output_path: Path, prompt_name: str = "generation/generation_prompt_v4.txt", start_row: int = 0, end_row: int | None = None, sleep_seconds: float = 2.0) -> None:
     """Generate interpretations for a slice of rows and save progress after each row."""
     df = read_csv_flexible(input_path, ["sarcastic_sentence", "model_interpretation"])
     if "model_interpretation" not in df.columns:
         df["model_interpretation"] = ""
-    prompt_template = load_prompt("interpret_sarcasm_prompt.txt")
+    prompt_template = load_prompt(prompt_name)
     model = get_gemini_model()
     end = len(df) if end_row is None else min(end_row, len(df))
 
@@ -28,6 +28,9 @@ def generate_interpretations(input_path: Path, output_path: Path, start_row: int
         try:
             response = model.generate_content(
                 prompt,
+                # Sarcastic tweets often contain mild profanity; without this, Gemini
+                # blocks them outright instead of translating (see docs/meeting_notes_summary.md,
+                # meeting 4 -- this workaround does not eliminate all refusals).
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
@@ -47,11 +50,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate sarcasm interpretations with Gemini.")
     parser.add_argument("--input", type=Path, default=settings.processed_data_dir / "clean_sarcastic_sentences.csv")
     parser.add_argument("--output", type=Path, default=settings.model_outputs_dir / "experiment_new" / "gemini.csv")
+    parser.add_argument("--prompt", default="generation/generation_prompt_v4.txt", help="Prompt file path relative to prompts/, e.g. generation/generation_prompt_v1.txt")
     parser.add_argument("--start-row", type=int, default=0)
     parser.add_argument("--end-row", type=int, default=None)
     parser.add_argument("--sleep", type=float, default=2.0)
     args = parser.parse_args()
-    generate_interpretations(args.input, args.output, args.start_row, args.end_row, args.sleep)
+    generate_interpretations(args.input, args.output, args.prompt, args.start_row, args.end_row, args.sleep)
 
 if __name__ == "__main__":
     main()

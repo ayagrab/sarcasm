@@ -28,3 +28,23 @@ def save_csv(df: pd.DataFrame, path: Path) -> None:
     """Save a DataFrame as UTF-8-SIG CSV for Excel compatibility."""
     ensure_parent_dir(path)
     df.to_csv(path, index=False, encoding="utf-8-sig")
+
+
+def load_all_model_outputs(model_outputs_dir: Path) -> pd.DataFrame:
+    """Load every classified CSV under data/model_outputs/ into one DataFrame.
+
+    Adds a `prompt` column (the experiment number, e.g. `experiment_04` -> 4)
+    and a `model` column (the first token of the filename, e.g.
+    `nvidia_run_04.csv` -> "nvidia"). Rows without a numeric `classification`
+    are dropped. Used by the significance/correlation/linguistic analyses,
+    which need the full labeled dataset rather than a single file.
+    """
+    frames = []
+    for csv_file in sorted(model_outputs_dir.glob("experiment_*/*.csv")):
+        df = pd.read_csv(csv_file, encoding="utf-8-sig")
+        df["prompt"] = int(csv_file.parent.name.split("_")[-1])
+        df["model"] = csv_file.stem.split("_")[0]
+        frames.append(df)
+    combined = pd.concat(frames, ignore_index=True)
+    combined["classification"] = pd.to_numeric(combined["classification"], errors="coerce")
+    return combined.dropna(subset=["classification"])

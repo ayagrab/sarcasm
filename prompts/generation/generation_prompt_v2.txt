@@ -8,4 +8,4 @@ Rules:
 - No commentary.
 
 Tweet:
-{tweet}
+{sarcastic_sentence}

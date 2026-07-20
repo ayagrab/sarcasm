@@ -8,13 +8,13 @@ from src.common.openrouter_client import get_openrouter_client
 from src.common.prompt_loader import load_prompt
 
 
-def generate_interpretations(input_path: Path, output_path: Path, model_id: str, start_row: int = 0, end_row: int | None = None, sleep_seconds: float = 1.0) -> None:
+def generate_interpretations(input_path: Path, output_path: Path, model_id: str, prompt_name: str = "generation/generation_prompt_v4.txt", start_row: int = 0, end_row: int | None = None, sleep_seconds: float = 1.0) -> None:
     """Generate interpretations with an OpenRouter model and save progress continuously."""
     df = read_csv_flexible(input_path, ["sarcastic_sentence", "model_interpretation"])
     if "model_interpretation" not in df.columns:
         df["model_interpretation"] = ""
     client = get_openrouter_client()
-    prompt_template = load_prompt("interpret_sarcasm_prompt.txt")
+    prompt_template = load_prompt(prompt_name)
     end = len(df) if end_row is None else min(end_row, len(df))
 
     for row_index in range(start_row, end):
@@ -45,11 +45,12 @@ def main() -> None:
     parser.add_argument("--input", type=Path, default=settings.processed_data_dir / "clean_sarcastic_sentences.csv")
     parser.add_argument("--output", type=Path, default=settings.model_outputs_dir / "experiment_new" / "openrouter.csv")
     parser.add_argument("--model", default=settings.default_openrouter_model)
+    parser.add_argument("--prompt", default="generation/generation_prompt_v4.txt", help="Prompt file path relative to prompts/, e.g. generation/generation_prompt_v1.txt")
     parser.add_argument("--start-row", type=int, default=0)
     parser.add_argument("--end-row", type=int, default=None)
     parser.add_argument("--sleep", type=float, default=1.0)
     args = parser.parse_args()
-    generate_interpretations(args.input, args.output, args.model, args.start_row, args.end_row, args.sleep)
+    generate_interpretations(args.input, args.output, args.model, args.prompt, args.start_row, args.end_row, args.sleep)
 
 if __name__ == "__main__":
     main()

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from dotenv import load_dotenv
 
+from config.models import GENERATION_MODELS, JUDGE_MODELS
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -23,13 +25,12 @@ class Settings:
     manual_scoring_dir: Path = PROJECT_ROOT / "data" / "manual_scoring"
     summaries_dir: Path = PROJECT_ROOT / "data" / "summaries"
     prompts_dir: Path = PROJECT_ROOT / "prompts"
-    results_dir: Path = PROJECT_ROOT / "results"
 
     openrouter_api_key: str | None = os.getenv("OPENROUTER_API_KEY")
     gemini_api_key: str | None = os.getenv("GEMINI_API_KEY")
 
-    default_openrouter_model: str = "nvidia/nemotron-nano-9b-v2:free"
-    default_judge_model: str = "openai/gpt-oss-20b:free"
-    default_gemini_model: str = "gemini-2.5-flash-lite"
+    default_openrouter_model: str = GENERATION_MODELS["nvidia"]
+    default_judge_model: str = JUDGE_MODELS["openrouter_llm_judge"]
+    default_gemini_model: str = GENERATION_MODELS["gemini"]
 
 settings = Settings()

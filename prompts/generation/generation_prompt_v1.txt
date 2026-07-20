@@ -8,4 +8,4 @@ Rules:
 - Do not mention sarcasm.
 
 Tweet:
-{tweet}
+{sarcastic_sentence}
