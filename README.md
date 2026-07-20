@@ -49,7 +49,7 @@ sarcasm/
 ├── data/            # datasets and result files (see docs/project_structure.md)
 ├── docs/            # documentation (see "Documentation" section below)
 ├── prompts/         # every prompt template, as plain .txt files
-├── src/             # all Python code, one subfolder per pipeline stage
+├── src/             # all Python code, one subfolder per pipeline stage (see src/README.md)
 ├── tests/           # pytest suite (no real API calls, no model downloads)
 ├── conftest.py      # makes `config`/`src` importable from tests/
 ├── .env.example     # template for your local .env (copy, then fill in)
@@ -73,6 +73,7 @@ For a detailed, file-by-file explanation of every folder, see
 | [`docs/alt_test_reference.md`](docs/alt_test_reference.md) | What the Alt-Test is, its source paper, and how it's used here |
 | [`docs/finetuning_plan.md`](docs/finetuning_plan.md) | The (not-yet-implemented) next phase: sarcasm-detection fine-tuning |
 | [`docs/project_structure.md`](docs/project_structure.md) | Every folder and file, explained |
+| [`src/README.md`](src/README.md) | Same level of detail as `project_structure.md`, but scoped to the code in `src/` only |
 | [`docs/validation.md`](docs/validation.md) | What has been executed, mocked, or still needs real credentials/models |
 
 A note on presentations: the project's four supervisor-meeting slide decks
