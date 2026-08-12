@@ -167,18 +167,18 @@ that would change the study).
 
 ### 3. M3 — Qwen3-4B few-shot (random EXP-003, curated EXP-004)
 
-- [x] Random variant, full DEV -- **DONE (metrics).** 1340/1340, ~1h34m. Macro F1 0.5880,
-      Accuracy 0.6328 -- *underperforms* M2 zero-shot (0.6008/0.6440). Investigated
-      (demo balance, category uniformity, agreement-with-M2 check) -- confirmed
-      genuine result, not a bug. See EXPERIMENT_LOG.md.
-      Raw `predictions.csv` was lost in the 2026-08-12 `/mnt` wipe (metrics
-      survived) -- **being regenerated now** via an identical deterministic
-      rerun (step 1 of `scripts/run_m3_m4_chain.sh`).
-- [ ] Curated variant, full DEV (`configs/llm_few_shot_curated_8_qwen_local.json`) -- **RESTARTING FROM SCRATCH**
-      (previous partial run, 447/1340, and its cache did not survive the
-      `/mnt` wipe -- nothing valid to resume from). Auto-runs as step 2 of
-      `scripts/run_m3_m4_chain.sh`, right after EXP-003 regeneration finishes.
-      Log: `logs/EXP-004-curated-dev.log`.
+- [x] Random variant, full DEV -- **DONE, predictions.csv restored.** 1340/1340,
+      ~1h35m (3rd attempt, survived both VM restarts this time). Macro F1
+      0.5880, Accuracy 0.6328 -- *underperforms* M2 zero-shot (0.6008/0.6440).
+      Investigated (demo balance, category uniformity, agreement-with-M2
+      check) -- confirmed genuine result, not a bug. See EXPERIMENT_LOG.md.
+      Regenerated metrics/confusion-matrix are byte-for-byte identical to the
+      original pre-wipe run (deterministic reproduction re-confirmed) --
+      pulled back to the local Mac and committed, no longer at risk from
+      another `/mnt` wipe.
+- [ ] Curated variant, full DEV (`configs/llm_few_shot_curated_8_qwen_local.json`) -- **IN PROGRESS**
+      (auto-started right after EXP-003 finished, as step 2 of
+      `scripts/run_m3_m4_chain.sh`). Log: `logs/EXP-004-curated-dev.log`.
       Check: `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 'tail -c 300 /mnt/vmadmin/projects/sarcasm/logs/EXP-004-curated-dev.log'`
 - [ ] Compare the two on DEV Macro F1, pick a winning *variant* (document demo example IDs used) -- this is DEV-based selection, allowed
 - [ ] Record in `EXPERIMENT_LOG.md`
