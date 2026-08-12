@@ -1,0 +1,10 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-002-openrouter-optional",
+  "mode": "zero_shot",
+  "eval_split": "dev",
+  "model": "openai/gpt-oss-20b:free",
+  "temperature": 0.0,
+  "seed": 42,
+  "_note": "OPTIONAL secondary comparison, not part of the required experiment matrix (per Stage B handoff: local Qwen is primary, OpenRouter/Gemini are optional). Requires OPENROUTER_API_KEY -- see EXPERIMENT_LOG.md BLOCKER-1 (still open)."
+}

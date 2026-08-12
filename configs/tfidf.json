@@ -1,0 +1,9 @@
+{
+  "approach_family": "tfidf",
+  "experiment_id": "EXP-001",
+  "classifier": "logreg",
+  "tfidf_variant": "word_char_combo",
+  "eval_split": "test",
+  "seed": 42,
+  "_note": "Frozen winning config from the EXP-001 dev sweep (see EXPERIMENT_LOG.md). Already run."
+}

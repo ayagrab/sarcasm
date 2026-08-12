@@ -1,0 +1,970 @@
+# Experiment Log
+
+Living, chronological, operational record of the **sarcasm detection (classification)**
+work. This is a *new* phase inside the existing `sarcasm` repository — see
+"Relationship to the existing repository" below for how it fits with what
+was already here. For the clean, high-level narrative see `PROJECT_SUMMARY.md`.
+This file is never overwritten; new entries are appended.
+
+---
+
+## Current Status
+
+**Phase:** Stage A **complete** — infrastructure built, classical baseline
+evaluated, everything else implemented and smoke-tested but not executed.
+Stopped here per the task's instruction to halt before expensive
+LLM/DSPy/Transformer runs. See "Stage A Readiness Report" below.
+
+Completed:
+- [x] Repository audit (Phase 1)
+- [x] Dataset discovery and audit (Sarcasm Corpus V2)
+- [x] Leakage analysis
+- [x] `EXPERIMENT_LOG.md`, `PROJECT_SUMMARY.md` created
+- [x] Canonical dataset builder (`src/classification/data/build_canonical_dataset.py`) — run for real
+- [x] Reusable dataset audit script (`src/classification/data/audit_dataset.py`) — run for real
+- [x] Canonical split (`src/classification/data/make_splits.py`) — run for real
+- [x] Evaluation framework (`src/classification/evaluation/`)
+- [x] Classical baseline — **EVALUATED** on frozen test set: EXP-001, Macro F1 0.740
+- [x] LLM pipeline (zero-shot/few-shot/reasoning) — **IMPLEMENTED + SMOKE-TESTED** (mocked client); blocked on API keys for real execution
+- [x] DSPy pipeline (Predict/BootstrapFewShot/MIPROv2) — **IMPLEMENTED**, structurally reviewed; blocked on `dspy` install + API keys
+- [x] Transformer fine-tuning pipeline — **IMPLEMENTED**, structurally reviewed; no checkpoint downloaded (Stage A rule), blocked on Stage B disk/GPU planning
+- [x] Config files for every planned experiment (`configs/*.json`)
+- [x] One coherent experiment runner (`src/classification/run_experiment.py`)
+- [x] 49 new unit tests, all passing (138/138 total with the existing suite)
+
+**Blocked:** see "Blockers" section below. None of the blockers prevented
+Stage A infrastructure work; they only block *running* the LLM/DSPy/
+Transformer experiments (Stage B).
+
+**Next:** awaiting explicit confirmation to start Stage B (compute
+machine / API keys / model downloads) — see the readiness report.
+
+---
+
+## Relationship to the existing repository
+
+**Important correction of the task brief:** the task description this log
+was created under assumed (a) the dataset is Hebrew, and (b) the repository
+already contains classification code and a labeled dataset ready for a
+6-way model comparison. Neither is accurate — recorded here so nobody
+re-derives this by re-reading the whole repo.
+
+1. **Language.** The dataset (Sarcasm Corpus V2, UC Santa Cruz) is
+   **English**. The task brief's own "IMPORTANT CORRECTIONS" section already
+   confirmed this; the repo audit independently confirms it (see below).
+2. **What already exists here is a *different* task.** The current
+   repository (`README.md`, `docs/*`) documents a **sarcasm
+   interpretation/neutralization benchmark**: given a sarcastic tweet, an
+   LLM rewrites it as a sincere, non-sarcastic sentence, and the rewrite is
+   scored by an LLM judge / NLI model / human annotators (Alt-Test, Fleiss'
+   Kappa, Kruskal-Wallis, BLEU/ROUGE/PINC). That pipeline is fully
+   implemented (`src/generation/`, `src/evaluation/evaluate_with_llm.py`,
+   `src/evaluation/evaluate_with_nli.py`, `src/postprocessing/*`) and is
+   **not sarcasm classification** — it never predicts sarcastic/not-sarcastic,
+   it rewrites already-known-sarcastic text.
+3. **The classification/detection task is a planned-but-unstarted next
+   phase**, already scoped (at a high level) in `docs/finetuning_plan.md`
+   (written 2026-07-16): "fine-tune a dedicated BERT-based binary sarcasm
+   classifier ... Sarcasm Corpus V2 ... GEN/HYP/RQ." That plan only covers
+   one BERT fine-tune, not the 6-approach comparison (classical ML / LLM
+   zero-shot / few-shot / reasoning / DSPy / fine-tuned transformer) this
+   task asks for. **This work supersedes and substantially broadens
+   `docs/finetuning_plan.md`'s scope**, reusing the same target dataset it
+   already staged.
+4. **No classification code existed before this session.** `data/raw/sarcasm_corpus_v2/`
+   was already present but, per `docs/project_structure.md`, explicitly
+   "not yet used by any script." Everything under the new `src/classification/`
+   package (see below) is being built from scratch in this session.
+5. **Consequence for how this work is organized:** rather than reusing
+   `src/evaluation/`, `src/generation/`, `config/models.py` etc. (which are
+   specific to the interpretation pipeline and already documented/tested),
+   the new classification work lives in its own clearly-separated
+   subpackage (`src/classification/`), its own prompts folder
+   (`prompts/classification/`), and its own config files (`configs/`), so
+   the two pipelines don't collide or get confused with each other. Shared,
+   generic infra (`.env`/`config/settings.py` pattern, `data/raw/` being
+   read-only, the `python -m src.<pkg>.<script>` convention, the pytest/mock
+   testing style) is reused as-is.
+
+---
+
+## Dataset Information
+
+### Source and location
+
+`data/raw/sarcasm_corpus_v2/` — **Sarcasm Corpus V2** (UC Santa Cruz,
+Oraby et al.). Three CSV files, one per sarcasm-category subset. Confirmed
+from `docs/finetuning_plan.md` and `docs/project_structure.md` (both already
+in the repo before this session) — **not guessed from filenames**:
+
+| File | Category (documented meaning) | Rows | `sarc` | `notsarc` |
+|---|---|---:|---:|---:|
+| `GEN-sarc-notsarc.csv` | **General Sarcasm** — general-purpose sarcastic vs. sincere forum posts | 6,520 | 3,260 | 3,260 |
+| `HYP-sarc-notsarc.csv` | **Hyperbole** — sarcasm expressed via exaggeration | 1,164 | 582 | 582 |
+| `RQ-sarc-notsarc.csv` | **Rhetorical Questions** — sarcasm expressed as a rhetorical question | 1,702 | 851 | 851 |
+| **Total** | | **9,386** | **4,693** | **4,693** |
+
+Columns in every file: `class` (`sarc`/`notsarc`), `id` (integer, **resets
+to 1 within each file — not globally unique**, so a canonical ID must
+combine category + id, or be freshly generated), `text` (the post).
+
+Each category file is a header row + comma-separated rows; `text` fields
+containing embedded commas/newlines are properly double-quoted (verified
+with `pandas.read_csv`, not naive line counting — a naive `wc -l` on
+`GEN-sarc-notsarc.csv` reports 8,867 lines because some `text` fields
+contain literal newlines inside quotes; the real row count via `pandas` is
+6,520, matching `docs/finetuning_plan.md`'s documented count exactly).
+
+The three files are **each perfectly class-balanced** (50/50), and the
+combined dataset is perfectly balanced (4,693/4,693) since each subset is.
+**No class-imbalance handling is needed.**
+
+### Data quality checks performed (2026-08-11)
+
+First checked ad hoc with `pandas` directly, then formalized into two
+reusable, re-runnable scripts (used for the authoritative numbers below):
+`src/classification/data/build_canonical_dataset.py` (combines the 3 raw
+files, attaches `example_id`/`category`/`source_file`/`dup_group_id`/
+`label_conflict`) and `src/classification/data/audit_dataset.py` (computes
+and reports the checks below, writes `data/processed/sarcasm_v2_audit_report.json`).
+The audit script's duplicate-text key normalizes whitespace runs as well as
+case (`" ".join(text.strip().lower().split())`), which is slightly stronger
+than the ad hoc first pass — the numbers below are from the formal script
+and are authoritative.
+
+| Check | Result |
+|---|---|
+| Missing/null `text` | 0 |
+| Missing/null `class` | 0 |
+| `id` uniqueness within file | unique within each file (1..N) |
+| `id` uniqueness across files | **not unique** — not usable as a global key on its own (canonical `example_id` = `f"{category}-{id}"`) |
+| Exact duplicate `text` within a single file | 0 in every file |
+| Duplicate `text` groups (normalized: case + whitespace insensitive), within **and** across files | **596 rows in 297 groups** |
+| Duplicate groups with **conflicting labels** | **22 rows across several groups** (see `example_id` list in `data/processed/sarcasm_v2_audit_report.json` → `label_conflict_example_ids`, e.g. `GEN-103`, `RQ-679`..`RQ-684`) |
+| Word-length distribution (whitespace tokens) | min 10, 25th pct 22, median 38, mean 48.7, 75th pct 67, max 150 |
+| Degenerate very-short examples (≤2 words) | 0 |
+| Degenerate very-long examples (>200 words) | 0 |
+| Metadata fields beyond `class`/`id`/`text` (author, conversation, thread, timestamp, source post) | **none present in the raw files** |
+
+Notable: several of the label-conflict rows are near-consecutive RQ ids
+(`RQ-679` through `RQ-684`) — likely a cluster from the same source thread
+that got annotated inconsistently. Worth a closer qualitative look during
+error analysis, not before.
+
+**The 22 label-conflict rows** (same normalized text, different `class`
+across duplicate copies) are a genuine annotation inconsistency in the
+source corpus, not a bug in this repo. Per the "never silently remove
+examples" rule, these rows are **kept**, tagged `label_conflict=True` and
+given a shared `dup_group_id` in the canonical dataset so they can be
+inspected during error analysis; they are not dropped or relabeled.
+
+### Decisions made (and why)
+
+1. **No rows are being dropped or deduplicated in the canonical dataset.**
+   All 9,386 rows are preserved, each tagged with `category`, `source_file`,
+   `dup_group_id` (shared by rows with matching normalized text — singleton
+   group for everything else), and `label_conflict` (bool). Downstream
+   consumers (splitting, training) decide what to do with duplicates; the
+   canonical dataset itself is non-destructive.
+2. **Global example IDs.** Since raw `id` is only unique per file, canonical
+   IDs are `f"{category}-{id}"` (e.g. `GEN-4213`), which is unique,
+   stable, and human-traceable back to the source file/row.
+3. **Grouped splitting is required.** Because 336+ rows share text across
+   category files (and near-dup analysis shows even more once
+   case/whitespace differences are ignored), a purely random or
+   purely-stratified-by-label split risks putting the *same underlying
+   post* in both train and test (e.g. the GEN copy in train, the RQ copy in
+   test) — the model would then be evaluated on text it effectively saw
+   during training. **Decision: split by `dup_group_id` (normalized-text
+   group), not by row**, so every row sharing a normalized text always ends
+   up in the same split. This directly implements the task's Section 3/4
+   requirement ("prioritize grouping over simple stratification" when both
+   are in tension). Label stratification is applied at the *group* level
+   using the group's label (for `label_conflict` groups, the first row's
+   label — a coin flip either way, and only affects 4 groups/~0.04% of
+   data) so the 50/50 class balance is preserved as closely as group sizes
+   allow. Full implementation: `src/classification/data/make_splits.py`
+   (see below).
+4. **No author/conversation-level grouping** — the raw files carry none of
+   that metadata, so text-based grouping is the only leakage control
+   available. Documented as a known limitation of the source corpus
+   (Section 3 of the task explicitly asks this to be recorded).
+5. **Split ratio:** target 70/15/15 (train/dev/test), per the task's
+   suggested default, seed `42`, implemented with two chained
+   `StratifiedGroupKFold` passes (test fold carved out first, then
+   train/dev from the remainder), grouped on `dup_group_id`. **Actual
+   achieved split** (group sizes make an exact 70/15/15 unreachable):
+   **train 6,706 (71.4%) / dev 1,340 (14.3%) / test 1,340 (14.3%)**. Label
+   balance held closely per split (train 3,369/3,337 sarc/notsarc, dev
+   668/672, test 656/684) and category mix is proportionate across splits
+   (checked by inspection, not hard-constrained). A programmatic assertion
+   (`_assert_no_group_leakage`) runs on every split build and raises if any
+   `dup_group_id` ever spans more than one split — it passed. Persisted as
+   canonical `data/splits/split_assignments.csv` (`example_id -> split`)
+   plus materialized `train.csv`/`dev.csv`/`test.csv` under `data/splits/`,
+   all reproducibly regenerated by `make_splits.py` from the canonical
+   dataset + a fixed seed — nothing is hand-edited.
+
+### Random seeds
+
+Global default seed for this project: **`42`** (dataset split, few-shot
+example sampling, classical-baseline model, fine-tuning). Recorded per
+experiment in the registry below; if an experiment deliberately uses a
+different seed, that will be called out explicitly.
+
+---
+
+## Environment Audit (2026-08-11)
+
+| Item | Finding |
+|---|---|
+| Python | 3.10.6 (`.venv`, already set up) |
+| OS / machine | macOS (Darwin), Apple Silicon |
+| GPU | **No CUDA GPU.** `torch.cuda.is_available() == False`. `torch.backends.mps.is_available() == True` (Apple MPS backend available) — this is a laptop, not a dedicated GPU compute machine. |
+| Disk space | **11 GiB free of 228 GiB (95% used)** — tight. Flagged as a risk for Stage B model downloads (see Blockers). |
+| `torch` | 2.2.2 installed |
+| `transformers` | installed, pinned `<5.0.0` (per `requirements.txt` comment: 5.x needs `torch>=2.4`) |
+| `scikit-learn` | 1.7.2 installed (supports `StratifiedGroupKFold`, used for grouped splitting) |
+| `pandas`, `numpy`, `scipy`, `nltk`, `rouge_score` | installed |
+| Hugging Face cache (`~/.cache/huggingface`) | **empty** — no model weights downloaded yet in this environment |
+| `dspy` / `dspy-ai` | **not installed** |
+| `sentence-transformers` | **not installed** (needed only for the optional embedding baseline, Section 12) |
+| `accelerate`, `datasets`, `peft` | **not installed** (useful/likely-needed for Transformer fine-tuning) |
+| `pyyaml` | not installed (planned for config files — will use JSON instead to avoid a new dependency, or add `pyyaml` — see Stage A readiness report) |
+| `.env` | file exists, but `OPENROUTER_API_KEY` and `GEMINI_API_KEY` are both **present as keys with empty values** (not even the placeholder text — truly blank) |
+
+---
+
+## Blockers
+
+### BLOCKER-1: No usable LLM API credentials
+
+**What failed:** `OPENROUTER_API_KEY` and `GEMINI_API_KEY` in `.env` are
+empty strings.
+**What was investigated:** loaded `.env` with `python-dotenv` and checked
+both variables directly; confirmed empty (not placeholder text, not
+missing file — the file exists and the keys are declared but blank).
+**Scope:** blocks *execution* of M2 (LLM zero-shot), M3 (few-shot), M4
+(structured reasoning), and M5 (DSPy, which also calls an LLM). Does **not**
+block writing/implementing that code, and does not block M1 (classical) or
+implementing (not running) M6 (transformer fine-tuning).
+**Recommended fix:** add a real `OPENROUTER_API_KEY` (and optionally
+`GEMINI_API_KEY`) to `.env`, matching the existing pattern already used by
+`src/generation/generate_with_openrouter.py` etc.
+**Status:** open. Continuing with all Stage A work that doesn't require a
+real key (code, prompts, configs, smoke-test scaffolding with mocked
+clients — matching this repo's own established testing convention).
+
+### BLOCKER-2 (soft): Disk space is tight for model downloads
+
+**What was found:** `df -h` shows 11 GiB free of 228 GiB (95% used).
+**Scope:** does not block Stage A (no downloads planned). Would block or
+risk failing Stage B if multiple encoder checkpoints (RoBERTa-base ~500 MB,
+DeBERTa-v3-base ~700 MB, plus tokenizer/cache overhead, plus `pip install`
+of `torch`'s CUDA-less wheel is already present) are downloaded without
+first freeing space.
+**Recommended fix:** confirm available disk before Stage B, and download
+one encoder checkpoint at a time rather than pre-fetching several.
+**Status:** open, non-blocking for Stage A.
+
+### BLOCKER-3 (soft): No GPU in this environment
+
+**What was found:** `torch.cuda.is_available() == False`; only Apple MPS
+is available.
+**Scope:** does not block Stage A (no training planned yet). For Stage B,
+fine-tuning a BERT-class encoder on ~9.4k short English sentences is
+feasible on MPS or even CPU (small dataset, short sequences) but will be
+slower than a CUDA GPU — expect fine-tuning runtimes in the tens of minutes
+per encoder on MPS, not seconds. Not a correctness blocker, only a
+runtime-budget consideration.
+**Recommended fix:** none required; MPS is usable. If a real CUDA machine
+becomes available later, prefer it for speed, but MPS is sufficient to
+produce valid results.
+**Status:** open, non-blocking, informational.
+
+### BLOCKER-4: No verified access yet to the actual Stage B compute machine
+
+**What was found:** the user specified the Stage B machine as an Azure
+`Standard_NV24s_v3` VM (Tesla M60 GPUs, Maxwell architecture, CUDA compute
+capability 5.2 -- no BF16, no FlashAttention2, not compatible with modern
+vLLM which needs compute capability >= 7.0). This session runs locally on
+macOS (see Environment Audit) and has no direct connection to that VM.
+**What was investigated:** found an `azure_vm_key` SSH key and a known
+host (`sweng-group-05.eastus.cloudapp.azure.com`) already present on this
+machine and tried connecting with 5 common usernames
+(`azureuser`/`ubuntu`/`adminuser`/`aya`/`ayagrab`); all attempts timed out
+at the network level (not an auth rejection -- consistent with the VM
+being stopped/deallocated or a firewall blocking this machine's IP).
+**The user confirmed this host is unrelated to the target NV24s_v3 VM** --
+disregard it entirely; it was a false lead, not evidence about the actual
+Stage B machine's state.
+**Scope:** blocks running `scripts/verify_gpu.py` for real, and therefore
+blocks any local-LLM (Qwen3-4B) inference. Does not block anything else --
+all code below is implemented and unit-tested with mocks/guards, matching
+the Stage A discipline of "implement, don't execute until verified/unblocked."
+**Recommended fix:** user to either (a) start the VM and share reachable
+SSH details, (b) run `python scripts/verify_gpu.py` on the VM themselves
+and share the output/report, or (c) grant this session direct access.
+**Status:** open.
+
+---
+
+## Experiment Registry
+
+### EXP-001 — Classical baseline: TF-IDF + Logistic Regression — **EVALUATED**
+
+- **Date:** 2026-08-11
+- **Approach:** M1, classical ML baseline (Section 6 of the task)
+- **Code:** `src/classification/classical/tfidf_baseline.py`
+- **Data:** canonical split (`data/splits/`), seed 42, train=6,706 / dev=1,340 / test=1,340
+- **Configuration selection (on DEV only, test never touched):** a small
+  6-way sweep, `classifier ∈ {logreg, linear_svm}` × `tfidf_variant ∈
+  {word_1_2 (word 1-2gram), char_3_5 (char 3-5gram), word_char_combo
+  (FeatureUnion of both)}`, `TfidfVectorizer(min_df=2, max_features=50000)`
+  for both variants, `LogisticRegression(max_iter=2000)` /
+  `LinearSVC()`, both with `random_state=42`. Run inline via
+  `run_tfidf_experiment(..., save_artifacts=False)` for the sweep only
+  (dev results below are logged here, not persisted as separate result
+  directories — this is a config-selection step, not a reportable
+  experiment in its own right).
+
+  | Sweep run | classifier | tfidf_variant | dev accuracy | dev macro F1 | dev sarcastic F1 |
+  |---|---|---|---:|---:|---:|
+  | 1 | logreg | word_1_2 | 0.7463 | 0.7462 | 0.7436 |
+  | 2 | logreg | char_3_5 | 0.7470 | 0.7470 | 0.7453 |
+  | 3 | logreg | word_char_combo | **0.7530** | **0.7529** | 0.7491 |
+  | 4 | linear_svm | word_1_2 | 0.7410 | 0.7409 | 0.7353 |
+  | 5 | linear_svm | char_3_5 | 0.7276 | 0.7276 | 0.7249 |
+  | 6 | linear_svm | word_char_combo | 0.7261 | 0.7260 | 0.7192 |
+
+  Winner by dev macro F1: **`logreg` + `word_char_combo`**. This
+  configuration was then frozen and evaluated once, for the first and only
+  time, on TEST.
+
+- **Frozen final evaluation (TEST, run once):**
+  `python -m src.classification.classical.tfidf_baseline --experiment-id EXP-001 --classifier logreg --tfidf-variant word_char_combo --eval-split test`
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.7403 |
+  | Macro F1 | 0.7403 |
+  | Weighted F1 | 0.7403 |
+  | Sarcastic Precision / Recall / F1 | 0.7245 / 0.7576 / 0.7407 |
+  | Not-sarcastic Precision / Recall / F1 | 0.7569 / 0.7237 / 0.7399 |
+  | Confusion matrix (rows=gold, cols=pred, order [not_sarcastic, sarcastic]) | `[[495, 189], [159, 497]]` |
+
+- **Runtime:** a few seconds total (fit + predict on ~9.4k short texts);
+  not separately measured/recorded (negligible, no GPU needed).
+- **Cost:** $0 (no API calls).
+- **Artifacts:** `results/EXP-001/{config.json, metrics.json, predictions.csv}`
+- **Observations:** dev and test macro F1 are close (0.753 vs. 0.740, ~1.3
+  points), suggesting no meaningful overfitting to the dev-based
+  configuration choice. The word+char TF-IDF combination beat either
+  n-gram type alone for `logreg`, but consistently hurt `linear_svm` — not
+  investigated further per "do not over-tune" instruction. Errors are
+  fairly symmetric between false positives (189) and false negatives
+  (159), no strong bias toward either class.
+- **Errors/unexpected behavior:** none.
+- **Conclusion:** credible, reproducible classical baseline established:
+  **Macro F1 ≈ 0.740 / Accuracy ≈ 0.740 on the frozen test set.** This is
+  the number every other approach (M2-M6) needs to beat to be worth its
+  added cost/complexity.
+- **Repeat?** No — frozen and valid. Only re-run if the canonical dataset
+  or split changes.
+
+---
+
+### EXP-002 through EXP-005 — LLM zero-shot / few-shot / reasoning — **IMPLEMENTED, SMOKE-TESTED** (not evaluated)
+
+- **Code:** `src/classification/llm/` (`client.py`, `schema.py`,
+  `few_shot_selection.py`, `run_llm_classification.py`), prompts
+  `prompts/classification/{zero_shot,few_shot,reasoning}_v1.txt`, configs
+  `configs/llm_{zero_shot,few_shot_random_8,few_shot_curated_8,reasoning}.json`.
+- **What "SMOKE-TESTED" means here:** the full pipeline (dataset loading →
+  prompt building → structured-output parsing/validation → few-shot
+  selection with recorded example IDs → evaluator → artifact saving →
+  config-driven dispatch via `run_experiment.py`) was exercised end to end
+  with a **mocked** OpenRouter client (deterministic fake responses, no
+  network call), both directly and through the JSON-config dispatcher.
+  This matches this repository's existing convention for validating
+  API-backed code without spending real API budget (see
+  `tests/test_evaluate_with_llm_mocked.py` for the precedent). 12 unit
+  tests cover retry-then-succeed, retry-then-raise on an invalid label,
+  disk caching, and that few-shot demonstrations are drawn only from TRAIN
+  (`tests/test_classification_llm_mocked.py`, `test_classification_llm_schema.py`).
+- **NOT executed against a real model.** `OPENROUTER_API_KEY` is empty
+  (BLOCKER-1). No `EX2-005` metrics exist yet -- do not treat any number
+  as measured until this entry is updated with a real run.
+- **Planned configs (ready to run once unblocked):**
+  - EXP-002: zero-shot, `openai/gpt-oss-20b:free`, dev split
+  - EXP-003: few-shot (random, n=8), same model, dev split
+  - EXP-004: few-shot (curated, n=8), same model, dev split
+  - EXP-005: structured reasoning, same model, dev split
+  - (a 5th, TEST-split run of the winning configuration would follow,
+    frozen, after dev-based comparison -- not yet assigned an ID)
+- **Conclusion:** infrastructure ready; base model choice
+  (`openai/gpt-oss-20b:free`, already used as the judge model elsewhere in
+  this repo) shared across all four configs so the comparison isolates
+  prompting technique. **Repeat?** N/A — nothing has run yet.
+
+### EXP-006 through EXP-008 — DSPy Predict / BootstrapFewShot / MIPROv2 — **IMPLEMENTED** (not evaluated, not smoke-tested against a real LM)
+
+- **Code:** `src/classification/dspy_pipeline/` (`signatures.py`,
+  `run_dspy.py`), configs `configs/dspy_{predict,bootstrap_few_shot,mipro_v2}.json`.
+- **Status detail:** `dspy` is **not installed** in this environment (see
+  Environment Audit), so this could only be statically reviewed, not
+  smoke-tested with a mocked LM the way the manual-prompt LLM code was.
+  The module is written so it stays importable without `dspy` present
+  (`HAS_DSPY` guard, lazy `import dspy` inside functions) and fails with a
+  clear `RuntimeError` (not a crash) if invoked before the dependency is
+  installed -- verified directly (`signatures.HAS_DSPY == False`,
+  `run_dspy._require_dspy()` raises the expected message).
+- **Known risk to flag explicitly:** the exact `dspy.LM(...)` call shape
+  used for OpenRouter (`f"openrouter/{model}"` + `api_base`) is written to
+  the best of current knowledge of dspy's litellm-backed `LM` interface,
+  but **has not been validated against a real dspy install** -- treat it
+  as "best effort, verify in Stage B," not as confirmed-working code. If
+  it needs adjustment once `dspy` is installed, that's expected and should
+  be a quick fix, not a sign of a deeper design problem.
+- **Conclusion:** infrastructure ready pending `pip install dspy` +
+  `OPENROUTER_API_KEY`; the exact LM wiring should be smoke-tested with
+  `--limit`-style small runs (once implemented/exposed) before any real
+  optimizer run. **Repeat?** N/A — nothing has run yet.
+
+### EXP-009 / EXP-010 — Fine-tuned Transformer (RoBERTa-base / DeBERTa-v3-base) — **IMPLEMENTED** (not evaluated, not smoke-tested with a real checkpoint)
+
+- **Code:** `src/classification/transformer/finetune.py`, configs
+  `configs/transformer_{roberta_base,deberta_v3_base}.json`.
+- **Status detail:** uses `transformers.Trainer` with early stopping on
+  dev Macro F1, a custom `torch.utils.data.Dataset` (no `datasets` package
+  dependency), device auto-selection (`cuda` > `mps` > `cpu` -- resolves
+  to `mps` in this environment), and per-example confidence via softmax.
+  Verified importable and that `TransformerConfig`/`select_device()` work
+  without downloading anything. **Not smoke-tested with a real checkpoint
+  forward pass** -- no model weights have been downloaded in this
+  environment (Stage A rule: no large downloads without explicit
+  go-ahead), and `accelerate` (required by `Trainer` in the installed
+  `transformers` version) is not yet installed either.
+- **Conclusion:** infrastructure ready; recommended first checkpoint is
+  `roberta-base` (see readiness report below for why). **Repeat?** N/A —
+  nothing has run yet.
+
+---
+
+## Stage A Readiness Report (2026-08-11)
+
+Stage A (infrastructure) is complete. Per the task's instructions, the
+expensive full model runs (Stage B) are **not** starting automatically.
+This is the status report to act on before proceeding.
+
+### Infrastructure status
+
+| Component | Status | Notes |
+|---|---|---|
+| Dataset loader (`build_canonical_dataset.py`) | **READY** | Run for real; 9,386 rows, output in `data/processed/sarcasm_v2_canonical.csv` |
+| Dataset validation (`audit_dataset.py`) | **READY** | Run for real; report in `data/processed/sarcasm_v2_audit_report.json` |
+| Canonical split (`make_splits.py`) | **READY** | Run for real; grouped + leakage-checked; `data/splits/` |
+| Evaluation framework (`evaluation/metrics.py`, `io.py`) | **READY** | Used by EXP-001; unit-tested |
+| TF-IDF classical baseline | **READY — EVALUATED** | EXP-001 done, Macro F1 0.740 on frozen test |
+| LLM zero-shot | **READY, blocked on credentials** | Implemented + mock-smoke-tested; needs `OPENROUTER_API_KEY` |
+| LLM few-shot | **READY, blocked on credentials** | Same as above; both random + curated selectors implemented |
+| LLM reasoning | **READY, blocked on credentials** | Same as above |
+| DSPy | **PARTIALLY READY** | Code written, `HAS_DSPY`-guarded, fails clearly if invoked; needs `pip install dspy` + credentials; OpenRouter `dspy.LM` wiring unverified against a real install |
+| Transformer fine-tuning | **PARTIALLY READY** | Code written and structurally verified (device selection, dataset wrapping); needs `accelerate` install + a checkpoint download; no download attempted per Stage A rule |
+| Experiment logging (`EXPERIMENT_LOG.md`) | **READY** | This document |
+| Result persistence (`results/<experiment_id>/`) | **READY** | Used by EXP-001; schema fixed (`config.json`, `metrics.json`, `predictions.csv`) |
+| Reproduction commands | **READY** | See `PROJECT_SUMMARY.md` §13 and per-config commands below |
+
+### Required environment for Stage B
+
+- **Python:** 3.10.6, existing `.venv` — no version change needed.
+- **New packages** (`pip install -r requirements-classification.txt`):
+  `dspy>=2.5.0`, `accelerate>=0.26.0`, and optionally
+  `sentence-transformers>=3.0.0` (only if the optional embedding baseline,
+  Section 12, is added later).
+- **CUDA:** not available, not required — MPS (Apple Silicon) is
+  available and sufficient for fine-tuning this dataset's size; expect
+  fine-tuning runtimes of tens of minutes per encoder rather than seconds.
+- **Disk space:** currently 11 GiB free of 228 GiB (95% used). A
+  `roberta-base` checkpoint is ~500 MB; `deberta-v3-base` is ~700 MB.
+  Recommend freeing disk before Stage B if both encoders will be
+  downloaded, and downloading one at a time rather than pre-fetching both.
+- **API keys:** `OPENROUTER_API_KEY` in `.env` is currently **empty** —
+  required for every LLM-based approach (M2–M5). `GEMINI_API_KEY` is also
+  empty but not required by this phase (the classification pipeline only
+  uses OpenRouter, matching the existing judge-model convention).
+- **Hugging Face auth:** not required — `roberta-base` and
+  `microsoft/deberta-v3-base` are public checkpoints, no gated-model
+  approval needed.
+
+### Model download plan
+
+1. **`roberta-base`** first (EXP-009 config already prepared,
+   `configs/transformer_roberta_base.json`) — a well-established, fully
+   public, English-general-domain encoder with strong track record on
+   short informal text classification, ~500 MB, minimal risk.
+2. **`microsoft/deberta-v3-base`** second (EXP-010,
+   `configs/transformer_deberta_v3_base.json`), if EXP-009 succeeds and
+   disk space allows — DeBERTa-v3's disentangled attention has shown
+   consistent gains over RoBERTa on GLUE-style classification, making it a
+   meaningfully different second data point rather than a redundant one.
+3. Do not download both before confirming EXP-009 completes successfully
+   end to end (smoke test with `--limit`-equivalent on a tiny slice first
+   — not currently exposed as a CLI flag on `finetune.py`; add
+   `train_df.sample(n=...)`/`--limit` support before the first real run if
+   a fast sanity check is wanted).
+
+### Exact launch instructions (once Stage B is confirmed)
+
+```bash
+# 1. Install the extra dependencies
+pip install -r requirements.txt -r requirements-classification.txt
+
+# 2. Add a real OPENROUTER_API_KEY to .env
+
+# 3. Smoke test LLM zero-shot on a tiny slice (recommended before any full run)
+python -m src.classification.llm.run_llm_classification \
+    --experiment-id SMOKE-zero-shot --mode zero_shot --eval-split dev \
+    --model openai/gpt-oss-20b:free --limit 20
+
+# 4. Run the dev-split LLM experiments (M2-M4), in order, via the shared config files
+python -m src.classification.run_experiment --config configs/llm_zero_shot.json
+python -m src.classification.run_experiment --config configs/llm_few_shot_random_8.json
+python -m src.classification.run_experiment --config configs/llm_few_shot_curated_8.json
+python -m src.classification.run_experiment --config configs/llm_reasoning.json
+
+# 5. DSPy (M5) -- Predict first, then the two optimizers
+python -m src.classification.run_experiment --config configs/dspy_predict.json
+python -m src.classification.run_experiment --config configs/dspy_bootstrap_few_shot.json
+python -m src.classification.run_experiment --config configs/dspy_mipro_v2.json
+
+# 6. Transformer fine-tuning (M6) -- one checkpoint at a time
+python -m src.classification.run_experiment --config configs/transformer_roberta_base.json
+python -m src.classification.run_experiment --config configs/transformer_deberta_v3_base.json
+
+# 7. After each step: update EXPERIMENT_LOG.md with real metrics, then
+#    decide the winning dev configuration for that approach before ever
+#    touching --eval-split test.
+```
+
+After every approach's dev-based configuration is frozen, re-run its
+config once with `"eval_split": "test"` (a copied config with a new
+`experiment_id`, e.g. `EXP-002-test`) for the final, one-shot,
+frozen-configuration comparison in `PROJECT_SUMMARY.md`'s results table.
+
+---
+
+## Stage B — Compute Machine (2026-08-11)
+
+**Target machine (as specified by the user):** Azure `Standard_NV24s_v3`
+-- 24 vCPUs, 224 GiB RAM, NVIDIA Tesla M60 GPUs (NVv3 family). **Not yet
+reachable from this session** -- see BLOCKER-4.
+
+**Why the M60 changes the LLM runtime plan:** Tesla M60 is a Maxwell-generation
+GPU, CUDA compute capability 5.2. Per the user's explicit instruction and
+independently consistent with Maxwell's known limits:
+- **No bfloat16** (needs Ampere+, compute capability >= 8.0) -- must use
+  float16 or float32.
+- **No FlashAttention 2** (needs Ampere+) -- must use
+  `attn_implementation="eager"` (or `"sdpa"`, unverified on this
+  architecture; `"eager"` is the safe default).
+- **Not compatible with modern vLLM** (needs compute capability >= 7.0) --
+  use plain `transformers` generation instead, not vLLM.
+
+**Preferred local model:** `Qwen/Qwen3-4B-Instruct-2507` (~4B params; ~8 GB
+in float16, which should fit in one M60's VRAM once GPU count/VRAM-per-GPU
+is confirmed by `verify_gpu.py` -- NOT yet confirmed).
+
+### What was built this session (implemented, NOT executed)
+
+1. **`scripts/verify_gpu.py`** -- the mandatory Stage B gate. Runs
+   `nvidia-smi`, records exact GPU count/model/VRAM/driver version, checks
+   `torch.cuda` compute capability against BF16/FlashAttention2/vLLM
+   feature requirements, writes `data/processed/gpu_verification_report.json`,
+   and exits non-zero if no CUDA GPU is visible. **Must be run first, for
+   real, on the actual VM, before any model download** -- not yet done
+   (BLOCKER-4). Sanity-checked on this Mac (correctly reports no CUDA and
+   exits 1; the local-Mac report was deleted afterward, not committed, to
+   avoid it being mistaken for real VM data).
+2. **`src/classification/llm/local_client.py`** -- `LocalHFClient`, a
+   local Hugging Face Transformers inference client shaped like the
+   OpenAI/OpenRouter client (`.chat.completions.create(...)`) so the
+   existing zero-shot/few-shot/reasoning pipeline
+   (`run_llm_classification.py`) works unchanged against a local model --
+   only `provider="local_hf"` needs to be selected. Defaults: `float16`,
+   `attn_implementation="eager"`, `device_map="auto"`. Hard-rejects
+   `bfloat16` and `flash_attention_2` at construction time (`ValueError`,
+   before any download/load attempt), and hard-rejects loading with no
+   CUDA GPU visible (`RuntimeError`, pointing at `verify_gpu.py`). 5 unit
+   tests cover these guards (`tests/test_classification_local_llm_client.py`)
+   -- no model download, no GPU needed to verify the guards themselves.
+3. **`src/classification/llm/client.py`** -- extended `get_llm_client()`
+   with a `provider` parameter (`"openrouter"` default, or `"local_hf"`).
+4. **`src/classification/llm/run_llm_classification.py`** -- added a
+   `provider` parameter/`--provider` CLI flag, threaded through to
+   `get_llm_client`; forces `concurrency=1` when `provider="local_hf"`
+   (one shared GPU model instance is not safe to fan out across threads,
+   unlike independent OpenRouter HTTP calls).
+5. **`configs/llm_zero_shot_qwen_local.json`** -- ready-to-run config
+   (`EXP-002-local`), explicitly noting in its `_note` field that it must
+   not be run until `verify_gpu.py` passes, and to smoke-test with
+   `--limit 10-20` first given unknown/likely-slow generation latency on
+   an M60 (no tensor cores).
+
+### Explicitly NOT done yet (correct terminology, per task rules)
+
+- `nvidia-smi` has **not** been run on the real target VM.
+- GPU count, exact GPU model/VRAM, driver version, and CUDA environment
+  are **not yet recorded** for the real VM -- only the user-provided specs
+  (Tesla M60, NV24s_v3) are on record above, which are being *trusted as
+  configuration input* (what to build for) but not yet *independently
+  verified* (what's actually there).
+- `Qwen/Qwen3-4B-Instruct-2507` has **not** been downloaded anywhere.
+- No smoke test, no full inference run, no LLM/DSPy experiment has
+  executed on this or any GPU machine.
+
+### Next step
+
+Blocked on BLOCKER-4 (VM access). Once resolved: run
+`python scripts/verify_gpu.py` on the VM, paste/record its output here
+verbatim (exact GPU count, model, VRAM, driver version, compute
+capability), and only then proceed to
+`pip install -r requirements.txt -r requirements-classification.txt` +
+a small `--limit`-bounded smoke test of `configs/llm_zero_shot_qwen_local.json`.
+
+---
+
+## Stage B — Update (2026-08-11, later same day)
+
+### BLOCKER-2 / BLOCKER-3: recharacterized, resolved on the Azure VM only
+
+**Distinguish environments precisely, per instruction:**
+- **Local Mac environment** (this session's shell, `hostname` = `Mac.lan`):
+  BLOCKER-2 (`dspy`/`accelerate` not installed) and BLOCKER-3 (no CUDA
+  GPU) **remain true and unresolved here** -- nothing changed about this
+  machine.
+- **Azure Stage B VM** (`dpmlgpuNC6sv32025s-0003`, per the user's manual
+  verification, not yet independently confirmed by this session -- see
+  BLOCKER-4b below): user reports `dspy` imports successfully,
+  `accelerate`/`sentencepiece`/`protobuf` are installed, `torch==2.5.1+cu118`
+  with `torch.cuda.is_available() == True` and `torch.cuda.device_count() == 2`,
+  a real CUDA matmul executed on `cuda:0`, and `Qwen/Qwen3-4B-Instruct-2507`
+  was downloaded, loaded across both GPUs, and used for real inference
+  (single-sentence and multi-sentence smoke tests). **On that specific
+  machine**, BLOCKER-2 and BLOCKER-3 are resolved. This is recorded as
+  reported by the user, not yet re-verified independently by this session
+  -- see BLOCKER-4b for why, and the plan to re-verify via
+  `scripts/verify_gpu.py` once this session can reach the VM.
+
+**Verified VM hardware/software facts (as reported by the user, to be
+independently re-confirmed via `scripts/verify_gpu.py` once SSH access
+works):**
+
+| Field | Value |
+|---|---|
+| VM size | Standard_NV24s_v3 |
+| Hostname | `dpmlgpuNC6sv32025s-0003` |
+| OS | Ubuntu 22.04.5 LTS, kernel 6.8.0-1029-azure |
+| vCPUs / RAM | 24 / ~220 GiB usable |
+| Storage | `/mnt` ~1.5 TB (~1.4 TB free), `/datashare` (Azure-mounted shared FS) |
+| GPUs | 2x NVIDIA Tesla M60, ~7.93 GiB VRAM each |
+| Compute capability | 5.2 (Maxwell) -- matches the assumption `local_client.py` was already written for |
+| Driver | 535.230.02 |
+| `nvidia-smi`-reported CUDA compatibility | 12.2 |
+| Working PyTorch CUDA runtime | 11.8 (`torch==2.5.1+cu118`) -- intentionally different from the driver's reported max; not to be "fixed" by upgrading |
+| Python env | `/mnt/vmadmin/sarcasm-env` (Python 3.10.11) |
+| `HF_HOME` | `/mnt/vmadmin/huggingface` (~7.6 GB used after Qwen download) |
+| Installed | torch 2.5.1+cu118, transformers 5.15.0, datasets 5.0.1, sklearn 1.7.2, pandas 2.3.3, dspy, accelerate, sentencepiece, protobuf |
+
+**Verified Qwen loading config (as reported by the user):**
+```python
+AutoModelForCausalLM.from_pretrained(
+    "Qwen/Qwen3-4B-Instruct-2507", dtype=torch.float16, device_map="auto",
+    max_memory={0: "7GiB", 1: "7GiB", "cpu": "180GiB"}, low_cpu_mem_usage=True,
+)
+```
+Device map observed: GPU 0 = embedding + LM head + layers 0-15 (~3.73 GiB);
+GPU 1 = layers 16-35 + final norm/rotary (~3.76 GiB). Single-sentence
+inference ("Oh fantastic, my flight has been delayed again." -> "sarcastic")
+took ~0.934s; peak memory ~3.75/3.78 GiB across the two GPUs.
+
+**Action taken on `src/classification/llm/local_client.py`:** updated to
+match the user's verified-working Qwen loading call exactly:
+- `torch_dtype=torch_dtype` -> `dtype=torch_dtype` (the deprecated kwarg
+  name was in use; switched to the modern one, matching `transformers==5.15.0`
+  on the VM).
+- Added `max_memory` (defaults to `{0: "7GiB", 1: "7GiB", "cpu": "180GiB"}`
+  for a `device_map="auto"` load, matching the VM's verified config
+  exactly -- generalized to `{i: "7GiB" for i in range(device_count)}` so
+  it still makes sense if GPU count ever differs) and `low_cpu_mem_usage=True`.
+- 5 existing guard-rail unit tests (bfloat16/FlashAttention2/no-CUDA
+  rejection) still pass -- none of them reach the `from_pretrained` call,
+  so this change was safe to make without GPU access.
+Not yet tested against the real environment end-to-end (that needs
+BLOCKER-4b resolved first), but the loading call now exactly mirrors what
+the user already confirmed works.
+
+**Action taken on `scripts/verify_gpu.py`:** confirmed the script's exit
+code was already gated ONLY on CUDA-GPU-visibility (never on BF16/
+FlashAttention2/vLLM support) -- so it was not actually rejecting M60
+hardware. Refactored anyway for clarity per the user's instruction:
+verdict lines are now explicitly labeled `REQUIRED` (the only one that can
+fail: a CUDA GPU must be visible to torch) vs. `INFORMATIONAL` (BF16/
+FlashAttention2/vLLM support, reported but never fatal), and the report
+now includes an explicit `fp16_transformers_pipeline_ok: true/false`
+field. Re-verified it still runs cleanly (no crash, correctly reports
+`FAIL`/exit 1) on the local Mac's no-CUDA environment.
+
+### BLOCKER-4b (NEW): This session cannot yet SSH into the VM
+
+**What failed:** `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 "hostname"`
+(the exact command the user specified) returns
+`Permission denied (publickey,password)`.
+**What was investigated:**
+- Confirmed this session's shell is the local Mac (`hostname` = `Mac.lan`), not the VM.
+- `ssh -v` shows a clean TCP connection and a clean host-key match against
+  `~/.ssh/known_hosts` (`20.245.56.28` was already a known host from a
+  prior session) -- **this is an authentication failure, not a
+  connectivity or host-key-verification failure.**
+- The only candidate private key on this machine, `~/.ssh/azure_vm_key`
+  (permissions correctly `600`), was offered and explicitly rejected by
+  the server for user `vmadmin`; no other auth method succeeded.
+- Checked for an SSH agent with other loaded identities
+  (`ssh-add -l` -> "The agent has no identities") and tried default
+  (no `-i`) auth -- also rejected.
+- This is the same key pair used in the Stage A session's earlier (also
+  failed, against a since-confirmed-unrelated host) connection attempt --
+  i.e. **there is no independent evidence this key was ever authorized on
+  `dpmlgpuNC6sv32025s-0003` specifically.**
+- Local public key / fingerprint (safe to share, not a secret):
+  `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJlvoJ2BbTuk68uAIZbTl5Da0k2mBpKwPu2jRJYT8S6J azure-vm`
+  / `SHA256:Zzrfc6NG/Kg0q+l/bp6xdRAfjmzlEksN1A15jbDyGBg`.
+**Which experiment(s) affected:** ALL of Stage B execution (Qwen smoke
+test, M2-M5, M6/DeBERTa) -- everything requiring the VM. Does not affect
+anything already completed (EXP-001) or local-only prep (this doc, the
+`verify_gpu.py` fix, `scripts/sync_to_vm.sh`).
+**Does it block other experiments:** yes, blocks all remote execution
+until resolved. No GPU-based experiment can run from this session in the
+meantime.
+**Recommended fix (one of):** (a) add the local public key above to
+`~/.ssh/authorized_keys` for `vmadmin` on the VM; (b) provide the actual
+private key (path/contents) that IS already authorized for `vmadmin`; or
+(c) since the user already has working manual access to the VM (per
+Sections 1-9), the user runs the remaining Stage B commands directly and
+reports results back for this log, using the prepared
+`scripts/sync_to_vm.sh` + the command sequence in the "Stage B Readiness
+Report" above (Section 19-21 of the handoff).
+**Independent work continued:** yes -- `scripts/verify_gpu.py` fixed and
+re-verified locally; `scripts/sync_to_vm.sh` written (rsync-based, matches
+the user's specified exclude pattern, not yet run); this log updated;
+`local_client.py`'s `dtype=`/`torch_dtype=` discrepancy flagged for
+confirmation once real execution is possible.
+**Status:** open -- reported to the user, awaiting either corrected SSH
+access or the user running the remaining steps directly.
+
+---
+
+## Stage B — Update (2026-08-11, SSH resolved, execution begins)
+
+### BLOCKER-4b: RESOLVED
+
+User added this session's public key
+(`ssh-ed25519 ...azure-vm`, `SHA256:Zzrfc6NG/Kg0q+l/bp6xdRAfjmzlEksN1A15jbDyGBg`)
+to `vmadmin`'s `~/.ssh/authorized_keys` on the VM. Independently
+re-verified from this session:
+```
+$ ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 "hostname"
+dpmlgpuNC6sv32025s-0003
+$ ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 'nvidia-smi --query-gpu=name,memory.total --format=csv,noheader'
+Tesla M60, 8192 MiB
+Tesla M60, 8192 MiB
+```
+Both match exactly what was expected. **BLOCKER-2 and BLOCKER-3 are now
+also independently confirmed resolved on the Azure VM** (still open/true
+on the local Mac -- unchanged, see original entries).
+
+### Remote environment -- independently verified (not just user-reported)
+
+```
+hostname: dpmlgpuNC6sv32025s-0003
+python: 3.10.11
+torch: 2.5.1+cu118, CUDA available: True, GPU count: 2
+transformers: 5.15.0
+datasets: 5.0.1
+sklearn: 1.7.2
+pandas: 2.3.3
+dspy: 3.3.0
+accelerate: 1.14.0
+sentencepiece: importable
+HF cache: /mnt/vmadmin/huggingface, 9.6G, Qwen3-4B-Instruct-2507 present
+data/splits/dev.csv: 1340 rows, columns [example_id, category, source_file, raw_id, text, label, dup_group_id, label_conflict] -- matches Stage A exactly
+```
+
+Full snapshot saved to `environment_stage_b.txt` (repo root, both on the
+VM and copied back to the local Mac) per the reproducibility requirement:
+`hostname`, `python --version`, `nvidia-smi`, `pip freeze` (148 lines, no
+secrets -- checked).
+
+### Repository sync
+
+Remote `/mnt/vmadmin/projects/` was empty before sync (nothing to
+preserve). Ran `scripts/sync_to_vm.sh` (rsync, `.git`/`__pycache__`/
+`.venv`/`models`/`checkpoints`/`results`/`.pytest_cache`/`data/llm_cache`
+excluded, matching the given pattern) -> `/mnt/vmadmin/projects/sarcasm/`.
+Verified post-sync: canonical dataset, splits, configs, and raw corpus
+files all present and intact. `results/` (just EXP-001, small) was
+intentionally excluded -- reproducible on the VM if ever needed by
+re-running `configs/tfidf.json`.
+
+### `scripts/verify_gpu.py` -- run for real on the VM
+
+```
+fp16_transformers_pipeline_ok: True
+2x Tesla M60, 8.52 GB each (torch-reported), compute capability 5.2
+driver 535.230.02, nvidia-smi CUDA 12.2, torch CUDA runtime 11.8
+```
+All three INFORMATIONAL lines (BF16/FlashAttention2/vLLM) correctly report
+"does NOT support" without failing the script -- confirms the earlier fix
+(§ previous entry) behaves as intended on the real hardware, not just in
+the local no-CUDA sanity check. Full JSON report at
+`data/processed/gpu_verification_report.json` on the VM.
+
+### Repository-level Qwen smoke test -- **SMOKE-TESTED** (production code path, real GPU, real model)
+
+- **Command:** `python -m src.classification.llm.run_llm_classification --experiment-id SMOKE-qwen-zero-shot --mode zero_shot --eval-split dev --model Qwen/Qwen3-4B-Instruct-2507 --provider local_hf --limit 20 --concurrency 1`
+- **Result:** model loaded in ~2s (already cached, no download), 20
+  DEV examples classified in ~36s (~1.8s/example, deterministic
+  `do_sample=False` since `temperature=0.0`), zero label-parsing failures
+  (every response parsed to a valid `{sarcastic, not_sarcastic}` on the
+  first attempt, no retries triggered), `results/SMOKE-qwen-zero-shot/`
+  written with all three expected artifacts. Confirms: dataset loading,
+  prompt construction, `local_hf` client (model load + generation across
+  both GPUs), label parsing, prediction persistence, and the evaluator all
+  work through the real production code path -- not a mock.
+- **Accuracy note (not a real signal, explained so nobody misreads it
+  later):** the reported accuracy (0.25, macro F1 0.20) is an artifact of
+  `--limit 20` taking the first 20 rows of `dev.csv`, which is **not
+  shuffled** (`make_splits.py` preserves the canonical dataset's original
+  row order within each split). The first 20 dev rows happen to be almost
+  entirely `not_sarcastic` (verified: `GEN-9, GEN-13, GEN-28, ...` are
+  consecutive early rows in the raw GEN file, which is not label-balanced
+  locally). This is a **smoke-test sampling artifact, not a measurement**
+  -- the full-DEV run (next) uses all 1,340 rows and isn't affected.
+- **Runtime environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (this
+  is explicitly recorded on every experiment from here on, per the
+  "local Mac vs. Azure VM" distinction rule).
+- **Conclusion:** pipeline verified end-to-end on real hardware/model.
+  Proceeding to the full M2 DEV run.
+
+### Methodology correction: TEST-sealing policy (2026-08-11)
+
+The initial Stage B plan had each method (M2, M3, ...) evaluate TEST
+immediately after its own DEV run, reasoning that a single fixed
+zero-shot config has "nothing to tune." **Corrected before any TEST
+evaluation actually happened** (EXP-002's TEST run had not yet been
+launched): per explicit instruction, TEST stays completely sealed until
+**every** method (M2-M6) has finished its DEV-only development and had a
+configuration frozen. Rationale: even without per-method hyperparameter
+tuning, *cross-method* comparisons and any judgment calls made while
+methods are still being developed (e.g. deciding a prompt looks "good
+enough," or debugging a parsing issue after seeing a low score) are a form
+of indirect tuning if TEST is visible during that process. Sealing TEST
+entirely until every method is frozen removes that risk. **No previous
+experiment is affected** -- EXP-001 (TF-IDF) was already TEST-evaluated
+correctly (frozen on DEV first, per Stage A); EXP-002 had not yet reached
+its TEST step. Full plan: see `STAGE_B_CHECKLIST.md`'s "PHASE 1 / PHASE 2"
+split.
+
+### EXP-002 — Qwen3-4B zero-shot — **DEV-EVALUATED** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-11. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (NOT the local Mac).
+- **Command:** `python -m src.classification.run_experiment --config configs/llm_zero_shot_qwen_local.json`
+- **Config:** `provider=local_hf`, `model=Qwen/Qwen3-4B-Instruct-2507`, `mode=zero_shot`, `temperature=0.0` (deterministic, `do_sample=False`), prompt `classification/zero_shot_v1.txt`, `eval_split=dev`, seed 42.
+- **Runtime:** ~37 minutes wall-clock for 1,340 examples (~1.6-1.9s/example, sequential -- `local_hf` forces `concurrency=1`), plus ~2s one-time model load (already cached).
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.6440 |
+  | Macro F1 | 0.6008 |
+  | Weighted F1 | 0.6004 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.9295 / 0.3140 / 0.4694 |
+  | sarcastic: P / R / F1 (support 668) | 0.5858 / 0.9760 / 0.7322 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[211, 461], [16, 652]]` |
+
+- **Quality checks performed (per "EXPERIMENT QUALITY" policy):**
+  - `n_examples=1340` matches DEV split size exactly; `predictions.csv` has 1,340 unique `example_id`s, no duplicates, no missing rows.
+  - Gold label distribution in the output (672 not_sarcastic / 668 sarcastic) matches the canonical DEV split exactly -- confirms no split drift, no leakage, correct label mapping.
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value (guaranteed structurally: `classify_one` raises after retries on any unparseable/invalid-label response rather than letting one through, and the run completed without raising -- so zero silent parsing failures).
+  - **Flagged and investigated:** predicted-label distribution is heavily skewed -- 1,113/1,340 (83%) predicted `sarcastic` vs. the true 49.9%. Checked whether this was a bug (e.g. prompt/parsing issue, or an artifact of one category dominating): predicted-sarcastic rate is uniform across categories (GEN 81.7%, HYP 89.2%, RQ 83.9%) -- rules out a category-specific or ordering artifact. Manually read 5 false positives (gold `not_sarcastic`, predicted `sarcastic`): all are combative/rhetorical internet-debate text (creationism-vs-evolution arguments, political forum sparring, mocking rhetorical questions like "How do you know there isn't a tiger in the bathroom?") that plausibly *reads* as sarcastic/mocking in tone even though annotated as sincere argument. **Conclusion: this is genuine zero-shot model behavior on this corpus, not a pipeline bug** -- Qwen3-4B-Instruct, given only the task definition and no examples, appears biased toward calling adversarial/rhetorical debate text "sarcastic," yielding high recall on true sarcasm (0.976) at a heavy cost to specificity (0.314 recall on genuinely sincere text).
+- **Artifacts:** `results/EXP-002/{config.json, metrics.json, predictions.csv}` (on the VM; will be pulled back to the local Mac repo at the next sync).
+- **Comparison to EXP-001 (TF-IDF, TEST Macro F1 0.740):** EXP-002's DEV Macro F1 (0.601) is well below EXP-001's TEST score, though the splits being compared differ (DEV vs. TEST) so this is directional, not a rigorous head-to-head yet -- the rigorous comparison happens in Phase 2 once both are measured on the same (TEST) split. Directionally, plain zero-shot prompting is not yet beating the classical baseline on this corpus.
+- **Conclusion:** DEV-EVALUATED. Zero-shot has no real hyperparameter to tune (one fixed prompt/config), so this DEV result doubles as a strong signal for Phase 2, but **per the TEST-sealing policy, TEST is not evaluated now** -- it waits until every method (M2-M6) has a frozen DEV configuration.
+- **Repeat?** No, unless the zero-shot prompt itself is revised (not currently planned) -- this is effectively already a frozen candidate for Phase 2.
+- **Supplementary error analysis** (`results/EXP-002/analysis/dev_error_summary.json`): accuracy by category -- GEN 0.666, RQ 0.609, HYP 0.572 (HYP/hyperbole hardest, not RQ as might be expected). Predicted-sarcastic rate is uniform across categories (~82-89%), confirming the skew isn't category-specific. Incorrect predictions average 53.9 words vs. 46.7 for correct ones -- a mild signal that longer/more complex debate text is harder. Only 2 of the 22 known label-conflict rows landed in DEV (grouped splitting keeps most duplicate-text groups together, and apparently most conflict groups landed in TRAIN or TEST) -- too few to draw a conclusion from.
+
+### M3 (EXP-003/004) now running -- few-shot prompts are ~2.5x slower per example
+
+M3-random started automatically (chained script, see `run_m3_m4_chain.sh`)
+immediately after EXP-002 finished. Observed rate: **~4.3s/example** (vs.
+~1.7s/example for zero-shot) -- expected, since an 8-shot prompt is much
+longer to prefill on hardware with no tensor cores. Revised ETA for the
+M3-random -> M3-curated -> M4 chain: roughly 1.5-2 hours per full-DEV run,
+so **several hours total** for the remaining chain. This does not block
+other work (see Environment Audit / resource-management notes) -- CPU-only
+prep continues in parallel; no second GPU-heavy process will be started
+until this chain completes.
+
+### EXP-003 — Qwen3-4B few-shot (random demos) — **DEV-EVALUATED** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-11. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60.
+- **Command:** `python -m src.classification.run_experiment --config configs/llm_few_shot_random_8_qwen_local.json`
+- **Config:** `provider=local_hf`, `model=Qwen/Qwen3-4B-Instruct-2507`, `mode=few_shot`, `few_shot_variant=random`, `n_shots=8`, `temperature=0.0`, prompt `classification/few_shot_v1.txt`, `eval_split=dev`, seed 42.
+- **Demo example IDs used** (8, randomly selected, seed 42): `RQ-502, GEN-3940, GEN-437, GEN-2796, GEN-1020, RQ-1304, GEN-1888, HYP-624` -- label balance confirmed 4 `not_sarcastic` / 4 `sarcastic` (not itself skewed).
+- **Runtime:** ~1h34m wall-clock for 1,340 examples (~4.2s/example, in line with the ~4.3s/example estimate above; the longer 8-shot prompt dominates per-call latency on M60's no-tensor-core hardware).
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.6328 |
+  | Macro F1 | 0.5880 |
+  | Weighted F1 | 0.5876 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.8982 / 0.3021 / 0.4521 |
+  | sarcastic: P / R / F1 (support 668) | 0.5790 / 0.9656 / 0.7239 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[203, 469], [23, 645]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates, no missing rows, no nulls -- confirmed directly against `data/splits/dev.csv` (zero missing IDs).
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value (same structural guarantee as EXP-002 -- run completed without a parsing-retry exhaustion).
+  - **Flagged and investigated:** Macro F1 (0.588) is *lower* than EXP-002 zero-shot (0.601) -- surprising, since few-shot demonstrations are generally expected to help or at least not hurt. Checked three possible explanations:
+    1. **Demo-selection bias?** No -- the 8 random demos are label-balanced (4/4), so the model wasn't shown a skewed set.
+    2. **Category-specific artifact?** No -- predicted-sarcastic rate is uniform across categories (GEN 82.0%, HYP 91.0%, RQ 82.3%), same pattern as EXP-002's uniform skew, ruling out an ordering/category bug.
+    3. **Did few-shot actually change model behavior, or is this noise from a near-identical model?** Compared predictions directly against EXP-002 on the same DEV set: **94.25% agreement** -- the few-shot prompt barely moved the model's decisions, and where it did move them, it slightly *increased* the sarcastic-prediction skew (83% -> 83.1% predicted-sarcastic, but recall on `not_sarcastic` dropped further, 0.314 -> 0.302).
+  - **Conclusion: not a pipeline bug.** These 8 random demonstrations did not meaningfully help Qwen3-4B calibrate away from its zero-shot bias toward reading adversarial/rhetorical text as sarcastic; if anything they reinforced it slightly. This is a legitimate, if unflattering, empirical result for the random few-shot variant.
+- **Artifacts:** `results/EXP-003/{config.json, metrics.json, predictions.csv}` (on VM; to be pulled to local repo at next sync).
+- **Comparison to EXP-002:** EXP-003 (random few-shot) underperforms EXP-002 (zero-shot) on DEV Macro F1 (0.588 vs. 0.601) and Accuracy (0.633 vs. 0.644). Directionally, random-demo few-shot is not currently the better candidate between the two -- EXP-004 (curated few-shot, running next) is the remaining chance for few-shot to beat zero-shot on this corpus.
+- **TEST not touched**, per the sealing policy -- correct.
+
+### Work paused (2026-08-11, ~18:50 UTC) -- user shutting down the VM
+
+At the user's explicit request (VM being powered off, to be reconnected
+later), the currently-running EXP-004 (M3-curated) process and its
+orchestrating chain script (`run_m3_m4_chain.sh`, PID 24865) were both
+intentionally killed -- **this is a deliberate stop, not a crash.**
+
+- EXP-004 had completed **447/1340 examples (33%)** at the moment of
+  stopping (`logs/EXP-004-curated-dev.log`, last line: `447/1340
+  [27:42<51:08, 3.44s/it]`).
+- The chain script was killed *first* (before the python process) so it
+  would not misinterpret the kill as "EXP-004 finished" and auto-launch M4
+  with a stale/absent result.
+- Verified after stopping: no `run_experiment`/`run_m3_m4_chain` processes
+  remain (`ps -ef` clean), both GPUs idle (`nvidia-smi`: 0 MiB used on
+  both).
+- The per-example LLM disk cache (`data/llm_cache/`) had grown to 3,088
+  entries at the time of stopping, including the 447 EXP-004 examples
+  already computed -- these will be near-instant on resume (see
+  `STAGE_B_CHECKLIST.md`, "How to resume" section, for exact commands).
+- No results were lost: EXP-004 hadn't written `predictions.csv` yet
+  (only written at the end of a full run), so there is nothing partial to
+  clean up in `results/` -- resuming is simply "rerun the same command."

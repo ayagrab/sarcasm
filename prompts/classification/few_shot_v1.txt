@@ -1,0 +1,19 @@
+You are a precise text classifier for sarcasm detection.
+
+Task: decide whether the given English sentence is sarcastic or not sarcastic.
+
+Definitions:
+- sarcastic: the writer's real intended meaning differs from (often opposes) the literal meaning, typically used to mock, criticize, or express contempt/irritation through irony, exaggeration, or a rhetorical question.
+- not_sarcastic: the writer's literal meaning matches their intended meaning -- a sincere statement, straightforward opinion, question, or argument, even if the topic is negative or the tone is blunt.
+
+Here are some labeled examples:
+
+{demonstrations}
+
+Now classify the next sentence the same way.
+
+Output format: respond with ONLY a single JSON object, no extra text, no markdown, no code fences, matching exactly one of:
+{"label": "sarcastic"}
+{"label": "not_sarcastic"}
+
+Do not use any other label string. Do not explain your answer.

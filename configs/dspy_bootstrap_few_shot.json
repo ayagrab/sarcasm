@@ -1,0 +1,12 @@
+{
+  "approach_family": "dspy",
+  "experiment_id": "EXP-007",
+  "optimizer": "bootstrap_few_shot",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "optimizer_config": {"max_bootstrapped_demos": 4, "max_labeled_demos": 8},
+  "seed": 42,
+  "_note": "PRIMARY M5 experiment. Optimizes against TRAIN only; metric is exact label match. Compiled program persisted to results/EXP-007/compiled_program.json once run. Each candidate demo requires an LM call on this hardware -- expect real wall-clock cost, keep the demo counts modest."
+}

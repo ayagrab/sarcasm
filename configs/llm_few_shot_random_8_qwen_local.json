@@ -1,0 +1,13 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-003",
+  "mode": "few_shot",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "few_shot_variant": "random",
+  "n_shots": 8,
+  "seed": 42,
+  "_note": "PRIMARY M3 experiment (random variant). Same base model as EXP-002. Demonstration example IDs recorded in results/EXP-003/config.json once run."
+}

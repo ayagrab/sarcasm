@@ -1,0 +1,11 @@
+{
+  "approach_family": "dspy",
+  "experiment_id": "EXP-006",
+  "optimizer": "predict",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "seed": 42,
+  "_note": "PRIMARY M5 experiment: unoptimized dspy.Predict baseline, local Qwen (same base model as EXP-002), evaluated before any DSPy optimizer runs."
+}

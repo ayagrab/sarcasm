@@ -1,0 +1,12 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-003-openrouter-optional",
+  "mode": "few_shot",
+  "eval_split": "dev",
+  "model": "openai/gpt-oss-20b:free",
+  "temperature": 0.0,
+  "few_shot_variant": "random",
+  "n_shots": 8,
+  "seed": 42,
+  "_note": "OPTIONAL secondary comparison, not part of the required experiment matrix. Requires OPENROUTER_API_KEY."
+}

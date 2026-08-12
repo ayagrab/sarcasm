@@ -16,3 +16,10 @@ venv/
 
 # macOS
 .DS_Store
+
+# Classification phase: regenerable caches / large downloaded artifacts
+# (results/, data/processed/, data/splits/ ARE committed -- reproducible,
+# small, and needed so every approach evaluates the same canonical split).
+data/llm_cache/
+models/
+.pytest_cache/

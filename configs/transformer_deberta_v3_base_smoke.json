@@ -1,0 +1,21 @@
+{
+  "approach_family": "transformer",
+  "experiment_id": "SMOKE-deberta",
+  "checkpoint": "microsoft/deberta-v3-base",
+  "max_length": 128,
+  "learning_rate": 1e-5,
+  "train_batch_size": 8,
+  "eval_batch_size": 8,
+  "num_epochs": 3,
+  "warmup_ratio": 0.1,
+  "weight_decay": 0.01,
+  "seed": 42,
+  "early_stopping_patience": 3,
+  "fp16": true,
+  "use_fast_tokenizer": false,
+  "use_safetensors": true,
+  "eval_split": "dev",
+  "max_train_examples": 64,
+  "max_dev_examples": 32,
+  "_note": "Tiny overfit/smoke test (task Section 28): verify forward/backward pass, loss decreases, checkpoint saving, DEV evaluation -- before the full run (configs/transformer_deberta_v3_base.json)."
+}

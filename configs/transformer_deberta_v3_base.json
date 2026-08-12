@@ -1,0 +1,19 @@
+{
+  "approach_family": "transformer",
+  "experiment_id": "EXP-009",
+  "checkpoint": "microsoft/deberta-v3-base",
+  "max_length": 128,
+  "learning_rate": 1e-5,
+  "train_batch_size": 16,
+  "eval_batch_size": 32,
+  "num_epochs": 5,
+  "warmup_ratio": 0.1,
+  "weight_decay": 0.01,
+  "seed": 42,
+  "early_stopping_patience": 2,
+  "fp16": true,
+  "use_fast_tokenizer": false,
+  "use_safetensors": true,
+  "eval_split": "dev",
+  "_note": "PRIMARY M6 experiment (Stage B handoff): microsoft/deberta-v3-base is the primary supervised encoder checkpoint. use_fast_tokenizer=false (slow/SentencePiece tokenizer required for DeBERTa-v3). use_safetensors=true (transformers on torch>=2.5 blocks unsafe torch.load for some checkpoint formats). fp16=true to try -- validate stability on Tesla M60 via the smoke test (configs/transformer_deberta_v3_base_smoke.json) before the full run; fall back to fp16=false if unstable, and record why in EXPERIMENT_LOG.md."
+}

@@ -1,0 +1,69 @@
+{
+  "n_rows": 9386,
+  "n_missing_text": 0,
+  "n_missing_label": 0,
+  "n_example_id_duplicates": 0,
+  "label_counts": {
+    "not_sarcastic": 4693,
+    "sarcastic": 4693
+  },
+  "category_counts": {
+    "GEN": 6520,
+    "RQ": 1702,
+    "HYP": 1164
+  },
+  "category_label_counts": {
+    "GEN": {
+      "not_sarcastic": 3260,
+      "sarcastic": 3260
+    },
+    "HYP": {
+      "not_sarcastic": 582,
+      "sarcastic": 582
+    },
+    "RQ": {
+      "not_sarcastic": 851,
+      "sarcastic": 851
+    }
+  },
+  "n_rows_in_duplicate_text_group": 596,
+  "n_duplicate_text_groups": 297,
+  "n_rows_label_conflict": 22,
+  "label_conflict_example_ids": [
+    "GEN-103",
+    "GEN-331",
+    "GEN-402",
+    "GEN-518",
+    "GEN-1432",
+    "GEN-1980",
+    "GEN-2318",
+    "GEN-4745",
+    "GEN-5624",
+    "GEN-6093",
+    "HYP-35",
+    "HYP-38",
+    "HYP-879",
+    "HYP-1081",
+    "RQ-587",
+    "RQ-679",
+    "RQ-680",
+    "RQ-681",
+    "RQ-682",
+    "RQ-684",
+    "RQ-801",
+    "RQ-934"
+  ],
+  "word_length": {
+    "min": 10,
+    "p25": 22.0,
+    "median": 38.0,
+    "mean": 48.68538248455146,
+    "p75": 67.0,
+    "max": 150
+  },
+  "n_very_short_le2_words": 0,
+  "n_very_long_gt200_words": 0,
+  "warnings": [
+    "22 rows belong to a duplicate-text group with conflicting labels -- kept, not dropped (see EXPERIMENT_LOG.md)"
+  ]
+}

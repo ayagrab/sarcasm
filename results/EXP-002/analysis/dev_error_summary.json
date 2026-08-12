@@ -1,0 +1,19 @@
+{
+  "accuracy_by_category": {
+    "GEN": 0.6663066954643628,
+    "HYP": 0.572289156626506,
+    "RQ": 0.6088709677419355
+  },
+  "accuracy_by_gold_label": {
+    "not_sarcastic": 0.31398809523809523,
+    "sarcastic": 0.9760479041916168
+  },
+  "predicted_sarcastic_rate_by_category": {
+    "GEN": 0.8174946004319654,
+    "HYP": 0.891566265060241,
+    "RQ": 0.8387096774193549
+  },
+  "mean_word_len_correct": 46.717265353418306,
+  "mean_word_len_incorrect": 53.878406708595385,
+  "n_label_conflict_rows_in_dev": 2
+}

@@ -1,0 +1,11 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-002",
+  "mode": "zero_shot",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "seed": 42,
+  "_note": "PRIMARY M2 experiment (Stage B): local Qwen3-4B on the Azure NV24s_v3 VM (2x Tesla M60). No external API key required. Shared base model with EXP-003/004/005 to isolate prompting effects."
+}

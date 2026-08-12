@@ -1,0 +1,11 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-005",
+  "mode": "reasoning",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "seed": 42,
+  "_note": "PRIMARY M4 experiment. Compare directly against EXP-002 (same model, same eval_split, direct zero-shot) to isolate the effect of structured reasoning."
+}

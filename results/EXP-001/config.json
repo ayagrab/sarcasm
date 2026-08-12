@@ -1,0 +1,10 @@
+{
+  "experiment_id": "EXP-001",
+  "approach": "M1_tfidf_classical",
+  "classifier": "logreg",
+  "tfidf_variant": "word_char_combo",
+  "eval_split": "test",
+  "seed": 42,
+  "n_train": 6706,
+  "n_eval": 1340
+}

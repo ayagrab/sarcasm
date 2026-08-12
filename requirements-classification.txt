@@ -1,0 +1,19 @@
+# Extra dependencies for the sarcasm *classification/detection* phase
+# (src/classification/), on top of the base requirements.txt (already
+# has pandas, scikit-learn, transformers, torch, etc. -- reused as-is).
+# Install alongside the base requirements:
+#   pip install -r requirements.txt -r requirements-classification.txt
+#
+# None of these are installed in this environment yet (see
+# EXPERIMENT_LOG.md, Environment Audit / Stage A readiness report).
+
+# DSPy-optimized LLM classification (M5)
+dspy>=2.5.0
+
+# Required by transformers.Trainer for the fine-tuning phase (M6) in
+# current transformers versions (this repo pins transformers<5.0.0).
+accelerate>=0.26.0
+
+# Optional embedding baseline (Section 12 of the task, secondary to the
+# core 6-approach comparison) -- only needed if that variant is added.
+sentence-transformers>=3.0.0

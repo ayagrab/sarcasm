@@ -29,12 +29,22 @@ Results are summarized, statistically analyzed, and compared across models/promp
   annotators), Fleiss' Kappa, Kruskal-Wallis significance tests, Spearman
   correlation, and linguistic/structural analysis.
 
-## What's not implemented yet
+## Sarcasm *detection* (classification) — a second, separate phase
 
-- **BERT-based sarcasm *detection* fine-tuning** -- planned as the next
-  project phase (see `docs/finetuning_plan.md`), but no training code or
-  infrastructure exists in this repository yet.
-- No virtual-machine or GPU deployment scripts.
+A second, independent pipeline lives under `src/classification/`:
+comparing classical ML, LLM zero/few-shot/reasoning prompting,
+DSPy-optimized prompting, and fine-tuned Transformer encoders on the
+*detection* task (is a sentence sarcastic at all?), using the
+already-staged `data/raw/sarcasm_corpus_v2/`. This supersedes the
+BERT-only plan in `docs/finetuning_plan.md` with a broader comparison. It
+is deliberately kept separate from the interpretation pipeline above (own
+config, own prompts, own tests) — see `EXPERIMENT_LOG.md` and
+`PROJECT_SUMMARY.md` at the repo root for full detail: what's been run,
+what's only implemented, and what's blocked (currently: no
+`OPENROUTER_API_KEY`, `dspy` not installed, no GPU/model checkpoint
+downloaded yet).
+
+- No virtual-machine or GPU deployment scripts for either pipeline.
 - See `docs/project_history.md` for the full narrative of how the project
   arrived at this plan.
 
@@ -332,7 +342,10 @@ this environment, and why (no real keys, no model download performed here).
 
 ## Future work
 
-- BERT-based sarcasm-detection fine-tuning (see `docs/finetuning_plan.md`) -- planning only, no code yet.
+- Sarcasm-detection phase (`src/classification/`, see `EXPERIMENT_LOG.md`):
+  infrastructure is built and the classical baseline is evaluated; the
+  LLM/DSPy/Transformer approaches are implemented but not yet executed
+  (see that file's "Blockers" and "Stage A Readiness Report").
 - Virtual-machine / GPU deployment for the above.
 - Migrating off the deprecated `google-generativeai` package.
 - Additional test coverage (e.g. more end-to-end fixture pipelines).

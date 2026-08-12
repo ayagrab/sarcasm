@@ -1,0 +1,12 @@
+{
+  "approach_family": "dspy",
+  "experiment_id": "EXP-008",
+  "optimizer": "mipro_v2",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "optimizer_config": {"auto": "light"},
+  "seed": 42,
+  "_note": "PRIMARY M5 experiment. Uses TRAIN for optimization and DEV as MIPROv2's valset -- TEST stays untouched. \"auto\": \"light\" keeps the optimization budget small given real per-call cost on Tesla M60 hardware. Measure number of LM calls / wall-clock time before considering a larger budget."
+}

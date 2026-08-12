@@ -1,0 +1,19 @@
+{
+  "approach_family": "transformer",
+  "experiment_id": "EXP-009-roberta-optional",
+  "checkpoint": "roberta-base",
+  "max_length": 128,
+  "learning_rate": 2e-5,
+  "train_batch_size": 16,
+  "eval_batch_size": 32,
+  "num_epochs": 5,
+  "warmup_ratio": 0.1,
+  "weight_decay": 0.01,
+  "seed": 42,
+  "early_stopping_patience": 2,
+  "fp16": true,
+  "use_fast_tokenizer": true,
+  "use_safetensors": true,
+  "eval_split": "dev",
+  "_note": "OPTIONAL secondary encoder comparison -- microsoft/deberta-v3-base (configs/transformer_deberta_v3_base.json) is the PRIMARY M6 experiment per the Stage B handoff. Run this only if time/budget allow a two-checkpoint comparison."
+}

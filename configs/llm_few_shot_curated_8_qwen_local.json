@@ -1,0 +1,13 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-004",
+  "mode": "few_shot",
+  "eval_split": "dev",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "few_shot_variant": "curated",
+  "n_shots": 8,
+  "seed": 42,
+  "_note": "PRIMARY M3 experiment (curated variant). Stratified across (category, label) so demonstrations cover GEN/HYP/RQ, not just majority GEN."
+}
