@@ -28,18 +28,26 @@ tree.
 
 1. `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28`, confirm hostname is
    `dpmlgpuNC6sv32025s-0003`.
-2. `source /mnt/vmadmin/sarcasm-env/bin/activate && export HF_HOME=/mnt/vmadmin/huggingface`
-3. `cd /mnt/vmadmin/projects/sarcasm`
-4. Check chain progress: `tail -c 500 logs/m3_m4_chain.log` (or the
+2. **Before anything else, run the kernel/driver startup guard:**
+   `cd /mnt/vmadmin/projects/sarcasm && bash scripts/verify_kernel.sh`.
+   It fails loudly (non-zero exit) if the machine booted into anything
+   other than the one verified-working kernel (`6.8.0-1029-azure`) or if
+   `nvidia-smi` doesn't work -- do not proceed with any GPU work if it
+   fails; see the script's comments and `EXPERIMENT_LOG.md` for the
+   recovery procedure. `scripts/run_m3_m4_chain.sh` also runs this guard
+   automatically as its first step.
+3. `source /mnt/vmadmin/sarcasm-env/bin/activate && export HF_HOME=/mnt/vmadmin/huggingface`
+4. `cd /mnt/vmadmin/projects/sarcasm`
+6. Check chain progress: `tail -c 500 logs/m3_m4_chain.log` (or the
    per-step logs `logs/EXP-003-random-dev.log`, `logs/EXP-004-curated-dev.log`,
    `logs/EXP-005-reasoning-dev.log`). `ps -ef | grep run_experiment` to
    confirm it's still alive.
-5. **After it finishes, pull results back immediately**:
+7. **After it finishes, pull results back immediately**:
    `bash scripts/sync_from_vm.sh` (run on the local Mac) -- this is now the
    standard step after every experiment, specifically to avoid repeating
    the EXP-003 loss (results previously only ever got pushed one
    direction, never pulled back until a planned shutdown).
-6. If the chain died instead of finishing, `scripts/run_m3_m4_chain.sh` is
+8. If the chain died instead of finishing, `scripts/run_m3_m4_chain.sh` is
    git-tracked now (unlike its predecessor) -- just rerun it; each step
    only starts after the previous one exits 0 and the per-example disk
    cache makes any already-computed example near-instant on retry.

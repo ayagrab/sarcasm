@@ -1101,3 +1101,13 @@ python3.10-venv` pulled in kernel-related package metadata showing a
 newer kernel (`6.8.0-1064-azure`) already present on disk but not
 booted -- **do not let anything reboot the VM into it**; `6.8.0-1029-azure`
 remains the only verified-working kernel/driver combination.
+
+**Startup guard added (2026-08-12):** `scripts/verify_kernel.sh` checks
+`uname -r` against the known-good kernel (`6.8.0-1029-azure`) and that
+`nvidia-smi` succeeds, and fails loudly (non-zero exit, no silent
+fallback) if either check fails -- specifically so an unverified kernel
+(e.g. an auto-applied `6.8.0-1064-azure`) is caught immediately at the
+start of a session rather than surfacing as a confusing failure hours
+into an experiment. `scripts/run_m3_m4_chain.sh` now runs this guard as
+its first step; `STAGE_B_CHECKLIST.md`'s "How to resume" instructions
+also call it out as step 2, before activating the venv.

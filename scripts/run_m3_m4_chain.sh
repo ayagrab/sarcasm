@@ -11,6 +11,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 mkdir -p logs
 
+bash scripts/verify_kernel.sh
+
 run_step() {
   local config="$1"
   local label="$2"
