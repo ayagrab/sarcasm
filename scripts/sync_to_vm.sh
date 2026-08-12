@@ -30,6 +30,8 @@ rsync -av \
   --exclude 'results' \
   --exclude '.pytest_cache' \
   --exclude 'data/llm_cache' \
+  --exclude 'web/frontend/node_modules' \
+  --exclude 'web/frontend/.next' \
   "$LOCAL_PROJECT_PATH"/ \
   "$REMOTE_HOST:$REMOTE_PATH/"
 

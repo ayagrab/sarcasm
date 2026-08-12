@@ -7,8 +7,18 @@ detail/evidence behind any line here, see `EXPERIMENT_LOG.md` (the
 authoritative, detailed audit trail — this file is just the map of it).
 For final results, see `PROJECT_SUMMARY.md`.
 
-**Last updated:** 2026-08-12, ~12:20 UTC. **RECOVERED after a VM restart
-that wiped the ephemeral `/mnt` disk** (repo checkout, Python env, HF
+**Last updated:** 2026-08-12, ~13:35 UTC. **RECOVERED after a SECOND VM
+restart** (~13:22 UTC, cause unknown -- not a deliberate reboot this
+time; VM went unreachable mid-EXP-003 at 56%, came back healthy per user
+confirmation) **that wiped the ephemeral `/mnt` disk again.** Same
+recovery procedure as the first incident, re-run verbatim and confirmed
+working a second time -- see EXPERIMENT_LOG.md, "Second VM restart --
+`/mnt` wiped again." Nothing new was scientifically lost (EXP-003 hadn't
+reached its completed-artifact point either time). `run_m3_m4_chain.sh`
+relaunched from scratch.
+
+**Original recovery (first incident, for reference):** RECOVERED after a VM restart
+that wiped the ephemeral `/mnt` disk (repo checkout, Python env, HF
 model cache, and EXP-003's raw predictions all lost -- EXP-003's metrics
 were not, already recorded in `EXPERIMENT_LOG.md`). Full incident detail:
 `EXPERIMENT_LOG.md`, "VM restart -- `/mnt` ephemeral-disk data loss

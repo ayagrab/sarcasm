@@ -1111,3 +1111,59 @@ start of a session rather than surfacing as a confusing failure hours
 into an experiment. `scripts/run_m3_m4_chain.sh` now runs this guard as
 its first step; `STAGE_B_CHECKLIST.md`'s "How to resume" instructions
 also call it out as step 2, before activating the venv.
+
+### Second VM restart -- `/mnt` wiped again (2026-08-12, ~13:22 UTC)
+
+The VM went unreachable (SSH connection dropped mid-EXP-003, then full
+connection timeouts) while EXP-003's regeneration was at 56% (749/1340).
+User independently confirmed the VM came back up healthy (correct kernel
+`6.8.0-1029-azure`, driver 535.230.02, both GPUs idle, no processes
+running -- i.e. nothing survived the restart). `/mnt/vmadmin/` was
+confirmed wiped again (`ls`: "No such file or directory"; `/dev/sdb1`:
+32 KB used -- fresh ephemeral disk, same signature as the first incident).
+
+**Nothing scientifically new was lost**: EXP-003's `predictions.csv` is
+only written at the very end of a full run, and this second interruption
+happened before that (56% in, same as the first interruption never
+reaching completion either) -- there was never a completed artifact to
+lose this time. The recovery procedure from the first incident (see
+above) was re-run verbatim and confirmed to work identically on the
+second attempt:
+
+- `/mnt/vmadmin/{projects,sarcasm-env,huggingface}` recreated.
+- Repo re-synced via `scripts/sync_to_vm.sh` -- caught and fixed a real
+  bug in the process: the script had no exclude rule for
+  `web/frontend/node_modules`/`.next` (added after the first incident's
+  recovery, before the web app existed), so the first re-sync attempt
+  transferred ~550 MB of `node_modules` needlessly. Fixed
+  (`--exclude 'web/frontend/node_modules'`, `--exclude 'web/frontend/.next'`)
+  and the already-synced copy deleted from the VM.
+- venv recreated, exact pinned stack reinstalled from the same
+  `pip freeze` snapshot used the first time (`torch==2.5.1+cu118`,
+  `transformers==5.15.0`, etc.) -- identical versions, nothing upgraded.
+- Qwen3-4B-Instruct-2507 + deberta-v3-base re-downloaded (~30s combined,
+  fast link).
+- `verify_kernel.sh`, `verify_gpu.py`, the classification test suite
+  (61/61), and the Qwen smoke test (`--limit 20`) all re-passed --
+  smoke test reproduced the identical DEV metrics for the third time now
+  (original run, first recovery, second recovery), confirming the
+  pipeline behaves identically across all three environment rebuilds.
+- `scripts/run_m3_m4_chain.sh` relaunched from scratch (EXP-003 -> EXP-004
+  -> EXP-005) -- nothing valid persisted from the interrupted attempt to
+  resume from, so a clean restart is correct here, not a resume.
+
+**Root cause of the VM going down is still unknown** -- unlike the first
+incident, this one wasn't a deliberate user-initiated reboot (grub-reboot
+to fix a kernel/driver mismatch); it happened without warning during a
+running experiment. Possible causes (Azure host maintenance/eviction, a
+transient platform issue, something else) were not investigated further
+since the user's own portal check confirmed the VM is healthy now and
+asked to proceed with recovery rather than root-cause the outage. If this
+recurs a third time, root-causing (Azure Activity Log / Serial console
+boot log) would be worth doing before just recovering again.
+
+**Durability note:** this incident is exactly why results/logs are pulled
+back and committed after every experiment rather than only at planned
+shutdowns (see "Fixes to prevent recurrence" above, and
+`scripts/sync_from_vm.sh`) -- an unannounced VM loss like this one gives
+zero warning to do a final sync first.
