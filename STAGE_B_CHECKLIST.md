@@ -77,6 +77,48 @@ only) is complete. See EXPERIMENT_LOG.md for the full note. Concretely:
 
 ---
 
+## Full item-by-item audit (2026-08-12, ~12:35 UTC)
+
+Explicit status for every checklist item below, per an instruction to
+resume Stage B end-to-end rather than stopping after the currently
+running chain. Legend: DONE / IN PROGRESS / BLOCKED / NOT STARTED / N/A.
+
+| Section | Item | Status |
+|---|---|---|
+| 0 | SSH access | DONE |
+| 0 | Repo synced | DONE (re-synced post-recovery) |
+| 0 | Remote env verified | DONE (re-verified post-recovery, identical pinned stack) |
+| 0 | `verify_gpu.py` | DONE (re-run post-recovery) |
+| 0 | `environment_stage_b.txt` | DONE -- refreshed to the recovered environment (Python 3.10.12 vs. 3.10.11, otherwise identical) |
+| 0 | Qwen smoke test | DONE (re-run post-recovery, exact metric reproduction) |
+| 0 | Configs repointed to local Qwen | DONE |
+| 0 | DSPy adapter written | DONE (code); adapter itself NOT STARTED (smoke test) -- blocked on GPU, occupied by the M3/M4/M5 chain |
+| 0 | DeBERTa loading fixed | DONE (code); execution NOT STARTED -- blocked on GPU |
+| 0 | Test suite | DONE (61/61 classification tests, both local Mac and VM, re-verified post-recovery) |
+| 1 | M1 TF-IDF | DONE, FROZEN (Stage A, untouched) |
+| 2 | M2 zero-shot | DONE, DEV-EVALUATED |
+| 3 | M3-random (EXP-003) | IN PROGRESS -- regenerating lost `predictions.csv` via identical deterministic rerun; metrics already DEV-EVALUATED and unaffected |
+| 3 | M3-curated (EXP-004) | NOT STARTED -- queued as chain step 2, restarting from scratch (nothing valid survived to resume) |
+| 3 | M3 variant comparison + record | BLOCKED on EXP-004 completing |
+| 4 | M4 reasoning (EXP-005) | NOT STARTED -- queued as chain step 3 |
+| 5 | M5 DSPy (EXP-006/007/008) | NOT STARTED -- blocked on GPU (M3/M4/M5-chain must finish first; project's own resource-management rule is no concurrent GPU-heavy jobs) |
+| 6 | M6 DeBERTa (EXP-009) | NOT STARTED -- blocked on GPU, same reason |
+| 7 | Cross-model DEV analysis | NOT STARTED -- blocked on M3-M6 predictions existing. Code already implemented and ready (`src/classification/evaluation/error_analysis.py`, pairwise disagreement/agreement-rate tooling) |
+| Phase 2 | Freeze + TEST eval | NOT STARTED -- correctly blocked, Phase 1 incomplete. TEST remains fully sealed |
+| 8 | Final writeup | NOT STARTED -- blocked on all of the above |
+
+**Plan for the rest of Stage B (this session, autonomous):** let the
+currently running chain (EXP-003 regen -> EXP-004 -> EXP-005) finish
+(each step syncs back to the local Mac + gets recorded as it completes),
+then immediately continue, without waiting for confirmation, to: M5 DSPy
+smoke test -> EXP-006 -> EXP-007 (small budget) -> EXP-008 (`auto="light"`)
+-> M6 DeBERTa smoke test -> EXP-009 full run -> (seeds, if time permits)
+-> cross-model DEV disagreement analysis -> Phase 2 freeze -> sealed TEST
+evaluation (each frozen config, once) -> final `PROJECT_SUMMARY.md`
+writeup. Progress updates every ~15 minutes; will stop only for a genuine
+blocker (credentials, a destructive action, or a methodological question
+that would change the study).
+
 ## 0. Infrastructure
 
 - [x] SSH access working (BLOCKER-4b resolved)

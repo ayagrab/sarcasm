@@ -1,15 +1,28 @@
+=== NOTE (2026-08-12) ===
+This file was recaptured after the 2026-08-12 VM restart / /mnt ephemeral-
+disk data loss incident (see EXPERIMENT_LOG.md). The environment below was
+rebuilt from the exact pip-freeze pinned versions captured before the
+loss -- every package version is identical to the original capture except
+Python (3.10.12 vs. 3.10.11 -- system package patch difference, not a
+deliberate change) and the addition of pytest/pytest-mock (dev-only, not
+part of the pinned runtime stack). Kernel, driver, CUDA runtime, and torch
+are all unchanged from the original verification.
+
 === hostname ===
 dpmlgpuNC6sv32025s-0003
 === date ===
-Tue Aug 11 13:04:28 UTC 2026
+Wed Aug 12 09:26:35 UTC 2026
 === python --version ===
-Python 3.10.11
+Python 3.10.12
 === HF_HOME ===
 /mnt/vmadmin/huggingface
+=== kernel (uname -r) ===
+6.8.0-1029-azure
 === git (no .git synced -- HEAD from local Mac at sync time) ===
-local HEAD at sync time: 16777fa88426dee3296ff92d951e0d0f6034f0c8 (main) -- Stage A/B work uncommitted on top of this, see EXPERIMENT_LOG.md
+local HEAD at sync time: 3d4d8bc (main) -- Stage A/B work through the kernel
+startup guard; see EXPERIMENT_LOG.md for the full incident/recovery entry.
 === nvidia-smi ===
-Tue Aug 11 16:04:28 2026       
+Wed Aug 12 12:26:35 2026
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 535.230.02             Driver Version: 535.230.02   CUDA Version: 12.2     |
 |-----------------------------------------+----------------------+----------------------+
@@ -18,21 +31,15 @@ Tue Aug 11 16:04:28 2026
 |                                         |                      |               MIG M. |
 |=========================================+======================+======================|
 |   0  Tesla M60                      On  | 00000001:00:00.0 Off |                  Off |
-| N/A   23C    P8              14W / 150W |      0MiB /  8192MiB |      0%      Default |
+| N/A   39C    P0              88W / 150W |   4684MiB /  8192MiB |      0%      Default |
 |                                         |                      |                  N/A |
 +-----------------------------------------+----------------------+----------------------+
 |   1  Tesla M60                      On  | 00000002:00:00.0 Off |                  Off |
-| N/A   25C    P8              15W / 150W |      0MiB /  8192MiB |      0%      Default |
+| N/A   49C    P0              79W / 150W |   4744MiB /  8192MiB |    100%      Default |
 |                                         |                      |                  N/A |
 +-----------------------------------------+----------------------+----------------------+
-                                                                                         
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|  No running processes found                                                           |
-+---------------------------------------------------------------------------------------+
+(4.7GB/GPU in use above = the EXP-003 regeneration job actively running
+ at capture time, not baseline usage.)
 === pip freeze ===
 accelerate==1.14.0
 aiohappyeyeballs==2.7.1
@@ -69,6 +76,7 @@ httpx==0.28.1
 huggingface_hub==1.27.0
 idna==3.18
 importlib_metadata==8.9.0
+iniconfig==2.3.0
 Jinja2==3.1.6
 jiter==0.16.0
 joblib==1.5.3
@@ -102,6 +110,7 @@ orjson==3.11.9
 packaging==26.3
 pandas==2.3.3
 pillow==12.2.0
+pluggy==1.6.0
 propcache==0.5.2
 protobuf==7.35.1
 psutil==7.2.2
@@ -111,6 +120,8 @@ pydantic-settings==2.15.0
 pydantic_core==2.46.4
 Pygments==2.20.0
 pyparsing==3.3.2
+pytest==9.1.1
+pytest-mock==3.15.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 pytz==2026.3.post1
@@ -132,6 +143,7 @@ tenacity==9.1.4
 threadpoolctl==3.6.0
 tiktoken==0.13.0
 tokenizers==0.22.2
+tomli==2.4.1
 torch==2.5.1+cu118
 torchaudio==2.5.1+cu118
 torchvision==0.20.1+cu118
