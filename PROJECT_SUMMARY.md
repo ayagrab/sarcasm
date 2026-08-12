@@ -18,6 +18,17 @@ tree. Full incident/recovery detail: `EXPERIMENT_LOG.md`, "VM restart --
 and M4 (EXP-005) are running now; see `STAGE_B_CHECKLIST.md` for the live
 checklist.
 
+**Web demo (`web/`, in progress in parallel with Stage B):** a FastAPI +
+Next.js app (Simple Mode + Research/comparison Mode) that consumes this
+project's classification code through inference adapters -- built and
+tested (backend: 17/17 tests passing, TF-IDF path exercised for real;
+frontend: builds cleanly, all three pages verified live against the
+backend). It intentionally never re-tunes anything against sentences
+typed into the UI, and gates every method except the already-frozen M1
+(TF-IDF) behind Stage B's Phase 2 freeze -- so right now Simple Mode
+serves TF-IDF and Research Mode shows the rest as "not frozen yet" /
+"not trained yet," honestly, not as placeholders. See `web/README.md`.
+
 ## 1. Problem Definition
 
 Given a short English text (a forum post / tweet-length message), predict

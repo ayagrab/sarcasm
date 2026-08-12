@@ -48,6 +48,16 @@ downloaded yet).
 - See `docs/project_history.md` for the full narrative of how the project
   arrived at this plan.
 
+### Web demo — `web/`
+
+A FastAPI + Next.js web app for the detection phase above: a Simple Mode
+(enter a sentence, get Sarcastic / Not Sarcastic) and a Research Mode
+(compare every implemented method side by side). It consumes the exact
+frozen inference configurations Stage B selects -- it never tunes a
+prompt/config against sentences typed into the UI. See `web/README.md`
+for architecture, setup, and how the production model is switched once
+Stage B freezes a final configuration.
+
 ---
 
 ## Repository structure
