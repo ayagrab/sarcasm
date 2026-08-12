@@ -5,6 +5,19 @@ detail (exact commands run, blockers, environment audit) see
 `EXPERIMENT_LOG.md`. This document is updated when meaningful conclusions
 are available; unmeasured results are marked `TBD`, never guessed.
 
+**Status (2026-08-12):** M1 (EXP-001) and M2 (EXP-002) are DEV-evaluated
+(TEST sealed, per policy below). The Azure VM was restarted and its
+ephemeral `/mnt` disk was wiped in the process (repo checkout, Python env,
+model cache, and EXP-003's raw predictions were all lost, but not EXP-003's
+metrics, which had already been recorded here and in `EXPERIMENT_LOG.md`);
+the environment was fully recreated with the identical pinned stack and
+verified, and all Stage A/B work is now committed to git rather than living
+only on the VM's ephemeral disk or the local Mac's uncommitted working
+tree. Full incident/recovery detail: `EXPERIMENT_LOG.md`, "VM restart --
+`/mnt` ephemeral-disk data loss incident and recovery." M3 (EXP-003/004)
+and M4 (EXP-005) are running now; see `STAGE_B_CHECKLIST.md` for the live
+checklist.
+
 ## 1. Problem Definition
 
 Given a short English text (a forum post / tweet-length message), predict

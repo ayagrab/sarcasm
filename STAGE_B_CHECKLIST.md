@@ -7,36 +7,42 @@ detail/evidence behind any line here, see `EXPERIMENT_LOG.md` (the
 authoritative, detailed audit trail — this file is just the map of it).
 For final results, see `PROJECT_SUMMARY.md`.
 
-**Last updated:** 2026-08-11, ~18:50 UTC. **PAUSED at user's request (VM being
-shut down).** M2 DONE (Macro F1 0.6008). M3-random DONE (Macro F1 0.5880,
-underperforms M2 -- see EXPERIMENT_LOG.md). M3-curated (EXP-004) was
-**killed intentionally at 447/1340 examples (33%)** -- not a crash, a
-deliberate stop. The chain script (`run_m3_m4_chain.sh`, PID 24865) was
-also killed first, so it will NOT auto-launch M4 on its own anymore --
-that script is gone and must be restarted manually (or just rerun the
-EXP-004 command directly, see below). GPU confirmed idle (0 MiB used on
-both GPUs) after stopping.
+**Last updated:** 2026-08-12, ~12:20 UTC. **RECOVERED after a VM restart
+that wiped the ephemeral `/mnt` disk** (repo checkout, Python env, HF
+model cache, and EXP-003's raw predictions all lost -- EXP-003's metrics
+were not, already recorded in `EXPERIMENT_LOG.md`). Full incident detail:
+`EXPERIMENT_LOG.md`, "VM restart -- `/mnt` ephemeral-disk data loss
+incident and recovery." Environment fully recreated with the identical
+pinned stack, `verify_gpu.py` and the classification test suite
+(61/61) and a Qwen smoke test all re-passed. M2 remains DONE (Macro F1
+0.6008). EXP-003 (M3-random) is being regenerated (deterministic rerun of
+the identical frozen config, to restore its lost `predictions.csv`) as
+step 1 of a fresh `scripts/run_m3_m4_chain.sh` (now git-tracked), followed
+automatically by EXP-004 (M3-curated, restarted from scratch -- nothing
+valid survived to resume from) and EXP-005 (M4 reasoning). All Stage A/B
+work, including this file, is now committed to git so it no longer
+depends on the VM's ephemeral disk or the local Mac's uncommitted working
+tree.
 
-### How to resume (read this first when reconnecting)
+### How to resume / check on the running chain
 
 1. `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28`, confirm hostname is
    `dpmlgpuNC6sv32025s-0003`.
 2. `source /mnt/vmadmin/sarcasm-env/bin/activate && export HF_HOME=/mnt/vmadmin/huggingface`
 3. `cd /mnt/vmadmin/projects/sarcasm`
-4. Re-run the **exact same EXP-004 command** -- do NOT change the config:
-   `python -m src.classification.run_experiment --config configs/llm_few_shot_curated_8_qwen_local.json`
-   Thanks to the per-example disk cache (`data/llm_cache/`, 3,088 cached
-   responses as of the stop, including the 447 already computed for
-   EXP-004), the already-computed examples return near-instantly; only the
-   remaining ~893 will actually call the model. Expect roughly 45-55 min
-   for the rest, not the full 1.5h.
-5. Once EXP-004 finishes, M4 (`configs/llm_reasoning_qwen_local.json`,
-   EXP-005) needs to be launched manually (the old chain script is dead) --
-   either run it directly or write a fresh small chain script following the
-   same pattern as `run_m3_m4_chain.sh` (that file still exists in the repo
-   for reference even though its running instance was killed).
-6. Tell me you're back and I'll pick up from here -- validate EXP-004,
-   record it, and continue to M4/M5/M6 per this checklist.
+4. Check chain progress: `tail -c 500 logs/m3_m4_chain.log` (or the
+   per-step logs `logs/EXP-003-random-dev.log`, `logs/EXP-004-curated-dev.log`,
+   `logs/EXP-005-reasoning-dev.log`). `ps -ef | grep run_experiment` to
+   confirm it's still alive.
+5. **After it finishes, pull results back immediately**:
+   `bash scripts/sync_from_vm.sh` (run on the local Mac) -- this is now the
+   standard step after every experiment, specifically to avoid repeating
+   the EXP-003 loss (results previously only ever got pushed one
+   direction, never pulled back until a planned shutdown).
+6. If the chain died instead of finishing, `scripts/run_m3_m4_chain.sh` is
+   git-tracked now (unlike its predecessor) -- just rerun it; each step
+   only starts after the previous one exits 0 and the per-example disk
+   cache makes any already-computed example near-instant on retry.
 
 **Remote machine:** Azure `Standard_NV24s_v3`, `dpmlgpuNC6sv32025s-0003`,
 2x Tesla M60. Connect: `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28`.
@@ -95,12 +101,18 @@ only) is complete. See EXPERIMENT_LOG.md for the full note. Concretely:
 
 ### 3. M3 — Qwen3-4B few-shot (random EXP-003, curated EXP-004)
 
-- [x] Random variant, full DEV -- **DONE.** 1340/1340, ~1h34m. Macro F1 0.5880,
+- [x] Random variant, full DEV -- **DONE (metrics).** 1340/1340, ~1h34m. Macro F1 0.5880,
       Accuracy 0.6328 -- *underperforms* M2 zero-shot (0.6008/0.6440). Investigated
       (demo balance, category uniformity, agreement-with-M2 check) -- confirmed
       genuine result, not a bug. See EXPERIMENT_LOG.md.
-- [ ] Curated variant, full DEV (`configs/llm_few_shot_curated_8_qwen_local.json`) -- **IN PROGRESS**
-      (auto-started right after random finished). Log: `logs/EXP-004-curated-dev.log`.
+      Raw `predictions.csv` was lost in the 2026-08-12 `/mnt` wipe (metrics
+      survived) -- **being regenerated now** via an identical deterministic
+      rerun (step 1 of `scripts/run_m3_m4_chain.sh`).
+- [ ] Curated variant, full DEV (`configs/llm_few_shot_curated_8_qwen_local.json`) -- **RESTARTING FROM SCRATCH**
+      (previous partial run, 447/1340, and its cache did not survive the
+      `/mnt` wipe -- nothing valid to resume from). Auto-runs as step 2 of
+      `scripts/run_m3_m4_chain.sh`, right after EXP-003 regeneration finishes.
+      Log: `logs/EXP-004-curated-dev.log`.
       Check: `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 'tail -c 300 /mnt/vmadmin/projects/sarcasm/logs/EXP-004-curated-dev.log'`
 - [ ] Compare the two on DEV Macro F1, pick a winning *variant* (document demo example IDs used) -- this is DEV-based selection, allowed
 - [ ] Record in `EXPERIMENT_LOG.md`
