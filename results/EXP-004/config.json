@@ -1,0 +1,24 @@
+{
+  "experiment_id": "EXP-004",
+  "approach": "M3_llm_few_shot",
+  "mode": "few_shot",
+  "provider": "local_hf",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "temperature": 0.0,
+  "prompt_file": "classification/few_shot_v1.txt",
+  "eval_split": "dev",
+  "n_eval": 1340,
+  "seed": 42,
+  "few_shot_variant": "curated",
+  "n_shots": 8,
+  "demo_example_ids": [
+    "GEN-5007",
+    "RQ-838",
+    "GEN-787",
+    "GEN-3116",
+    "HYP-96",
+    "RQ-159",
+    "HYP-652",
+    "GEN-5870"
+  ]
+}

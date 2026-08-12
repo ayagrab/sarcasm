@@ -176,10 +176,18 @@ that would change the study).
       original pre-wipe run (deterministic reproduction re-confirmed) --
       pulled back to the local Mac and committed, no longer at risk from
       another `/mnt` wipe.
-- [ ] Curated variant, full DEV (`configs/llm_few_shot_curated_8_qwen_local.json`) -- **IN PROGRESS**
-      (auto-started right after EXP-003 finished, as step 2 of
-      `scripts/run_m3_m4_chain.sh`). Log: `logs/EXP-004-curated-dev.log`.
-      Check: `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 'tail -c 300 /mnt/vmadmin/projects/sarcasm/logs/EXP-004-curated-dev.log'`
+- [x] Curated variant, full DEV -- **DONE.** 1340/1340, ~1h22m. Macro F1
+      0.5011, Accuracy 0.5821 -- underperforms *both* zero-shot (M2) and
+      random few-shot (EXP-003); most sarcastic-skewed result yet (90.4%
+      predicted sarcastic). Investigated (category uniformity, demo
+      composition, agreement with EXP-002/EXP-003) -- confirmed genuine,
+      not a bug. See EXPERIMENT_LOG.md.
+- [x] Compare the two on DEV Macro F1, pick a winning *variant* -- **random
+      (EXP-003) wins** (0.588 vs. 0.501 Macro F1). Demo example IDs for
+      both variants recorded in EXPERIMENT_LOG.md. Note: zero-shot (M2)
+      still beats both few-shot variants outright -- final M2-M4 candidate
+      selection happens at Phase 2, after EXP-005.
+- [x] Record in `EXPERIMENT_LOG.md` -- done, full detail + comparison table.
 - [ ] Compare the two on DEV Macro F1, pick a winning *variant* (document demo example IDs used) -- this is DEV-based selection, allowed
 - [ ] Record in `EXPERIMENT_LOG.md`
 

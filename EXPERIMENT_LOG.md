@@ -1167,3 +1167,43 @@ back and committed after every experiment rather than only at planned
 shutdowns (see "Fixes to prevent recurrence" above, and
 `scripts/sync_from_vm.sh`) -- an unannounced VM loss like this one gives
 zero warning to do a final sync first.
+
+### EXP-004 — Qwen3-4B few-shot (curated demos) — **DEV-EVALUATED** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-12. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (post-2nd-VM-restart environment, identical pinned stack to every prior run).
+- **Command:** `python -m src.classification.run_experiment --config configs/llm_few_shot_curated_8_qwen_local.json`
+- **Config:** `provider=local_hf`, `model=Qwen/Qwen3-4B-Instruct-2507`, `mode=few_shot`, `few_shot_variant=curated`, `n_shots=8`, `temperature=0.0`, prompt `classification/few_shot_v1.txt`, `eval_split=dev`, seed 42.
+- **Demo example IDs used** (8, curated -- stratified across (category, label)): `GEN-5007, RQ-838, GEN-787, GEN-3116, HYP-96, RQ-159, HYP-652, GEN-5870`.
+- **Runtime:** ~1h22m wall-clock for 1,340 examples (~3.7s/example -- slightly faster than the random-demo run, ~4.2s/example, likely just shorter demo text this time; not investigated further since it doesn't affect correctness).
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.5821 |
+  | Macro F1 | 0.5011 |
+  | Weighted F1 | 0.5005 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.9375 / 0.1786 / 0.3000 |
+  | sarcastic: P / R / F1 (support 668) | 0.5446 / 0.9880 / 0.7021 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[120, 552], [8, 660]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates, no rows missing vs. `data/splits/dev.csv`.
+  - Gold label distribution (672 not_sarcastic / 668 sarcastic) matches the canonical DEV split exactly.
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value (run completed without a parsing-retry exhaustion, same structural guarantee as every prior LLM experiment).
+  - **Flagged and investigated:** this is the most skewed result yet -- 1,212/1,340 (90.4%) predicted `sarcastic`, vs. 83% for EXP-002 (zero-shot) and 83.1% for EXP-003 (random few-shot). Checked the same three explanations as before:
+    1. **Category-specific artifact?** No -- predicted-sarcastic rate is uniform across categories (GEN 90.0%, HYP 93.4%, RQ 90.3%).
+    2. **Curated-demo selection bias?** The 8 curated demos are stratified across (category, label) cells by construction (`select_curated_few_shot`), not label-skewed by design -- ruled out as a data artifact.
+    3. **Did the curated demos meaningfully change behavior, or is this the same model with noise?** Compared directly against both prior runs: 91.3% agreement with EXP-002 (zero-shot), 92.2% agreement with EXP-003 (random few-shot) -- high agreement in both cases, consistent with "same underlying bias, nudged slightly further" rather than a different failure mode or a bug.
+  - **Conclusion: not a pipeline bug.** Curated, category/label-balanced demonstrations pushed Qwen3-4B *further* toward over-predicting `sarcastic` than either zero-shot or random few-shot, not less -- a genuine (if counterintuitive) empirical result. Manually reading a handful of the curated demo texts, all are clearly and unambiguously labeled examples; the effect appears to be that showing more explicit examples of "sarcastic" text (even balanced 4/4) reinforces the model's tendency to call adversarial/rhetorical language sarcastic, rather than teaching it to be more selective.
+- **Artifacts:** `results/EXP-004/{config.json, metrics.json, predictions.csv}` -- pulled back to the local Mac and committed immediately (per the durability fix from the VM-restart incidents above; not left VM-only even briefly).
+- **Comparison across all M2/M3 variants so far (DEV):**
+
+  | Experiment | Macro F1 | Accuracy | sarcastic Recall |
+  |---|---:|---:|---:|
+  | EXP-002 (zero-shot) | 0.6008 | 0.6440 | 0.9760 |
+  | EXP-003 (few-shot, random demos) | 0.5880 | 0.6328 | 0.9656 |
+  | EXP-004 (few-shot, curated demos) | 0.5011 | 0.5821 | 0.9880 |
+
+  Directionally clear and consistent: on this corpus, adding few-shot demonstrations does not help Qwen3-4B-Instruct-2507 -- it hurts, and curated (label/category-balanced) demos hurt *more* than random ones. Zero-shot (EXP-002) remains the best-performing manual-prompt variant of the three by a clear margin.
+- **M3 variant selection (DEV-based, allowed per the sealing policy):** between the two few-shot variants, **random (EXP-003) is the winner** -- higher Macro F1 (0.588 vs. 0.501) and Accuracy (0.633 vs. 0.582). This is the few-shot candidate that will be considered (alongside EXP-002 zero-shot and EXP-005 reasoning) at the Phase 2 freeze step -- though given zero-shot beats both few-shot variants outright, the current DEV evidence points toward zero-shot being the more likely overall M2-M4 candidate to freeze, not few-shot at all. That decision is deferred to Phase 2, once EXP-005 (reasoning) has also run.
+- **TEST not touched**, per the sealing policy -- correct.
