@@ -5,29 +5,45 @@ detail (exact commands run, blockers, environment audit) see
 `EXPERIMENT_LOG.md`. This document is updated when meaningful conclusions
 are available; unmeasured results are marked `TBD`, never guessed.
 
-**Status (2026-08-12):** M1 (EXP-001) and M2 (EXP-002) are DEV-evaluated
-(TEST sealed, per policy below). The Azure VM was restarted and its
-ephemeral `/mnt` disk was wiped in the process (repo checkout, Python env,
-model cache, and EXP-003's raw predictions were all lost, but not EXP-003's
-metrics, which had already been recorded here and in `EXPERIMENT_LOG.md`);
-the environment was fully recreated with the identical pinned stack and
-verified, and all Stage A/B work is now committed to git rather than living
-only on the VM's ephemeral disk or the local Mac's uncommitted working
-tree. Full incident/recovery detail: `EXPERIMENT_LOG.md`, "VM restart --
-`/mnt` ephemeral-disk data loss incident and recovery." M3 (EXP-003/004)
-and M4 (EXP-005) are running now; see `STAGE_B_CHECKLIST.md` for the live
-checklist.
+**Status (2026-08-12, ~14:40 UTC):** M1-M4 are all DEV-evaluated (TEST
+still fully sealed, per policy below). **Paused here on purpose, at the
+user's explicit request** -- not a blocker, just a deliberate stop before
+starting M5. See `STAGE_B_CHECKLIST.md`'s "START HERE (next session)"
+section for the exact resume procedure -- read that file first when
+picking this back up.
 
-**Web demo (`web/`, in progress in parallel with Stage B):** a FastAPI +
-Next.js app (Simple Mode + Research/comparison Mode) that consumes this
-project's classification code through inference adapters -- built and
-tested (backend: 17/17 tests passing, TF-IDF path exercised for real;
-frontend: builds cleanly, all three pages verified live against the
-backend). It intentionally never re-tunes anything against sentences
-typed into the UI, and gates every method except the already-frozen M1
-(TF-IDF) behind Stage B's Phase 2 freeze -- so right now Simple Mode
-serves TF-IDF and Research Mode shows the rest as "not frozen yet" /
-"not trained yet," honestly, not as placeholders. See `web/README.md`.
+Headline DEV result so far: **zero-shot (EXP-002) is the best of all four
+Qwen manual-prompt variants** -- neither few-shot (random or curated
+demonstrations) nor explicit step-by-step reasoning improved on it; both
+few-shot variants made the model's sarcastic-overprediction bias *worse*,
+and reasoning left it essentially unchanged (94.6% agreement with
+zero-shot). Full comparison table and per-experiment detail in
+`EXPERIMENT_LOG.md`. M1 (TF-IDF, TEST Macro F1 0.740) still outperforms
+every Qwen variant tried so far, though that's a TEST-vs-DEV comparison,
+not yet apples-to-apples -- the real cross-method comparison happens at
+Phase 2.
+
+The VM was restarted **twice** during this work (once deliberate, once
+unannounced/cause unknown), wiping the ephemeral `/mnt` disk both times --
+recovered fully both times, and durability fixes are now in place
+(everything committed to git immediately after each experiment, plus a
+5-minute cache backup and a kernel/driver startup guard) so a third
+restart costs at most a partially-redone experiment, never a lost result.
+Full incident/recovery detail: `EXPERIMENT_LOG.md`.
+
+**Web demo (`web/`):** a FastAPI + Next.js app (Simple Mode +
+Research/comparison Mode) that consumes this project's classification code
+through inference adapters -- built and tested (backend: 17/17 tests
+passing, TF-IDF path exercised for real; frontend: builds cleanly, all
+three pages verified live against the backend). It intentionally never
+re-tunes anything against sentences typed into the UI, and gates every
+method except the already-frozen M1 (TF-IDF) behind Stage B's Phase 2
+freeze -- so right now Simple Mode serves TF-IDF and Research Mode shows
+the rest as "not frozen yet" / "not trained yet," honestly, not as
+placeholders. **Currently dormant/paused** (explicit user request to focus
+on Stage B only) -- fully built, nothing more to do on it until Stage B
+resumes and either reaches a natural lull or fully completes. See
+`web/README.md`.
 
 ## 1. Problem Definition
 

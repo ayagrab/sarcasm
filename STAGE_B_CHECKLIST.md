@@ -7,6 +7,86 @@ detail/evidence behind any line here, see `EXPERIMENT_LOG.md` (the
 authoritative, detailed audit trail — this file is just the map of it).
 For final results, see `PROJECT_SUMMARY.md`.
 
+## START HERE (next session) — read this section first, top to bottom
+
+**Where things stand (2026-08-12, ~14:40 UTC):** M1-M4 are all DEV-evaluated
+and committed. **Paused here on purpose, at the user's explicit request** --
+not a crash, not a blocker. Nothing is running on the VM (GPU idle, 0
+processes). When told "continue from where we stopped," do exactly this,
+in order, without re-explaining the plan or asking for confirmation on any
+of it (already pre-approved):
+
+1. **Reconnect and check for a THIRD VM restart first** (this has now
+   happened twice unannounced -- assume nothing):
+   `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28` (`ConnectTimeout=20`;
+   if it times out completely, that itself is the finding -- report it,
+   don't guess). Then `bash scripts/verify_kernel.sh` (fails loudly on a
+   kernel/driver mismatch) and `ls /mnt/vmadmin` (if "No such file or
+   directory", `/mnt` was wiped again -- run the full recovery procedure
+   documented in `EXPERIMENT_LOG.md`, "VM restart -- `/mnt` ephemeral-disk
+   data loss incident and recovery" / "Second VM restart," steps 1-9,
+   verbatim; it's been used twice already and works).
+2. **If the environment needed rebuilding**, after it's back: re-run
+   `scripts/verify_gpu.py`, `pytest tests/test_classification_*.py`
+   (expect 61/61), and the Qwen zero-shot smoke test (`--limit 20`) --
+   should reproduce accuracy 0.25 / macro F1 0.20 exactly, same as every
+   prior rebuild. If it doesn't match, STOP and report -- that would mean
+   something about the environment actually changed.
+3. **Re-arm background monitoring** (Monitor-tool tasks do NOT persist
+   across sessions -- these need to be relaunched fresh every session,
+   even if the VM itself didn't restart):
+   - Cache backup, every 5 min (crash-resume safety net):
+     `cd "<repo root>" && while true; do bash scripts/sync_cache_from_vm.sh; sleep 300; done`
+   - 15-min progress heartbeat (only if the user still wants them --
+     confirmed wanted as of this session; ask if unsure after a long gap):
+     tail the relevant experiment's log + `ps -ef | grep run_experiment`
+     over SSH, `sleep 900` loop.
+   - State-change watcher on whichever chain log is about to run
+     (`grep -E "starting|finished|Chain complete|Traceback|Error|Killed|FAILED"`).
+4. **Launch M5** (nothing else needs to happen first -- M1-M4 are done,
+   TEST is correctly still sealed): `scripts/run_m5_chain.sh` on the VM
+   (`nohup bash scripts/run_m5_chain.sh > logs/m5_chain.log 2>&1 &`, then
+   `disown`). Runs: adapter smoke test -> EXP-006 (Predict) -> EXP-007
+   (BootstrapFewShot) -> EXP-008 (MIPROv2, `auto="light"`). Each already
+   uses the conservative/small budget the methodology calls for -- no
+   parameter decisions needed before launching. See "5. M5" section below
+   for what to do *after* each finishes.
+5. **After M5, M6 (DeBERTa) is next** -- not chained automatically (its
+   smoke test gates a real fp16-stability judgment call). See "6. M6"
+   section below for the exact procedure.
+6. **After M6: cross-model DEV disagreement analysis** (section "7"),
+   then **Phase 2** (freeze one config per method, unseal TEST, evaluate
+   each once), then the **final `PROJECT_SUMMARY.md` writeup** (section
+   "8"). Follow this file's numbered sections in order from here.
+7. **After Stage B fully completes** (or if there's a natural lull with
+   the GPU busy and nothing else to validate): resume the **web app**
+   (`web/`, currently a fully-built and tested but *dormant* app -- see
+   `web/README.md`). The one remaining connective step is writing
+   `results/frozen_configs.json` once Phase 2 freezes configs -- that
+   single file flips methods from "not frozen yet" to serving real
+   predictions, no code changes needed. Was explicitly paused mid-Stage-B
+   per user request ("don't do anything in the meantime") -- safe to
+   resume once Stage B experiments are running/paused and there's nothing
+   else productive to do, or once Stage B is fully done.
+8. **After every experiment finishes** (M5's three, M6's runs, anything
+   else): validate (quality checks -- n_examples, dup/missing IDs, gold
+   label distribution, category-uniformity + agreement checks if the
+   result looks skewed), `bash scripts/sync_from_vm.sh` immediately (not
+   at the end of the session), record it in `EXPERIMENT_LOG.md` with the
+   same level of detail as every entry so far, update this checklist's
+   checkboxes, commit, push. This is now a well-established rhythm --
+   just keep doing it exactly the same way for every remaining experiment.
+
+**Durability infra now in place** (all git-tracked, all already exist --
+don't recreate, just use): `scripts/verify_kernel.sh` (startup guard),
+`scripts/sync_to_vm.sh` (push code, excludes `node_modules`/`.next`/
+`results`/`data/llm_cache`), `scripts/sync_from_vm.sh` (pull `results/`,
+`logs/`, `models/`), `scripts/sync_cache_from_vm.sh` (pull `data/llm_cache/`
+specifically, safe to run continuously), `scripts/run_m3_m4_chain.sh`
+(done, for reference), `scripts/run_m5_chain.sh` (ready to launch).
+
+---
+
 **Last updated:** 2026-08-12, ~13:35 UTC. **RECOVERED after a SECOND VM
 restart** (~13:22 UTC, cause unknown -- not a deliberate reboot this
 time; VM went unreachable mid-EXP-003 at 56%, came back healthy per user
