@@ -1207,3 +1207,40 @@ zero warning to do a final sync first.
   Directionally clear and consistent: on this corpus, adding few-shot demonstrations does not help Qwen3-4B-Instruct-2507 -- it hurts, and curated (label/category-balanced) demos hurt *more* than random ones. Zero-shot (EXP-002) remains the best-performing manual-prompt variant of the three by a clear margin.
 - **M3 variant selection (DEV-based, allowed per the sealing policy):** between the two few-shot variants, **random (EXP-003) is the winner** -- higher Macro F1 (0.588 vs. 0.501) and Accuracy (0.633 vs. 0.582). This is the few-shot candidate that will be considered (alongside EXP-002 zero-shot and EXP-005 reasoning) at the Phase 2 freeze step -- though given zero-shot beats both few-shot variants outright, the current DEV evidence points toward zero-shot being the more likely overall M2-M4 candidate to freeze, not few-shot at all. That decision is deferred to Phase 2, once EXP-005 (reasoning) has also run.
 - **TEST not touched**, per the sealing policy -- correct.
+
+### EXP-005 — Qwen3-4B structured reasoning — **DEV-EVALUATED** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-12. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (post-2nd-VM-restart environment, identical pinned stack).
+- **Command:** `python -m src.classification.run_experiment --config configs/llm_reasoning_qwen_local.json`
+- **Config:** `provider=local_hf`, `model=Qwen/Qwen3-4B-Instruct-2507`, `mode=reasoning`, `temperature=0.0`, prompt `classification/reasoning_v1.txt`, `eval_split=dev`, seed 42.
+- **Runtime:** ~1h02m wall-clock for 1,340 examples (~2.7-2.9s/example -- faster than either few-shot variant, ~1s/example slower than plain zero-shot; consistent with a short prompt (no demonstrations) but a longer generated completion (the reasoning trace) than direct zero-shot).
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.6276 |
+  | Macro F1 | 0.5796 |
+  | Weighted F1 | 0.5791 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.9023 / 0.2887 / 0.4374 |
+  | sarcastic: P / R / F1 (support 668) | 0.5751 / 0.9686 / 0.7217 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[194, 478], [21, 647]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates, no rows missing vs. `data/splits/dev.csv`.
+  - Gold label distribution (672/668) matches the canonical DEV split exactly.
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value.
+  - **Flagged and investigated:** same skew pattern as every other Qwen variant so far -- 83.4% predicted sarcastic overall (GEN 82.6%, HYP 90.4%, RQ 84.7% -- uniform across categories, ruling out a category-specific artifact). 94.6% agreement with EXP-002 (zero-shot) -- the highest agreement of any M3/M4 variant against zero-shot yet, meaning explicit step-by-step reasoning barely moved the model's decisions at all, and where it did, it landed almost exactly on the same skew.
+  - **Conclusion: not a pipeline bug.** Prompting Qwen3-4B to reason step-by-step before answering did not meaningfully change its behavior relative to direct zero-shot prompting -- it neither fixed the over-predicting-sarcastic bias nor introduced a new failure mode. The model's underlying tendency to read adversarial/rhetorical text as sarcastic appears robust to prompting strategy (direct, few-shot, or reasoning) -- it's a property of the base model's zero-shot calibration on this corpus, not something any of the four manual-prompt variants tested so far can prompt its way around.
+- **Artifacts:** `results/EXP-005/{config.json, metrics.json, predictions.csv}` -- pulled back and committed immediately.
+- **Comparison across all M2-M4 manual-prompt variants (DEV), now complete:**
+
+  | Experiment | Method | Macro F1 | Accuracy | sarcastic Recall |
+  |---|---|---:|---:|---:|
+  | EXP-002 | Zero-shot | **0.6008** | **0.6440** | 0.976 |
+  | EXP-005 | Structured reasoning | 0.5796 | 0.6276 | 0.969 |
+  | EXP-003 | Few-shot (random) | 0.5880 | 0.6328 | 0.966 |
+  | EXP-004 | Few-shot (curated) | 0.5011 | 0.5821 | 0.988 |
+
+  **Zero-shot (EXP-002) is the best of all four manual-prompt variants on DEV**, by a clear and consistent margin on both Macro F1 and Accuracy. None of the three "smarter prompting" variants (either few-shot flavor, or explicit reasoning) improved on the simplest possible prompt -- each one either left the model's sarcastic-overprediction bias unchanged (reasoning) or made it worse (both few-shot variants, curated worse than random). This is a genuine, repeatedly-confirmed empirical finding for this specific base model/corpus, not an artifact of any one run.
+- **TEST not touched**, per the sealing policy -- correct.
+- **M2-M4 development is now complete.** Per explicit instruction, the pipeline pauses here -- M5 (DSPy) and M6 (DeBERTa) are not started automatically; both remain queued pending explicit go-ahead.

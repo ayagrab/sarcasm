@@ -193,11 +193,20 @@ that would change the study).
 
 ### 4. M4 — Qwen3-4B structured reasoning (`configs/llm_reasoning_qwen_local.json`, EXP-005)
 
-- [ ] Full DEV run
-- [ ] Compare against EXP-002 (direct zero-shot) on DEV -- do NOT assume reasoning wins
-- [ ] Record in `EXPERIMENT_LOG.md`
+- [x] Full DEV run -- **DONE.** 1340/1340, ~1h02m. Macro F1 0.5796, Accuracy 0.6276.
+- [x] Compare against EXP-002 (direct zero-shot) on DEV -- **zero-shot wins**
+      (0.6008 vs. 0.5796 Macro F1); reasoning barely moved predictions at all
+      (94.6% agreement with EXP-002, highest of any variant) -- confirmed
+      genuine, not a bug.
+- [x] Record in `EXPERIMENT_LOG.md` -- done, full detail + final M2-M4 comparison table.
+
+**M2-M4 development complete.** Zero-shot (EXP-002) is the best of all four
+manual-prompt variants on DEV. **Paused here per explicit user request** --
+M5/M6 not started automatically; awaiting go-ahead.
 
 ### 5. M5 — DSPy + local Qwen (EXP-006 Predict, EXP-007 BootstrapFewShot, EXP-008 MIPROv2)
+
+**NOT STARTED -- awaiting explicit go-ahead (paused here on purpose, 2026-08-12 ~14:38 UTC).**
 
 - [ ] Smoke-test `LocalQwenLM` adapter with `dspy.Predict` on a handful of TRAIN/DEV examples (GPU must be free of the M2-M4 jobs first)
 - [ ] EXP-006: `dspy.Predict`, DEV
