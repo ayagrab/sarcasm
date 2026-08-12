@@ -30,5 +30,16 @@ rsync -av \
   "$REMOTE_HOST:$REMOTE_PATH/logs/" \
   "$LOCAL_PROJECT_PATH/logs/" 2>/dev/null || echo "(no logs/ dir on remote yet, skipping)"
 
+# Trained checkpoints (M6/DeBERTa: models/<experiment_id>/best_checkpoint/)
+# -- gitignored (models/ is a binary artifact, not source), but still
+# pulled to the local Mac disk so it survives independently of /mnt even
+# without being committed. See web/README.md, "Where frozen artifacts are
+# expected" -- the web app's DeBERTa adapter reads from this same path.
+rsync -av \
+  -e "ssh -i $SSH_KEY" \
+  "$REMOTE_HOST:$REMOTE_PATH/models/" \
+  "$LOCAL_PROJECT_PATH/models/" 2>/dev/null || echo "(no models/ dir on remote yet, skipping)"
+
 echo "Done. Now review with 'git status' and commit results/logs so they"
-echo "survive independently of the VM's ephemeral disk."
+echo "survive independently of the VM's ephemeral disk. (models/ stays"
+echo "gitignored -- it's now durable on local disk, not in git, by design.)"
