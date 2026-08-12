@@ -48,6 +48,12 @@ tree.
    automatically as its first step.
 3. `source /mnt/vmadmin/sarcasm-env/bin/activate && export HF_HOME=/mnt/vmadmin/huggingface`
 4. `cd /mnt/vmadmin/projects/sarcasm`
+5. **If recovering after a fresh `/mnt` wipe, restore the LLM disk cache
+   BEFORE relaunching anything**, so already-computed examples resume
+   instantly instead of being recomputed from scratch:
+   `rsync -av -e "ssh -i ~/.ssh/azure_vm_key" data/llm_cache/ vmadmin@20.245.56.28:/mnt/vmadmin/projects/sarcasm/data/llm_cache/`
+   (run on the local Mac). This only works if `scripts/sync_cache_from_vm.sh`
+   was running periodically before the crash -- see below.
 6. Check chain progress: `tail -c 500 logs/m3_m4_chain.log` (or the
    per-step logs `logs/EXP-003-random-dev.log`, `logs/EXP-004-curated-dev.log`,
    `logs/EXP-005-reasoning-dev.log`). `ps -ef | grep run_experiment` to
