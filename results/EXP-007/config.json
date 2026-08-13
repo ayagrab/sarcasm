@@ -1,0 +1,19 @@
+{
+  "experiment_id": "EXP-007",
+  "approach": "M5_dspy",
+  "optimizer": "bootstrap_few_shot",
+  "optimizer_config": {
+    "max_bootstrapped_demos": 4,
+    "max_labeled_demos": 8,
+    "trainset_sample_size": 150
+  },
+  "provider": "local_hf",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "temperature": 0.0,
+  "eval_split": "dev",
+  "n_eval": 1340,
+  "seed": 42,
+  "dspy_version": "3.3.0",
+  "train_size": 6706,
+  "dev_size_used_for_optimization": 1340
+}

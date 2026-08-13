@@ -1,0 +1,46 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   0%|          | 1/398 [00:00<00:42,  9.31it/s]Loading weights:  10%|▉         | 38/398 [00:00<00:01, 214.82it/s]Loading weights:  18%|█▊        | 70/398 [00:00<00:01, 256.26it/s]Loading weights:  26%|██▌       | 102/398 [00:00<00:01, 268.50it/s]Loading weights:  34%|███▍      | 135/398 [00:00<00:00, 278.26it/s]Loading weights:  42%|████▏     | 168/398 [00:00<00:00, 286.39it/s]Loading weights:  50%|█████     | 199/398 [00:00<00:00, 293.43it/s]Loading weights:  58%|█████▊    | 229/398 [00:00<00:00, 290.18it/s]Loading weights:  65%|██████▌   | 259/398 [00:00<00:00, 284.89it/s]Loading weights:  73%|███████▎  | 290/398 [00:01<00:00, 289.83it/s]Loading weights:  81%|████████  | 322/398 [00:01<00:00, 297.99it/s]Loading weights:  89%|████████▉ | 355/398 [00:01<00:00, 300.20it/s]Loading weights:  97%|█████████▋| 388/398 [00:01<00:00, 307.41it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 285.37it/s]
+  0%|          | 0/150 [00:00<?, ?it/s]  1%|          | 1/150 [00:04<12:12,  4.91s/it]  1%|▏         | 2/150 [00:11<14:27,  5.86s/it]  2%|▏         | 3/150 [00:16<13:18,  5.43s/it]  3%|▎         | 4/150 [00:22<14:18,  5.88s/it]  3%|▎         | 5/150 [00:27<13:11,  5.46s/it]  4%|▍         | 6/150 [00:34<14:04,  5.86s/it]  4%|▍         | 6/150 [00:34<13:42,  5.71s/it]
+Bootstrapped 4 full traces after 6 examples for up to 1 rounds, amounting to 6 attempts.
+{
+  "n_examples": 1340,
+  "accuracy": 0.6664179104477612,
+  "macro_f1": 0.640623284428869,
+  "weighted_f1": 0.6403358791250373,
+  "per_class": {
+    "not_sarcastic": {
+      "precision": 0.8640776699029126,
+      "recall": 0.39732142857142855,
+      "f1": 0.5443425076452599,
+      "support": 672
+    },
+    "sarcastic": {
+      "precision": 0.6071774975751697,
+      "recall": 0.937125748502994,
+      "f1": 0.736904061212478,
+      "support": 668
+    }
+  },
+  "positive_label": "sarcastic",
+  "sarcastic_precision": 0.6071774975751697,
+  "sarcastic_recall": 0.937125748502994,
+  "sarcastic_f1": 0.736904061212478,
+  "confusion_matrix": {
+    "labels": [
+      "not_sarcastic",
+      "sarcastic"
+    ],
+    "matrix": [
+      [
+        267,
+        405
+      ],
+      [
+        42,
+        626
+      ]
+    ]
+  }
+}
+
+Artifacts written to /mnt/vmadmin/projects/sarcasm/results/EXP-007

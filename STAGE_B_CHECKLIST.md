@@ -9,32 +9,39 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-13, ~12:42 UTC):** M1-M4 are all
-DEV-evaluated and committed. **A third VM restart happened (user-initiated,
-between sessions) and wiped `/mnt` again** -- recovery was run verbatim
-(same proven procedure as the first two incidents; see EXPERIMENT_LOG.md,
-"Third VM restart -- `/mnt` wiped again"), confirmed working a fourth time
-(smoke test reproduced accuracy 0.25 / macro F1 0.20 exactly again).
-Nothing was lost -- work had been paused cleanly before M5 with 0
-processes running. **M5 is now launched and running**:
-`scripts/run_m5_chain.sh` is active on the VM. **EXP-006 (`dspy.Predict`)
-is DONE -- Macro F1 0.6619, the best result of any method so far**
-(beats EXP-002's 0.6008 manual zero-shot); pulled back, quality-checked,
-recorded in EXPERIMENT_LOG.md, checklist updated, committed+pushed.
-**EXP-007 (`BootstrapFewShot`) is now running**, EXP-008 (`MIPROv2`)
-queued next. Background monitoring (cache backup every 5 min, 15-min
-heartbeat, chain state-change watcher) is re-armed for this session. When
-resuming a *future* session, do exactly this, in order, without
+**Where things stand (2026-08-13, ~13:26 UTC):** M1-M4 are all
+DEV-evaluated and committed. A third VM restart happened earlier this
+session (user-initiated, between sessions) and wiped `/mnt` again --
+recovered via the same proven procedure a fourth time (see
+EXPERIMENT_LOG.md, "Third VM restart -- `/mnt` wiped again"). **M5 progress:
+EXP-006 (`dspy.Predict`) and EXP-007 (`BootstrapFewShot`) are both DONE**
+(Macro F1 0.6619 and 0.6406 respectively -- EXP-006 remains the best
+result of any method in Stage B so far), pulled back, quality-checked,
+recorded in EXPERIMENT_LOG.md, committed+pushed. **Paused here on purpose,
+at the user's explicit request, right before EXP-008 (MIPROv2)** -- the
+chain auto-advanced to EXP-008 the instant EXP-007 finished but was
+killed within seconds (confirmed via `ps`/`nvidia-smi`: nothing running,
+both GPUs at 0%/0 MiB); no EXP-008 artifacts exist, nothing was lost.
+**Why paused specifically here:** EXP-007 took ~2h48m, roughly 3x the
+rough estimate, because of an effect only discovered mid-run (long
+few-shot-demo-embedded prompts + no flash-attention on Tesla M60 makes
+each DEV example ~7.5s instead of EXP-006's ~2.5s) -- worth reconsidering
+EXP-008's `auto="light"` MIPROv2 budget with this now-measured per-call
+cost before launching it unattended, rather than assuming it'll behave
+like the methodology's original (pre-measurement) estimate. The VM was
+intentionally left to be stopped by the user after this point -- **assume
+it needs the recovery procedure again** when resuming (see step 1).
+When resuming a *future* session, do exactly this, in order, without
 re-explaining the plan or asking for confirmation on any of it (already
-pre-approved):
+pre-approved), other than the EXP-008 budget judgment call flagged in
+step 4 below:
 
 0. **If M5 is still running from this session** (check `ps -ef | grep
    run_experiment` over SSH, or just check for a recent heartbeat), skip
    straight to re-arming monitoring (step 3 below) and follow its
-   progress -- do not relaunch M5 while it's already running. If it
-   finished, check `results/EXP-006/`, `results/EXP-007/`,
-   `results/EXP-008/` for what's done and continue the chain/section "5.
-   M5" below from wherever it left off.
+   progress -- do not relaunch M5 while it's already running. This should
+   not apply after a fresh resume (the VM was intentionally left stopped),
+   but check first rather than assume.
 
 1. **Reconnect and check for another VM restart first** (this has now
    happened THREE times -- assume nothing):
@@ -67,17 +74,30 @@ pre-approved):
      over SSH, `sleep 900` loop.
    - State-change watcher on whichever chain log is about to run
      (`grep -E "starting|finished|Chain complete|Traceback|Error|Killed|FAILED"`).
-4. **Launch M5** (nothing else needs to happen first -- M1-M4 are done,
-   TEST is correctly still sealed): `scripts/run_m5_chain.sh` on the VM
-   (`nohup bash scripts/run_m5_chain.sh > logs/m5_chain.log 2>&1 &`, then
-   `disown`). Runs: adapter smoke test -> EXP-006 (Predict) -> EXP-007
-   (BootstrapFewShot) -> EXP-008 (MIPROv2, `auto="light"`). Each already
-   uses the conservative/small budget the methodology calls for -- no
-   parameter decisions needed before launching. See "5. M5" section below
-   for what to do *after* each finishes. **Already launched as of
-   2026-08-13 ~12:40 UTC** (see step 0 above) -- don't relaunch if it's
-   still running; only (re)launch if it's not running and no `results/EXP-006`
-   (or later) exists yet.
+4. **Only EXP-008 (MIPROv2) is left for M5** -- EXP-006 and EXP-007 are
+   both done (see EXPERIMENT_LOG.md). **One judgment call before
+   launching it, not purely mechanical:** EXP-007 measured ~7.5s/DEV-example
+   with few-shot demos embedded (vs. EXP-006's ~2.5s), ~3x slower than the
+   methodology's rough estimate assumed -- MIPROv2 with `auto="light"`
+   (`configs/dspy_mipro_v2.json`) does a bootstrap phase similar to
+   EXP-007's PLUS several trial evaluations against a 100-example valset
+   each, so it could plausibly take significantly longer than EXP-007's
+   2h48m. Options: (a) launch as-is and accept a possibly long run, now
+   that the risk is known and documented, or (b) reduce
+   `valset_sample_size`/trial count first and note the deviation in
+   EXPERIMENT_LOG.md. Use judgment; this isn't blocked on asking the user
+   first (already flagged and it's their call whether to intervene once
+   they see actual progress), but don't launch without at least
+   registering which option was chosen and why. Command either way:
+   `python -m src.classification.run_experiment --config configs/dspy_mipro_v2.json`
+   on the VM (this single step, not the full chain script -- EXP-006/007
+   are already done, no need to rerun `run_m5_chain.sh` from scratch).
+   Consider `py-spy` (already installed on the VM as of this session --
+   `sudo /mnt/vmadmin/sarcasm-env/bin/py-spy dump --pid <pid> --locals`)
+   if the progress display looks frozen -- reading the `run_dspy_experiment`
+   frame's `_` (loop index) or `results` list locals gives real progress
+   even when DSPy's own tqdm bar is buffered/invisible for a long stretch
+   (this worked well for EXP-007, not a hang).
 5. **After M5, M6 (DeBERTa) is next** -- not chained automatically (its
    smoke test gates a real fp16-stability judgment call). See "6. M6"
    section below for the exact procedure.
@@ -313,13 +333,12 @@ M5/M6 not started automatically; awaiting go-ahead.
 
 ### 5. M5 — DSPy + local Qwen (EXP-006 Predict, EXP-007 BootstrapFewShot, EXP-008 MIPROv2)
 
-**IN PROGRESS -- launched 2026-08-13 ~12:40 UTC, running via `scripts/run_m5_chain.sh`.**
+**PAUSED here on purpose (2026-08-13 ~13:26 UTC), right before EXP-008 -- only EXP-008 remains.** See "START HERE" above for the reasoning (EXP-007 ran ~3x slower than estimated; worth a budget judgment call before launching EXP-008 unattended).
 
 - [x] Smoke-test `LocalQwenLM` adapter with `dspy.Predict` on a handful of TRAIN/DEV examples -- **PASSED**, 5/5.
 - [x] EXP-006: `dspy.Predict`, DEV -- **DONE.** 1340/1340, 56m49s. **Macro F1 0.6619, Accuracy 0.6799 -- best result of any method so far** (beats EXP-002's 0.6008). See EXPERIMENT_LOG.md.
-- [ ] Before BootstrapFewShot/MIPROv2: estimate/record expected # LM calls for the planned budget
-- [ ] EXP-007: `BootstrapFewShot` with a SMALL budget first (few demos) -- record wall-clock + DEV delta vs. EXP-006; expand only if it justifies the cost -- **RUNNING** (started immediately after EXP-006).
-- [ ] EXP-008: `MIPROv2`, `auto="light"` first -- record wall-clock + DEV delta; expand only if justified
+- [x] EXP-007: `BootstrapFewShot` (`max_bootstrapped_demos=4`, `max_labeled_demos=8`) -- **DONE.** 1340/1340, 2h48m24s (slower than expected -- long few-shot prompts + no flash-attention on M60, see EXPERIMENT_LOG.md). **Macro F1 0.6406, Accuracy 0.6664 -- slightly underperforms EXP-006** (echoes the M2-M4 finding that few-shot demos don't help this model/corpus).
+- [ ] EXP-008: `MIPROv2`, `auto="light"` first -- record wall-clock + DEV delta; expand only if justified. **NOT STARTED** (auto-launched then immediately killed per user request at the EXP-007/EXP-008 boundary; no artifacts, nothing lost). See "START HERE" step 4 for the budget judgment call to make before launching.
 - [ ] Compare EXP-006/007/008 vs. EXP-002 (manual zero-shot) on DEV
 - [ ] Record in `EXPERIMENT_LOG.md`
 

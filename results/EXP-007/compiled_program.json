@@ -1,0 +1,63 @@
+{
+  "traces": [],
+  "train": [],
+  "demos": [
+    {
+      "augmented": true,
+      "sentence": "Well, I'd say that since that sort of question don't have a pat and universal answer, then that's why they shouldn't have been asked in the first place, in this case. My view is that questions over a job like this should be about a person's qualifications",
+      "label": "not_sarcastic"
+    },
+    {
+      "augmented": true,
+      "sentence": "i think that would probably create more problems than it would solve. how would we know? we don't punish. drunk drivers get off incredibly easy so much of the time. we have the weakest anti-drunk driving laws in the western world and we have the worst problem with drunk driving. coincidence? that's not all that far from what i've said. @joe- this is for a whole other discussion, but i think that the first step in aa is a big part of the reason of its low success rate. that's not too far from what i've said either.",
+      "label": "not_sarcastic"
+    },
+    {
+      "augmented": true,
+      "sentence": "We just call it either England or Great Britain over here in the US...but then again we don't teach geography very well :)\r\nMy point is ....where do they make them from? Much the same way a chair is made from wood...morals have to be made by something, what is the basis?",
+      "label": "sarcastic"
+    },
+    {
+      "augmented": true,
+      "sentence": "Well I'm not arguing that this is adaptation...I have never said that.. What I am saying is the environment -- in this case diet is the cause for these traits to emerge in offspring.....but like I said earlier ToE does not admit that the diet or any enviornmental variable can influence traits in offspring. Traits are dictated by genes and genes are closed off from the enviornment. This is the basic dogma of Weismann's barrier. I'm not necessarily calling this evolution....I'm just simply pointing out that acquired traits can be inherited. There is no other way to describe this other than Lamarckism. Do you disagree that The inheritance of acquired characteristics is simply changes in physiology acquired over the life of an organism that are transmitted to offspring?",
+      "label": "not_sarcastic"
+    },
+    {
+      "sentence": "i'm not disputing the numbers, and i'm certainly not disputing the fact that bush won.  what i'm intrigued about is the razor thin margins, to my mind anyway, that characterize the us election system. don't you find it the least bit odd that it's been 30 years since a president received a plurality? waxy",
+      "label": "not_sarcastic"
+    },
+    {
+      "sentence": "actually, it can be proven whether leprechauns, unicorns, the flying spaghetti monster, magical space monkeys and livining care baers, and even god, exists or not.the question of proving a belief seems kinda self-contradictory to me. if something is a fact that can be proven, then your belief about it is irrelevant. likewise, if you believe something, whether there are facts to support it or not, its still your belief. there are people who believe things inn the absence of supporting facts, and sometimes even in the face of opposing facts. the term for that is faithfaith is the belief of something in the absence of evidence. if you have faith in something, proof is irrelevant, or at least it should be",
+      "label": "not_sarcastic"
+    },
+    {
+      "sentence": "No. What the doctor was doing was going to church. He was not a monster. He was not a \"sicko.\" He was a murder victim.   What his murderer did was murder.",
+      "label": "sarcastic"
+    },
+    {
+      "sentence": "Nearly all the food humans eat today, even in the Western world is GM including maize, tomatoes, and soy, etc, etc. used as ingredients in products such some soymilk. Essentially everything is with the exception of \"organic\". However, as i noted above, I wouldn't make this argument because I think GM soy esecially is not very healthy for people snd GM foods tend to be more prone to bacterial infection which can make people sick. I haven't read from all sides, however.",
+      "label": "not_sarcastic"
+    }
+  ],
+  "signature": {
+    "instructions": "Classify whether an English sentence is sarcastic.",
+    "fields": [
+      {
+        "prefix": "Sentence:",
+        "description": "The sentence to classify."
+      },
+      {
+        "prefix": "Label:",
+        "description": "Whether the sentence is sarcastic or not."
+      }
+    ]
+  },
+  "lm": null,
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.10",
+      "dspy": "3.3.0",
+      "cloudpickle": "3.1"
+    }
+  }
+}

@@ -1341,3 +1341,33 @@ chown` step.
 - **Artifacts:** `results/EXP-006/{config.json, metrics.json, predictions.csv}` -- pulled back and committed immediately.
 - **TEST not touched**, per the sealing policy -- correct.
 - **M5 chain continues automatically**: EXP-007 (`BootstrapFewShot`) started immediately after (`configs/dspy_bootstrap_few_shot.json`).
+
+### EXP-007 — DSPy `BootstrapFewShot`, local Qwen — **DEV-EVALUATED** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-13. **Environment:** same as EXP-006 (post-3rd-VM-restart, `dspy==3.3.0`).
+- **Command:** `python -m src.classification.run_experiment --config configs/dspy_bootstrap_few_shot.json` (second step of the M5 chain, immediately after EXP-006).
+- **Config:** `optimizer=bootstrap_few_shot`, `max_bootstrapped_demos=4`, `max_labeled_demos=8`, `max_rounds=1`, `trainset_sample_size=150` (samples 150 of TRAIN's 8,385 rows to search for valid bootstrapped demos; TEST/DEV not used for the bootstrap search itself -- `dev_size_used_for_optimization` in the saved config is just informational metadata, not evidence of DEV leakage, confirmed by reading `build_program()`: `BootstrapFewShot.compile()` is called with `trainset` only, no `valset`).
+- **Runtime:** **2h48m24s wall-clock** for the full step (compile + full-DEV eval combined) -- far longer than EXP-006's 56m49s, and far longer than initially estimated. **Root cause, confirmed live via `py-spy` process inspection during the run** (see below): once bootstrapped demos are found, every subsequent classification call embeds up to 8 few-shot demos directly in the prompt (~1,200-1,400 tokens vs. EXP-006's short zero-shot prompt), and Tesla M60 has no flash-attention support (`attn_implementation='eager'`, O(n²) cost) -- so per-example cost during the 1,340-example DEV eval phase rose to ~7.5s/example (vs. EXP-006's ~2.5s/example), accounting for most of the wall-clock. The compile/bootstrap phase itself (max 150 LM calls, well under the trainset_sample_size cap since it stops once it has enough valid demos) was comparatively short.
+- **Live monitoring note (process introspection, not just log-watching):** DSPy's own bootstrap-phase progress bar writes to a pipe (`python ... | tee logs/...`), which block-buffers and can appear frozen on-screen for tens of minutes while the process is still genuinely computing -- confirmed **not a hang** by installing `py-spy` on the VM (`sudo py-spy dump --pid <pid> --locals`) mid-run and reading the live Python call stack: (1) confirmed the process was inside `transformers.generate()`'s sampling loop, not blocked on I/O; (2) confirmed forward progress by reading the `eval_df.iterrows()` loop index (`_`) directly from the `run_dspy_experiment` frame's locals across repeated snapshots (e.g. row 1181 -> row 1189 in 58s, row 1249 -> row 1293 in 5m35s), which let elapsed-time-to-completion be estimated accurately (within a few minutes) well before the run actually finished. Worth reusing this technique (`py-spy dump --locals`, reading the loop variable) for any future silent-progress-bar situation on this VM rather than assuming a stall.
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.6664 |
+  | Macro F1 | 0.6406 |
+  | Weighted F1 | 0.6403 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.8641 / 0.3973 / 0.5443 |
+  | sarcastic: P / R / F1 (support 668) | 0.6072 / 0.9371 / 0.7369 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[267, 405], [42, 626]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates, no rows missing/extra vs. `data/splits/dev.csv`.
+  - Gold label distribution (672/668) matches the canonical DEV split exactly.
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value.
+  - Predicted-sarcastic rate roughly uniform across categories (GEN 75.6%, HYP 82.5%, RQ 78.2%).
+  - 86.7% agreement with EXP-006 (unoptimized `dspy.Predict`) -- same base model/signature, high but not total overlap.
+  - `compiled_program.json` saved with the 8 selected demos (4 bootstrapped + up to 8 labeled) -- inspected a couple manually, both correctly labeled `not_sarcastic` examples of ambiguous/argumentative (but sincere) text, consistent with the corpus.
+- **Result: BootstrapFewShot slightly *underperforms* the unoptimized `dspy.Predict` baseline** -- Macro F1 0.6406 vs. EXP-006's 0.6619 (Accuracy 0.6664 vs. 0.6799 -- both metrics down). This echoes the M2-M4 finding that adding few-shot demonstrations does not help this model/corpus (EXP-003/004 also underperformed EXP-002's zero-shot) -- now confirmed a second time with DSPy's automatic (not hand-curated) demo selection. **EXP-006 (unoptimized `dspy.Predict`) remains the best M5 result so far and the best of any method in Stage B to date.**
+- **Artifacts:** `results/EXP-007/{config.json, metrics.json, predictions.csv, compiled_program.json}` -- pulled back and committed immediately.
+- **TEST not touched**, per the sealing policy -- correct.
+- **M5 chain paused here per explicit user request**: the chain auto-advanced to EXP-008 (MIPROv2) the instant EXP-007 finished, but was killed immediately (`kill` on both `run_m5_chain.sh` and the EXP-008 process, confirmed via `ps`/`nvidia-smi` that nothing was left running and both GPUs returned to 0% util / 0 MiB) before it could consume meaningful compute -- no EXP-008 artifacts exist, nothing was lost by stopping it. Reason: given how much slower this hardware is running than the methodology anticipated (EXP-007 took ~3x its rough estimate), it's worth reconsidering EXP-008's `auto="light"` budget with this now-measured per-call cost in hand, rather than launching it unattended. **EXP-008 is the correct and only next step for M5** -- see STAGE_B_CHECKLIST.md.
