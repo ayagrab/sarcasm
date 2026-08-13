@@ -1,0 +1,44 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   4%|▍         | 15/398 [00:00<00:02, 147.73it/s]Loading weights:  12%|█▏        | 47/398 [00:00<00:01, 239.14it/s]Loading weights:  20%|█▉        | 78/398 [00:00<00:01, 269.68it/s]Loading weights:  28%|██▊       | 110/398 [00:00<00:01, 280.76it/s]Loading weights:  36%|███▌      | 143/398 [00:00<00:00, 291.37it/s]Loading weights:  44%|████▍     | 176/398 [00:00<00:00, 302.22it/s]Loading weights:  52%|█████▏    | 207/398 [00:00<00:00, 287.01it/s]Loading weights:  59%|█████▉    | 236/398 [00:00<00:00, 279.00it/s]Loading weights:  67%|██████▋   | 268/398 [00:00<00:00, 283.61it/s]Loading weights:  76%|███████▌  | 301/398 [00:01<00:00, 291.98it/s]Loading weights:  84%|████████▍ | 334/398 [00:01<00:00, 302.81it/s]Loading weights:  92%|█████████▏| 366/398 [00:01<00:00, 303.23it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 290.68it/s]
+{
+  "n_examples": 1340,
+  "accuracy": 0.6798507462686567,
+  "macro_f1": 0.6618707278725784,
+  "weighted_f1": 0.66163797682538,
+  "per_class": {
+    "not_sarcastic": {
+      "precision": 0.8384401114206128,
+      "recall": 0.4479166666666667,
+      "f1": 0.5838991270611057,
+      "support": 672
+    },
+    "sarcastic": {
+      "precision": 0.6218144750254841,
+      "recall": 0.9131736526946108,
+      "f1": 0.739842328684051,
+      "support": 668
+    }
+  },
+  "positive_label": "sarcastic",
+  "sarcastic_precision": 0.6218144750254841,
+  "sarcastic_recall": 0.9131736526946108,
+  "sarcastic_f1": 0.739842328684051,
+  "confusion_matrix": {
+    "labels": [
+      "not_sarcastic",
+      "sarcastic"
+    ],
+    "matrix": [
+      [
+        301,
+        371
+      ],
+      [
+        58,
+        610
+      ]
+    ]
+  }
+}
+
+Artifacts written to /mnt/vmadmin/projects/sarcasm/results/EXP-006

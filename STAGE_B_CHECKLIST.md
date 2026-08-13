@@ -17,9 +17,12 @@ between sessions) and wiped `/mnt` again** -- recovery was run verbatim
 (smoke test reproduced accuracy 0.25 / macro F1 0.20 exactly again).
 Nothing was lost -- work had been paused cleanly before M5 with 0
 processes running. **M5 is now launched and running**:
-`scripts/run_m5_chain.sh` is active on the VM (adapter smoke test passed
-5/5, EXP-006 `dspy.Predict` is running against full DEV as of this
-writing). Background monitoring (cache backup every 5 min, 15-min
+`scripts/run_m5_chain.sh` is active on the VM. **EXP-006 (`dspy.Predict`)
+is DONE -- Macro F1 0.6619, the best result of any method so far**
+(beats EXP-002's 0.6008 manual zero-shot); pulled back, quality-checked,
+recorded in EXPERIMENT_LOG.md, checklist updated, committed+pushed.
+**EXP-007 (`BootstrapFewShot`) is now running**, EXP-008 (`MIPROv2`)
+queued next. Background monitoring (cache backup every 5 min, 15-min
 heartbeat, chain state-change watcher) is re-armed for this session. When
 resuming a *future* session, do exactly this, in order, without
 re-explaining the plan or asking for confirmation on any of it (already
@@ -310,12 +313,12 @@ M5/M6 not started automatically; awaiting go-ahead.
 
 ### 5. M5 — DSPy + local Qwen (EXP-006 Predict, EXP-007 BootstrapFewShot, EXP-008 MIPROv2)
 
-**NOT STARTED -- awaiting explicit go-ahead (paused here on purpose, 2026-08-12 ~14:38 UTC).**
+**IN PROGRESS -- launched 2026-08-13 ~12:40 UTC, running via `scripts/run_m5_chain.sh`.**
 
-- [ ] Smoke-test `LocalQwenLM` adapter with `dspy.Predict` on a handful of TRAIN/DEV examples (GPU must be free of the M2-M4 jobs first)
-- [ ] EXP-006: `dspy.Predict`, DEV
+- [x] Smoke-test `LocalQwenLM` adapter with `dspy.Predict` on a handful of TRAIN/DEV examples -- **PASSED**, 5/5.
+- [x] EXP-006: `dspy.Predict`, DEV -- **DONE.** 1340/1340, 56m49s. **Macro F1 0.6619, Accuracy 0.6799 -- best result of any method so far** (beats EXP-002's 0.6008). See EXPERIMENT_LOG.md.
 - [ ] Before BootstrapFewShot/MIPROv2: estimate/record expected # LM calls for the planned budget
-- [ ] EXP-007: `BootstrapFewShot` with a SMALL budget first (few demos) -- record wall-clock + DEV delta vs. EXP-006; expand only if it justifies the cost
+- [ ] EXP-007: `BootstrapFewShot` with a SMALL budget first (few demos) -- record wall-clock + DEV delta vs. EXP-006; expand only if it justifies the cost -- **RUNNING** (started immediately after EXP-006).
 - [ ] EXP-008: `MIPROv2`, `auto="light"` first -- record wall-clock + DEV delta; expand only if justified
 - [ ] Compare EXP-006/007/008 vs. EXP-002 (manual zero-shot) on DEV
 - [ ] Record in `EXPERIMENT_LOG.md`

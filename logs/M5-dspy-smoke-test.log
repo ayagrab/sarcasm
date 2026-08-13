@@ -1,0 +1,9 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   0%|          | 1/398 [00:00<00:41,  9.61it/s]Loading weights:   9%|▉         | 37/398 [00:00<00:01, 209.90it/s]Loading weights:  17%|█▋        | 69/398 [00:00<00:01, 255.92it/s]Loading weights:  26%|██▌       | 102/398 [00:00<00:01, 276.27it/s]Loading weights:  34%|███▍      | 135/398 [00:00<00:00, 283.88it/s]Loading weights:  42%|████▏     | 168/398 [00:00<00:00, 293.88it/s]Loading weights:  51%|█████     | 201/398 [00:00<00:00, 295.68it/s]Loading weights:  59%|█████▉    | 234/398 [00:00<00:00, 294.86it/s]Loading weights:  67%|██████▋   | 267/398 [00:00<00:00, 296.61it/s]Loading weights:  75%|███████▌  | 300/398 [00:01<00:00, 287.43it/s]Loading weights:  84%|████████▍ | 335/398 [00:01<00:00, 301.53it/s]Loading weights:  92%|█████████▏| 367/398 [00:01<00:00, 305.31it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 288.83it/s]
+[OK] example_id=GEN-9 gold=not_sarcastic pred='sarcastic'
+[OK] example_id=GEN-13 gold=not_sarcastic pred='sarcastic'
+[OK] example_id=GEN-28 gold=not_sarcastic pred='sarcastic'
+[OK] example_id=GEN-30 gold=not_sarcastic pred='sarcastic'
+[OK] example_id=GEN-31 gold=not_sarcastic pred='sarcastic'
+
+DSPy smoke test PASSED: 5/5 examples produced a valid label via LocalQwenLM.

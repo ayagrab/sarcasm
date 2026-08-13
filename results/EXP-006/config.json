@@ -1,0 +1,13 @@
+{
+  "experiment_id": "EXP-006",
+  "approach": "M5_dspy",
+  "optimizer": "predict",
+  "optimizer_config": {},
+  "provider": "local_hf",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "temperature": 0.0,
+  "eval_split": "dev",
+  "n_eval": 1340,
+  "seed": 42,
+  "dspy_version": "3.3.0"
+}

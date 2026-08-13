@@ -1313,3 +1313,31 @@ already handled this cleanly; the only new observation is the `/mnt`
 root-ownership-after-boot detail captured in step 2 above, in case a
 future recovery hits the same "Permission denied" and needs the `sudo
 chown` step.
+
+### EXP-006 — DSPy `Predict` (unoptimized baseline), local Qwen — **DEV-EVALUATED** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-13. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (post-3rd-VM-restart environment, identical pinned stack: `dspy==3.3.0`, same Qwen3-4B-Instruct-2507).
+- **Command:** `python -m src.classification.run_experiment --config configs/dspy_predict.json` (via `scripts/run_m5_chain.sh`, first of the M5 chain, after the adapter smoke test passed 5/5).
+- **Config:** `provider=local_hf`, `model=Qwen/Qwen3-4B-Instruct-2507`, `approach=M5_dspy`, `optimizer=predict` (unoptimized `dspy.Predict` over the `SarcasmClassification` signature -- plain input/output field wrapper, no bootstrapped demos, no prompt optimization), `temperature=0.0`, `eval_split=dev`, seed 42.
+- **Runtime:** 56m49s wall-clock for 1,340 examples (~2.5s/example -- similar order to the manual-prompt zero-shot run).
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.6799 |
+  | Macro F1 | **0.6619** |
+  | Weighted F1 | 0.6616 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.8384 / 0.4479 / 0.5839 |
+  | sarcastic: P / R / F1 (support 668) | 0.6218 / 0.9132 / 0.7398 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[301, 371], [58, 610]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates, no rows missing/extra vs. `data/splits/dev.csv`.
+  - Gold label distribution (672/668) matches the canonical DEV split exactly.
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value.
+  - Predicted-sarcastic rate 73.2% overall, roughly uniform across categories (GEN 70.8%, HYP 80.7%, RQ 77.0%) -- less skewed than any of the four manual-prompt variants (83-90%).
+  - 86.6% agreement with EXP-002 (zero-shot manual prompt) -- same underlying model, same general direction, but DSPy's structured signature-based prompt construction clearly changes behavior enough to matter.
+- **This is the best result of any method so far, by a clear margin**: Macro F1 0.6619 vs. EXP-002's 0.6008 (previous best, manual zero-shot). Notably, this is the **unoptimized** DSPy baseline -- no bootstrapping or MIPROv2 tuning yet, just DSPy's own signature-driven prompt template outperforming every hand-written prompt tried in M2-M4. Not yet investigated *why* (differs in exact prompt wording/structure from the manual `zero_shot_v1.txt`/`few_shot_v1.txt`/`reasoning_v1.txt` templates) -- worth a closer look once EXP-007/EXP-008 are in, to see if the gain is specifically DSPy's default template or something that further optimization builds on.
+- **Artifacts:** `results/EXP-006/{config.json, metrics.json, predictions.csv}` -- pulled back and committed immediately.
+- **TEST not touched**, per the sealing policy -- correct.
+- **M5 chain continues automatically**: EXP-007 (`BootstrapFewShot`) started immediately after (`configs/dspy_bootstrap_few_shot.json`).
