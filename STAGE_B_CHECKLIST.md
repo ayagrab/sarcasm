@@ -9,23 +9,44 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-12, ~14:40 UTC):** M1-M4 are all DEV-evaluated
-and committed. **Paused here on purpose, at the user's explicit request** --
-not a crash, not a blocker. Nothing is running on the VM (GPU idle, 0
-processes). When told "continue from where we stopped," do exactly this,
-in order, without re-explaining the plan or asking for confirmation on any
-of it (already pre-approved):
+**Where things stand (2026-08-13, ~12:42 UTC):** M1-M4 are all
+DEV-evaluated and committed. **A third VM restart happened (user-initiated,
+between sessions) and wiped `/mnt` again** -- recovery was run verbatim
+(same proven procedure as the first two incidents; see EXPERIMENT_LOG.md,
+"Third VM restart -- `/mnt` wiped again"), confirmed working a fourth time
+(smoke test reproduced accuracy 0.25 / macro F1 0.20 exactly again).
+Nothing was lost -- work had been paused cleanly before M5 with 0
+processes running. **M5 is now launched and running**:
+`scripts/run_m5_chain.sh` is active on the VM (adapter smoke test passed
+5/5, EXP-006 `dspy.Predict` is running against full DEV as of this
+writing). Background monitoring (cache backup every 5 min, 15-min
+heartbeat, chain state-change watcher) is re-armed for this session. When
+resuming a *future* session, do exactly this, in order, without
+re-explaining the plan or asking for confirmation on any of it (already
+pre-approved):
 
-1. **Reconnect and check for a THIRD VM restart first** (this has now
-   happened twice unannounced -- assume nothing):
+0. **If M5 is still running from this session** (check `ps -ef | grep
+   run_experiment` over SSH, or just check for a recent heartbeat), skip
+   straight to re-arming monitoring (step 3 below) and follow its
+   progress -- do not relaunch M5 while it's already running. If it
+   finished, check `results/EXP-006/`, `results/EXP-007/`,
+   `results/EXP-008/` for what's done and continue the chain/section "5.
+   M5" below from wherever it left off.
+
+1. **Reconnect and check for another VM restart first** (this has now
+   happened THREE times -- assume nothing):
    `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28` (`ConnectTimeout=20`;
    if it times out completely, that itself is the finding -- report it,
    don't guess). Then `bash scripts/verify_kernel.sh` (fails loudly on a
    kernel/driver mismatch) and `ls /mnt/vmadmin` (if "No such file or
    directory", `/mnt` was wiped again -- run the full recovery procedure
    documented in `EXPERIMENT_LOG.md`, "VM restart -- `/mnt` ephemeral-disk
-   data loss incident and recovery" / "Second VM restart," steps 1-9,
-   verbatim; it's been used twice already and works).
+   data loss incident and recovery" / "Second VM restart" / "Third VM
+   restart," steps 1-9, verbatim; it's been used three times already and
+   works every time. Note: `/mnt` may come back **root-owned** -- if
+   `mkdir`/`chown` on `/mnt/vmadmin` gives "Permission denied", `sudo
+   mkdir -p /mnt/vmadmin/{projects,sarcasm-env,huggingface} && sudo chown
+   -R vmadmin:vmadmin /mnt/vmadmin` first, seen on the third recovery).
 2. **If the environment needed rebuilding**, after it's back: re-run
    `scripts/verify_gpu.py`, `pytest tests/test_classification_*.py`
    (expect 61/61), and the Qwen zero-shot smoke test (`--limit 20`) --
@@ -50,7 +71,10 @@ of it (already pre-approved):
    (BootstrapFewShot) -> EXP-008 (MIPROv2, `auto="light"`). Each already
    uses the conservative/small budget the methodology calls for -- no
    parameter decisions needed before launching. See "5. M5" section below
-   for what to do *after* each finishes.
+   for what to do *after* each finishes. **Already launched as of
+   2026-08-13 ~12:40 UTC** (see step 0 above) -- don't relaunch if it's
+   still running; only (re)launch if it's not running and no `results/EXP-006`
+   (or later) exists yet.
 5. **After M5, M6 (DeBERTa) is next** -- not chained automatically (its
    smoke test gates a real fp16-stability judgment call). See "6. M6"
    section below for the exact procedure.

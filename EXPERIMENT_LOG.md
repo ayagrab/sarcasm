@@ -1244,3 +1244,72 @@ zero warning to do a final sync first.
   **Zero-shot (EXP-002) is the best of all four manual-prompt variants on DEV**, by a clear and consistent margin on both Macro F1 and Accuracy. None of the three "smarter prompting" variants (either few-shot flavor, or explicit reasoning) improved on the simplest possible prompt -- each one either left the model's sarcastic-overprediction bias unchanged (reasoning) or made it worse (both few-shot variants, curated worse than random). This is a genuine, repeatedly-confirmed empirical finding for this specific base model/corpus, not an artifact of any one run.
 - **TEST not touched**, per the sealing policy -- correct.
 - **M2-M4 development is now complete.** Per explicit instruction, the pipeline pauses here -- M5 (DSPy) and M6 (DeBERTa) are not started automatically; both remain queued pending explicit go-ahead.
+
+### Third VM restart -- `/mnt` wiped again (2026-08-13, ~12:27 UTC)
+
+User restarted the VM (independently, between sessions -- work had been
+deliberately paused before M5 with 0 processes running, so nothing was
+lost mid-experiment this time). On reconnect, `/mnt/vmadmin/` was
+confirmed empty again (`ls`: "No such file or directory") -- same
+ephemeral-disk signature as the first two incidents. `df -h /mnt` showed
+a fresh filesystem (48 KB used / 1.5 TB) and `/mnt` itself was owned by
+`root` (not `vmadmin`) immediately after boot, requiring `sudo mkdir` +
+`sudo chown` before `vmadmin` could write to it again -- a new detail not
+seen on the first two recoveries, noted here in case it recurs.
+
+**Nothing was lost** (unlike the first two incidents): work had been
+paused cleanly before M5 with all M1-M4 results already committed to git,
+so there was no in-progress experiment or uncommitted artifact on `/mnt`
+to lose.
+
+**Recovery performed, identical procedure to the first two incidents,
+confirmed working a third time:**
+1. Verified survival: `hostname` (`dpmlgpuNC6sv32025s-0003`), kernel
+   (`6.8.0-1029-azure`, correct), `nvidia-smi` (driver 535.230.02, both
+   Tesla M60s idle, 0 MiB used).
+2. `sudo mkdir -p /mnt/vmadmin/{projects,sarcasm-env,huggingface}` +
+   `sudo chown -R vmadmin:vmadmin /mnt/vmadmin` (the new step -- `/mnt`
+   came back root-owned this time).
+3. Repo re-synced via `scripts/sync_to_vm.sh` (unchanged).
+4. venv recreated (`python3.10 -m venv`, same 3.10.12), exact pinned
+   stack reinstalled from `environment_stage_b.txt`'s pip-freeze
+   (`torch==2.5.1+cu118`, `transformers==5.15.0`, `dspy==3.3.0`, etc.) --
+   identical versions, nothing upgraded, same as both prior recoveries.
+5. `Qwen/Qwen3-4B-Instruct-2507` + `microsoft/deberta-v3-base`
+   re-downloaded (~25s combined) into a fresh `HF_HOME`.
+6. `verify_kernel.sh`, `verify_gpu.py` (identical verdict to every prior
+   run), the classification test suite (61/61), and the Qwen zero-shot
+   smoke test (`--limit 20`, `SMOKE-recovery3-qwen-zero-shot`) all
+   re-passed -- **reproduced accuracy 0.25 / macro F1 0.20 exactly, the
+   fourth time now** (original, first recovery, second recovery, this
+   one) that this pipeline has behaved identically across a full
+   environment rebuild.
+7. Per-example LLM disk cache restored from the local Mac's periodic
+   backup (`data/llm_cache/`, 3,949 entries) to the freshly-recreated VM
+   before launching anything.
+8. Background monitoring re-armed fresh (cache backup every 5 min, 15-min
+   progress heartbeat, chain state-change watcher) -- as expected, none
+   of it survived the new session per se, this is the normal every-session
+   step, not incident-specific.
+9. **M5 launched** (`scripts/run_m5_chain.sh`, nohup + disown on the VM):
+   adapter smoke test passed (5/5), EXP-006 (`dspy.Predict`) started
+   running against full DEV.
+
+**Root cause still unknown** -- three unannounced-or-user-initiated `/mnt`
+wipes now on this VM in two days. Root-causing via Azure Activity Log or
+serial console boot log was considered again (per the standing note after
+the second incident) but not pursued this time either: no `az` CLI
+available in this environment, and since nothing was lost and the
+recovery is now a well-proven <15-minute procedure, proceeding directly
+with recovery remains the better use of time than investigating a
+platform-level cause that may not be actionable anyway. If a fourth
+wipe happens, root-causing via the Azure portal (not available here)
+would be worth doing directly, since the recovery-tax is now the main
+remaining cost of this instability.
+
+**No new durability fixes needed** -- the existing infra (git as source
+of truth, `sync_from_vm.sh`/`sync_cache_from_vm.sh`, `verify_kernel.sh`)
+already handled this cleanly; the only new observation is the `/mnt`
+root-ownership-after-boot detail captured in step 2 above, in case a
+future recovery hits the same "Permission denied" and needs the `sudo
+chown` step.
