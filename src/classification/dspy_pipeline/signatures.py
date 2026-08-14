@@ -5,8 +5,18 @@ Requires the `dspy` package (see `requirements-classification.txt`) --
 Audit). This module is importable either way; only `build_signature()`
 requires the real dependency, so the rest of `src/classification/` can be
 imported/tested without `dspy` present.
+
+No `from __future__ import annotations` here deliberately: `SarcasmClassification`
+is defined inside `build_signature()`, a local scope, so its `Literal[...]`
+output-field annotation must evaluate eagerly to a real type object at class
+-body execution time. With postponed evaluation, the annotation would be
+stored as an unresolved string/ForwardRef (pydantic/dspy resolve annotations
+against the enclosing *module*'s globals, which don't include a
+function-local `Literal` import) -- this doesn't break `dspy.Predict`/
+`BootstrapFewShot`, but breaks MIPROv2's `Signature.with_instructions()`,
+which rebuilds the signature and re-validates field types
+(`ValueError: Field types must be types, but received: ForwardRef(...)`).
 """
-from __future__ import annotations
 
 try:
     import dspy

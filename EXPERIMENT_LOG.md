@@ -1472,6 +1472,29 @@ any session log):**
    Background monitoring re-armed (cache backup every 5 min, 15-min
    heartbeat, state-change watcher on the EXP-008 log).
 
+**Update: EXP-008's first real run (after all of the above) crashed for a
+genuine code reason, not an infra one.** Trial 1 of MIPROv2's optimization
+loop failed with `ValueError: Field types must be types, but received:
+ForwardRef("Literal['sarcastic', 'not_sarcastic']")...`, uncaught by
+Optuna, which killed the whole process (GPUs back to 0%, no `ps` entry).
+**Root cause:** `src/classification/dspy_pipeline/signatures.py` had
+`from __future__ import annotations` at module level, but
+`SarcasmClassification` is defined *inside* `build_signature()`, a local
+function scope. Under postponed evaluation, its `label: Literal[...]`
+annotation is stored as a string, and pydantic/dspy resolve such strings
+against the *module's* globals -- which don't include the function-local
+`from typing import Literal` -- so the annotation stayed an unresolved
+`ForwardRef`. This never surfaced in EXP-006 (`Predict`) or EXP-007
+(`BootstrapFewShot`) because neither calls `Signature.with_instructions()`;
+MIPROv2 is the first optimizer to rebuild the signature with new
+instructions, which re-validates field types and hits the unresolved
+ForwardRef. **Fix:** removed `from __future__ import annotations` from
+`signatures.py` (nothing else in that short file needed postponed
+evaluation) -- confirmed on the VM that `build_signature().with_instructions(...)`
+now works, and the full test suite (61/61) still passes. EXP-008
+relaunched immediately after, confirmed genuinely progressing past the
+point of the crash (`ps`/`nvidia-smi` both active).
+
 **Root cause of the `/mnt` wipes themselves is still not fully pinned
 down** (now five occurrences) -- this incident adds real evidence though:
 at least this particular wipe coincided with a kernel-driven reboot, and
