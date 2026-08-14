@@ -1495,6 +1495,35 @@ now works, and the full test suite (61/61) still passes. EXP-008
 relaunched immediately after, confirmed genuinely progressing past the
 point of the crash (`ps`/`nvidia-smi` both active).
 
+### EXP-008 — DSPy `MIPROv2` (`auto="light"`), local Qwen — **DEV-EVALUATED, NEW BEST** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-14. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (post-4th/5th-`/mnt`-wipe environment, identical pinned stack plus `optuna==4.9.0`; the `signatures.py` fix above applied).
+- **Command:** `python -m src.classification.run_experiment --config configs/dspy_mipro_v2.json` (single step, launched directly, not via the M5 chain script since EXP-006/007 were already done).
+- **Config:** `optimizer=mipro_v2`, `optimizer_config={"auto": "light", "trainset_sample_size": 150, "valset_sample_size": 100}` -- launched as-is (judgment call from the prior session: `num_trials` is fixed by the `auto="light"` preset regardless of `valset_sample_size`, and the dominant fixed cost is the final full-DEV eval loop, which doesn't depend on `valset_sample_size` either -- see STAGE_B_CHECKLIST.md's step 4 note).
+- **Runtime:** ~1h13m for the optimization phase (bootstrap + 13 trials, including periodic full-100-valset checkpoint evals) + ~1h16m for the final full-1,340-DEV eval (~3.4s/example -- notably faster than EXP-007's ~7.5s/example, explained below) = **~2h29m total** wall-clock (12:59-15:07 local VM time).
+- **What MIPROv2 actually chose** (from `Optuna`'s trial log and `compiled_program.json`): out of 3 proposed instruction candidates and 6 bootstrapped few-shot demo sets, the winning combination was **`Instruction 0` (the original/default instruction, unchanged: "Classify whether an English sentence is sarcastic.") + `Few-Shot Set 4`, a compact 4-demo set** -- MIPROv2 tried rewriting the instruction but the *default* instruction paired with a well-chosen small demo set won out over every rewritten-instruction candidate. This is why the final eval ran at ~3.4s/example rather than EXP-007's ~7.5s/example: 4 short demos in the prompt, not up to 8.
+- **Full DEV metrics:**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.6843 |
+  | Macro F1 | **0.6700** |
+  | Weighted F1 | 0.6698 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.8201 / 0.4747 / 0.6013 |
+  | sarcastic: P / R / F1 (support 668) | 0.6288 / 0.8952 / 0.7387 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[319, 353], [70, 598]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates, no rows missing/extra vs. `data/splits/dev.csv`.
+  - Gold label distribution (672/668) matches the canonical DEV split exactly.
+  - Every prediction is a valid `{sarcastic, not_sarcastic}` value.
+  - Predicted-sarcastic rate 71.0% overall, roughly uniform across categories (GEN 69.9%, HYP 80.1%, RQ 69.0%) -- similar shape to EXP-006/007, less skewed than the manual-prompt variants.
+  - 86.4% agreement with EXP-006 (unoptimized `Predict`), 87.5% agreement with EXP-007 (`BootstrapFewShot`) -- high but not total overlap with either, consistent with it being a genuinely different (if related) prompt configuration.
+- **Result: MIPROv2 is the new best result of any method in Stage B** -- Macro F1 0.6700 vs. EXP-006's previous-best 0.6619 (+0.0081) and EXP-007's 0.6406. A modest but real improvement, and notably achieved with an even *smaller* few-shot set (4 demos) than EXP-007's up-to-8, plus MIPROv2's own trial-based selection rather than BootstrapFewShot's simpler sampling -- suggesting the gain comes from smarter *selection* of which demos to use (via the optimization loop's minibatch scoring), not from more demos or a cleverer instruction.
+- **Artifacts:** `results/EXP-008/{config.json, metrics.json, predictions.csv, compiled_program.json}` -- pulled back and committed immediately.
+- **TEST not touched**, per the sealing policy -- correct.
+- **M5 is now COMPLETE**: all three DSPy variants (Predict, BootstrapFewShot, MIPROv2) run, quality-checked, and recorded. EXP-008 (MIPROv2, Macro F1 0.6700) is the DEV leader across all of Stage B so far (M1-M5). **Per explicit user request, stopping here rather than auto-continuing into M6** -- next session should start directly at EXP-009 (M6, DeBERTa-v3-base fine-tuning); see STAGE_B_CHECKLIST.md's "START HERE" section, updated accordingly. Note the DeBERTa download blocker (torch/safetensors guard, flagged above) is still unresolved and will need addressing before EXP-009 can actually run.
+
 **Root cause of the `/mnt` wipes themselves is still not fully pinned
 down** (now five occurrences) -- this incident adds real evidence though:
 at least this particular wipe coincided with a kernel-driven reboot, and

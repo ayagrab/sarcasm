@@ -1,0 +1,45 @@
+{
+  "traces": [],
+  "train": [],
+  "demos": [
+    {
+      "augmented": true,
+      "sentence": "Dude, go jack off to your god somewhere else. We don't need to see it. emoticonXKill",
+      "label": "sarcastic"
+    },
+    {
+      "augmented": true,
+      "sentence": "i'm not disputing the numbers, and i'm certainly not disputing the fact that bush won.  what i'm intrigued about is the razor thin margins, to my mind anyway, that characterize the us election system. don't you find it the least bit odd that it's been 30 years since a president received a plurality? waxy",
+      "label": "not_sarcastic"
+    },
+    {
+      "sentence": "Nope. However, he does get to pay child support if he gets caught.",
+      "label": "sarcastic"
+    },
+    {
+      "sentence": "you really believed me? wow! i never knew i had such power ;)",
+      "label": "sarcastic"
+    }
+  ],
+  "signature": {
+    "instructions": "Classify whether an English sentence is sarcastic.",
+    "fields": [
+      {
+        "prefix": "Sentence:",
+        "description": "The sentence to classify."
+      },
+      {
+        "prefix": "Label:",
+        "description": "Whether the sentence is sarcastic or not."
+      }
+    ]
+  },
+  "lm": null,
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.10",
+      "dspy": "3.3.0",
+      "cloudpickle": "3.1"
+    }
+  }
+}

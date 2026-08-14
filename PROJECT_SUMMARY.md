@@ -5,31 +5,42 @@ detail (exact commands run, blockers, environment audit) see
 `EXPERIMENT_LOG.md`. This document is updated when meaningful conclusions
 are available; unmeasured results are marked `TBD`, never guessed.
 
-**Status (2026-08-12, ~14:40 UTC):** M1-M4 are all DEV-evaluated (TEST
-still fully sealed, per policy below). **Paused here on purpose, at the
-user's explicit request** -- not a blocker, just a deliberate stop before
-starting M5. See `STAGE_B_CHECKLIST.md`'s "START HERE (next session)"
-section for the exact resume procedure -- read that file first when
-picking this back up.
+**Status (2026-08-14, ~15:10 local VM time):** M1-M5 are all DEV-evaluated
+(TEST still fully sealed, per policy below). **M5 (DSPy) is now fully
+complete** -- all three variants run (Predict, BootstrapFewShot, MIPROv2).
+**Paused here on purpose, at the user's explicit request** -- not a
+blocker, just a deliberate stop before starting M6. See
+`STAGE_B_CHECKLIST.md`'s "START HERE (next session)" section for the exact
+resume procedure -- read that file first when picking this back up.
 
-Headline DEV result so far: **zero-shot (EXP-002) is the best of all four
-Qwen manual-prompt variants** -- neither few-shot (random or curated
-demonstrations) nor explicit step-by-step reasoning improved on it; both
-few-shot variants made the model's sarcastic-overprediction bias *worse*,
-and reasoning left it essentially unchanged (94.6% agreement with
-zero-shot). Full comparison table and per-experiment detail in
-`EXPERIMENT_LOG.md`. M1 (TF-IDF, TEST Macro F1 0.740) still outperforms
-every Qwen variant tried so far, though that's a TEST-vs-DEV comparison,
-not yet apples-to-apples -- the real cross-method comparison happens at
-Phase 2.
+Headline DEV result: **DSPy `MIPROv2` (EXP-008) is the best result of any
+method in Stage B so far, Macro F1 0.6700** -- edging out plain unoptimized
+`dspy.Predict` (EXP-006, 0.6619) and clearly ahead of every manual Qwen
+prompt variant (best of those: zero-shot, EXP-002, 0.6008) and
+`BootstrapFewShot` (EXP-007, 0.6406). Within the manual-prompt family
+specifically, zero-shot was still the best of the four -- neither few-shot
+(random or curated demonstrations) nor explicit step-by-step reasoning
+improved on it. The consistent pattern across M2-M5: **adding more
+few-shot demonstrations tends to hurt, not help**, on this model/corpus --
+MIPROv2's winning configuration kept the *default* instruction and used
+only 4 demos (not the up-to-8 BootstrapFewShot allowed), suggesting the
+gain came from smarter demo *selection* via MIPROv2's trial search, not
+from more or cleverer prompting. Full comparison table and per-experiment
+detail in `EXPERIMENT_LOG.md`. M1 (TF-IDF, TEST Macro F1 0.740) still
+outperforms every DEV result seen so far, though that's a TEST-vs-DEV
+comparison, not yet apples-to-apples -- the real cross-method comparison
+happens at Phase 2.
 
-The VM was restarted **twice** during this work (once deliberate, once
-unannounced/cause unknown), wiping the ephemeral `/mnt` disk both times --
-recovered fully both times, and durability fixes are now in place
-(everything committed to git immediately after each experiment, plus a
-5-minute cache backup and a kernel/driver startup guard) so a third
-restart costs at most a partially-redone experiment, never a lost result.
-Full incident/recovery detail: `EXPERIMENT_LOG.md`.
+The VM was restarted **five times** during this work (a mix of deliberate
+and unannounced/cause-unknown restarts), wiping the ephemeral `/mnt` disk
+each time, and once (the fifth) also booting into an unverified kernel
+that broke the NVIDIA driver entirely -- recovered fully every time, and
+durability fixes are now in place (everything committed to git immediately
+after each experiment, a 5-minute cache backup, a kernel/driver startup
+guard, and -- new after the fifth incident -- a *permanent* GRUB default
+pinned to the known-good kernel, not just a one-shot fix) so a future
+restart should cost at most a partially-redone experiment, never a lost
+result. Full incident/recovery detail: `EXPERIMENT_LOG.md`.
 
 **Web demo (`web/`):** a FastAPI + Next.js app (Simple Mode +
 Research/comparison Mode) that consumes this project's classification code
@@ -113,12 +124,12 @@ detail: `EXPERIMENT_LOG.md` → "Dataset Information".
 
 | ID | Approach | Status |
 |---|---|---|
-| M1 | TF-IDF + Logistic Regression (classical baseline) | **EVALUATED** (EXP-001) |
-| M2 | LLM zero-shot | Implemented, not yet run (blocked on API key) |
-| M3 | LLM few-shot (random + curated variants) | Implemented, not yet run (blocked on API key) |
-| M4 | LLM structured reasoning | Implemented, not yet run (blocked on API key) |
-| M5 | DSPy-optimized LLM (Predict / BootstrapFewShot / MIPROv2) | Implemented, not yet run (blocked on API key + `dspy` install) |
-| M6 | Fine-tuned English Transformer encoder | Implemented, not yet run (Stage B: needs model download) |
+| M1 | TF-IDF + Logistic Regression (classical baseline) | **DEV+TEST EVALUATED, FROZEN** (EXP-001) |
+| M2 | LLM zero-shot | **DEV-EVALUATED** (EXP-002, Macro F1 0.6008) |
+| M3 | LLM few-shot (random + curated variants) | **DEV-EVALUATED** (EXP-003 random 0.5880, EXP-004 curated 0.5011) |
+| M4 | LLM structured reasoning | **DEV-EVALUATED** (EXP-005, Macro F1 0.5796) |
+| M5 | DSPy-optimized LLM (Predict / BootstrapFewShot / MIPROv2) | **DEV-EVALUATED, DONE** (EXP-006 0.6619 / EXP-007 0.6406 / EXP-008 0.6700 -- current best) |
+| M6 | Fine-tuned English Transformer encoder | Implemented, not yet run -- next up (blocked on a DeBERTa download issue, see `EXPERIMENT_LOG.md`) |
 
 All LLM approaches (M2–M5) use the same underlying base LLM wherever
 possible, to isolate the effect of prompting/optimization technique rather

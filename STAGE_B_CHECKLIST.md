@@ -9,47 +9,30 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-14, ~12:44 UTC):** M1-M4 are all
-DEV-evaluated and committed. EXP-006 and EXP-007 are both DONE (Macro F1
-0.6619 and 0.6406). **EXP-008 (MIPROv2) is RUNNING RIGHT NOW** on the VM
-(PID confirmed via `ps`, both GPUs active) -- launched this session after
-a fourth `/mnt` wipe (discovered as an *interrupted, undocumented* EXP-008
-attempt from a prior session-gap), an `optuna` missing-dependency crash
-(real gap, now fixed in `environment_stage_b.txt`), a total SSH
-unreachability episode, and a fifth `/mnt` wipe combined with the VM
-booting into an unverified kernel (`6.8.0-1064-azure`) that broke the
-NVIDIA driver entirely -- all recovered from, root-caused (kernel
-default was never permanently pinned, only one-shot `grub-reboot`'d after
-the first 2026-08-12 incident), and **fixed durably this time via `sudo
-grub-set-default`** (not just `grub-reboot`), so future reboots should no
-longer need this manual fix. Full detail: EXPERIMENT_LOG.md, "Fourth VM
-restart (`/mnt` wiped) + kernel auto-switch broke the NVIDIA driver
-entirely (2026-08-14)". Background monitoring (cache backup every 5 min,
-15-min heartbeat, state-change watcher) is armed for THIS session only --
-per the standing rule, it will NOT survive into a new session and must be
-re-armed (step 3 below) even if the VM itself is fine.
-When resuming a *future* session, do exactly this, in order, without
-re-explaining the plan or asking for confirmation on any of it (already
-pre-approved):
+**Where things stand (2026-08-14, ~15:10 local VM time):** M1-M5 are all
+DEV-evaluated and committed. **M5 is fully DONE** -- EXP-006 (0.6619),
+EXP-007 (0.6406), EXP-008 (**0.6700, current best of any method in Stage
+B**) all run, quality-checked, recorded, committed+pushed. Along the way
+this session recovered from a fourth AND fifth `/mnt` wipe, one of which
+combined with the VM booting into an unverified kernel that broke the
+NVIDIA driver entirely (fixed **durably** this time via `sudo
+grub-set-default`, not just a one-shot `grub-reboot`), a missing `optuna`
+dependency (now pinned), and a real code bug in
+`src/classification/dspy_pipeline/signatures.py` that crashed MIPROv2's
+first real attempt (fixed, verified, 61/61 tests still pass). Full detail:
+`EXPERIMENT_LOG.md`'s 2026-08-14 entries.
 
-0. **Check whether EXP-008 is still running or has finished** first,
-   before anything else: `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28
-   "ps -ef | grep run_experiment | grep -v grep; ls
-   /mnt/vmadmin/projects/sarcasm/results/EXP-008 2>&1"`.
-   - **Still running:** skip straight to re-arming monitoring (step 3)
-     and follow its progress -- do not relaunch it.
-   - **Finished (results dir exists with config/metrics/predictions):**
-     pull back (`bash scripts/sync_from_vm.sh`), quality-check, record in
-     EXPERIMENT_LOG.md, commit+push (see step 8's standard rhythm), then
-     move on to M6 (step 5 below). This is M5's last experiment -- once
-     this is validated and committed, M5 as a whole is DONE.
-   - **Neither** (no process, no results dir): it crashed or the VM
-     restarted again -- check for a `/mnt` wipe (step 1) and/or a kernel
-     mismatch (`bash scripts/verify_kernel.sh`) before relaunching with
-     `python -m src.classification.run_experiment --config
-     configs/dspy_mipro_v2.json` (single step, not the chain script).
-1. **Reconnect and check for another VM restart** (this has now happened
-   FIVE times -- assume nothing): `ssh -i ~/.ssh/azure_vm_key
+**STOPPED HERE ON PURPOSE, per explicit user request** ("after EXP-008,
+stop and document everything so next session starts straight at EXP-009")
+-- do NOT auto-continue into M6 without being told to. Background
+monitoring was stopped along with it (cache backup loop, heartbeat,
+state-change watcher all killed) and the VM's GPU is idle. When resuming a
+*future* session and told to continue, do exactly this, in order, without
+re-explaining the plan or asking for confirmation on anything already
+covered here:
+
+1. **Reconnect and check for another VM restart first** (this has now
+   happened FIVE times -- assume nothing): `ssh -i ~/.ssh/azure_vm_key
    vmadmin@20.245.56.28` (`ConnectTimeout=20`; if it times out completely,
    that itself is the finding -- report it, don't guess, but it's fine to
    just wait a few minutes and retry once, that resolved it last time).
@@ -73,32 +56,41 @@ pre-approved):
    report -- that would mean something about the environment actually
    changed. Remember `optuna` is now part of `environment_stage_b.txt`'s
    pinned freeze -- installing from that file covers it, no separate step
-   needed. (DeBERTa download currently fails with a torch-version/
-   safetensors guard -- not needed for M5/EXP-008, only flag it if M6 is
-   next; see EXPERIMENT_LOG.md's 2026-08-14 entry, item 3.)
+   needed.
 3. **Re-arm background monitoring** (Monitor-tool tasks do NOT persist
    across sessions -- these need to be relaunched fresh every session,
    even if the VM itself didn't restart):
    - Cache backup, every 5 min (crash-resume safety net):
      `cd "<repo root>" && while true; do bash scripts/sync_cache_from_vm.sh; sleep 300; done`
    - 15-min progress heartbeat (only if the user still wants them --
-     confirmed wanted as of this session; ask if unsure after a long gap):
+     confirmed wanted historically; ask if unsure after a long gap):
      tail the relevant experiment's log + `ps -ef | grep run_experiment`
      over SSH, `sleep 900` loop.
-   - State-change watcher on whichever chain log is about to run
-     (`grep -E "STEP|Trial|Traceback|Error|Killed|FAILED"` for EXP-008
-     specifically, since it has no "starting/finished" markers of its own).
-4. (Reserved -- EXP-008 launch judgment call already made and executed
-   this session: launched as-is with default `auto="light"`/
-   `valset_sample_size=100`, reasoning recorded in EXPERIMENT_LOG.md.)
-5. **After M5, M6 (DeBERTa) is next** -- not chained automatically (its
-   smoke test gates a real fp16-stability judgment call). See "6. M6"
-   section below for the exact procedure.
-6. **After M6: cross-model DEV disagreement analysis** (section "7"),
+   - State-change watcher on whichever log is about to run.
+4. **M6 (DeBERTa-v3-base fine-tuning, EXP-009) is next** -- see "6. M6"
+   section below for the exact procedure. **First resolve the DeBERTa
+   download blocker**: `microsoft/deberta-v3-base` currently fails to
+   download with `ValueError: ...we now require users to upgrade torch to
+   at least v2.6...` (a `transformers` safety guard triggered because that
+   HF repo has no `safetensors` weights, and pinned `torch==2.5.1` doesn't
+   satisfy the guard) -- see EXPERIMENT_LOG.md's 2026-08-14 entry, item 3,
+   for full detail. Not investigated or fixed yet -- needs a judgment call
+   (e.g. find a safetensors-mirrored checkpoint, or another safe
+   workaround) before EXP-009 can run; do not "fix" it by blindly
+   upgrading torch without checking it doesn't destabilize the verified
+   M1-M5 stack first.
+5. **After M6: cross-model DEV disagreement analysis** (section "7"),
    then **Phase 2** (freeze one config per method, unseal TEST, evaluate
    each once), then the **final `PROJECT_SUMMARY.md` writeup** (section
    "8"). Follow this file's numbered sections in order from here.
-7. **After Stage B fully completes** (or if there's a natural lull with
+   **Note on Phase 2 timing for M5:** whichever DSPy variant gets frozen,
+   running it on TEST means *rebuilding the DSPy program from scratch*
+   (`build_program()` always recompiles -- there's no "load saved
+   compiled program" path in the current code), not just loading
+   `compiled_program.json` and evaluating -- so freezing EXP-007 or
+   EXP-008 costs a full re-run (~2h48m / ~2h29m) on TEST, not a quick
+   eval. Budget for this when picking which M5 config to freeze.
+6. **After Stage B fully completes** (or if there's a natural lull with
    the GPU busy and nothing else to validate): resume the **web app**
    (`web/`, currently a fully-built and tested but *dormant* app -- see
    `web/README.md`). The one remaining connective step is writing
@@ -108,12 +100,12 @@ pre-approved):
    per user request ("don't do anything in the meantime") -- safe to
    resume once Stage B experiments are running/paused and there's nothing
    else productive to do, or once Stage B is fully done.
-8. **After every experiment finishes** (M5's three, M6's runs, anything
-   else): validate (quality checks -- n_examples, dup/missing IDs, gold
-   label distribution, category-uniformity + agreement checks if the
-   result looks skewed), `bash scripts/sync_from_vm.sh` immediately (not
-   at the end of the session), record it in `EXPERIMENT_LOG.md` with the
-   same level of detail as every entry so far, update this checklist's
+7. **After every experiment finishes** (M6's runs, Phase 2's TEST runs,
+   anything else): validate (quality checks -- n_examples, dup/missing
+   IDs, gold label distribution, category-uniformity + agreement checks
+   if the result looks skewed), `bash scripts/sync_from_vm.sh` immediately
+   (not at the end of the session), record it in `EXPERIMENT_LOG.md` with
+   the same level of detail as every entry so far, update this checklist's
    checkboxes, commit, push. This is now a well-established rhythm --
    just keep doing it exactly the same way for every remaining experiment.
 
@@ -326,14 +318,14 @@ M5/M6 not started automatically; awaiting go-ahead.
 
 ### 5. M5 — DSPy + local Qwen (EXP-006 Predict, EXP-007 BootstrapFewShot, EXP-008 MIPROv2)
 
-**PAUSED here on purpose (2026-08-13 ~13:26 UTC), right before EXP-008 -- only EXP-008 remains.** See "START HERE" above for the reasoning (EXP-007 ran ~3x slower than estimated; worth a budget judgment call before launching EXP-008 unattended).
+**M5 is COMPLETE (2026-08-14, ~15:10 local VM time).** All three variants run, quality-checked, recorded, committed. **This is now the best result of any method in Stage B.**
 
 - [x] Smoke-test `LocalQwenLM` adapter with `dspy.Predict` on a handful of TRAIN/DEV examples -- **PASSED**, 5/5.
-- [x] EXP-006: `dspy.Predict`, DEV -- **DONE.** 1340/1340, 56m49s. **Macro F1 0.6619, Accuracy 0.6799 -- best result of any method so far** (beats EXP-002's 0.6008). See EXPERIMENT_LOG.md.
-- [x] EXP-007: `BootstrapFewShot` (`max_bootstrapped_demos=4`, `max_labeled_demos=8`) -- **DONE.** 1340/1340, 2h48m24s (slower than expected -- long few-shot prompts + no flash-attention on M60, see EXPERIMENT_LOG.md). **Macro F1 0.6406, Accuracy 0.6664 -- slightly underperforms EXP-006** (echoes the M2-M4 finding that few-shot demos don't help this model/corpus).
-- [ ] EXP-008: `MIPROv2`, `auto="light"` first -- record wall-clock + DEV delta; expand only if justified. **NOT STARTED** (auto-launched then immediately killed per user request at the EXP-007/EXP-008 boundary; no artifacts, nothing lost). See "START HERE" step 4 for the budget judgment call to make before launching.
-- [ ] Compare EXP-006/007/008 vs. EXP-002 (manual zero-shot) on DEV
-- [ ] Record in `EXPERIMENT_LOG.md`
+- [x] EXP-006: `dspy.Predict`, DEV -- **DONE.** 1340/1340, 56m49s. Macro F1 0.6619, Accuracy 0.6799.
+- [x] EXP-007: `BootstrapFewShot` (`max_bootstrapped_demos=4`, `max_labeled_demos=8`) -- **DONE.** 1340/1340, 2h48m24s. Macro F1 0.6406, Accuracy 0.6664 -- slightly underperforms EXP-006.
+- [x] EXP-008: `MIPROv2`, `auto="light"` -- **DONE.** 1340/1340, ~2h29m total (optimization + final eval). **Macro F1 0.6700, Accuracy 0.6843 -- new best of any method in Stage B**, beating EXP-006 by +0.0081. Winning config: default instruction + a compact 4-demo few-shot set. Also fixed a real code bug along the way (`signatures.py`'s `from __future__ import annotations` broke `MIPROv2.with_instructions()` -- see EXPERIMENT_LOG.md, 2026-08-14).
+- [x] Compare EXP-006/007/008 vs. EXP-002 (manual zero-shot) on DEV -- done, see EXPERIMENT_LOG.md's EXP-008 entry.
+- [x] Record in `EXPERIMENT_LOG.md` -- done.
 
 ### 6. M6 — Fine-tuned DeBERTa-v3-base (EXP-009), TRAIN+DEV only
 
