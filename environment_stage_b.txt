@@ -8,6 +8,14 @@ deliberate change) and the addition of pytest/pytest-mock (dev-only, not
 part of the pinned runtime stack). Kernel, driver, CUDA runtime, and torch
 are all unchanged from the original verification.
 
+=== NOTE (2026-08-14) ===
+`optuna==4.9.0` added below -- MIPROv2 (EXP-008) requires it as an
+optional dspy dependency and it was missing from every prior pip-freeze
+capture (a real gap, not recovery-specific: EXP-008 would have failed at
+its optimization step regardless of any VM incident, the first launch
+attempt just hadn't reached that step yet before being interrupted). See
+EXPERIMENT_LOG.md, "EXP-008" section.
+
 === hostname ===
 dpmlgpuNC6sv32025s-0003
 === date ===
@@ -106,6 +114,7 @@ nvidia-cusparse-cu11==11.7.5.86
 nvidia-nccl-cu11==2.21.5
 nvidia-nvtx-cu11==11.8.86
 openai==2.53.0
+optuna==4.9.0
 orjson==3.11.9
 packaging==26.3
 pandas==2.3.3

@@ -9,60 +9,73 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-13, ~13:26 UTC):** M1-M4 are all
-DEV-evaluated and committed. A third VM restart happened earlier this
-session (user-initiated, between sessions) and wiped `/mnt` again --
-recovered via the same proven procedure a fourth time (see
-EXPERIMENT_LOG.md, "Third VM restart -- `/mnt` wiped again"). **M5 progress:
-EXP-006 (`dspy.Predict`) and EXP-007 (`BootstrapFewShot`) are both DONE**
-(Macro F1 0.6619 and 0.6406 respectively -- EXP-006 remains the best
-result of any method in Stage B so far), pulled back, quality-checked,
-recorded in EXPERIMENT_LOG.md, committed+pushed. **Paused here on purpose,
-at the user's explicit request, right before EXP-008 (MIPROv2)** -- the
-chain auto-advanced to EXP-008 the instant EXP-007 finished but was
-killed within seconds (confirmed via `ps`/`nvidia-smi`: nothing running,
-both GPUs at 0%/0 MiB); no EXP-008 artifacts exist, nothing was lost.
-**Why paused specifically here:** EXP-007 took ~2h48m, roughly 3x the
-rough estimate, because of an effect only discovered mid-run (long
-few-shot-demo-embedded prompts + no flash-attention on Tesla M60 makes
-each DEV example ~7.5s instead of EXP-006's ~2.5s) -- worth reconsidering
-EXP-008's `auto="light"` MIPROv2 budget with this now-measured per-call
-cost before launching it unattended, rather than assuming it'll behave
-like the methodology's original (pre-measurement) estimate. The VM was
-intentionally left to be stopped by the user after this point -- **assume
-it needs the recovery procedure again** when resuming (see step 1).
+**Where things stand (2026-08-14, ~12:44 UTC):** M1-M4 are all
+DEV-evaluated and committed. EXP-006 and EXP-007 are both DONE (Macro F1
+0.6619 and 0.6406). **EXP-008 (MIPROv2) is RUNNING RIGHT NOW** on the VM
+(PID confirmed via `ps`, both GPUs active) -- launched this session after
+a fourth `/mnt` wipe (discovered as an *interrupted, undocumented* EXP-008
+attempt from a prior session-gap), an `optuna` missing-dependency crash
+(real gap, now fixed in `environment_stage_b.txt`), a total SSH
+unreachability episode, and a fifth `/mnt` wipe combined with the VM
+booting into an unverified kernel (`6.8.0-1064-azure`) that broke the
+NVIDIA driver entirely -- all recovered from, root-caused (kernel
+default was never permanently pinned, only one-shot `grub-reboot`'d after
+the first 2026-08-12 incident), and **fixed durably this time via `sudo
+grub-set-default`** (not just `grub-reboot`), so future reboots should no
+longer need this manual fix. Full detail: EXPERIMENT_LOG.md, "Fourth VM
+restart (`/mnt` wiped) + kernel auto-switch broke the NVIDIA driver
+entirely (2026-08-14)". Background monitoring (cache backup every 5 min,
+15-min heartbeat, state-change watcher) is armed for THIS session only --
+per the standing rule, it will NOT survive into a new session and must be
+re-armed (step 3 below) even if the VM itself is fine.
 When resuming a *future* session, do exactly this, in order, without
 re-explaining the plan or asking for confirmation on any of it (already
-pre-approved), other than the EXP-008 budget judgment call flagged in
-step 4 below:
+pre-approved):
 
-0. **If M5 is still running from this session** (check `ps -ef | grep
-   run_experiment` over SSH, or just check for a recent heartbeat), skip
-   straight to re-arming monitoring (step 3 below) and follow its
-   progress -- do not relaunch M5 while it's already running. This should
-   not apply after a fresh resume (the VM was intentionally left stopped),
-   but check first rather than assume.
-
-1. **Reconnect and check for another VM restart first** (this has now
-   happened THREE times -- assume nothing):
-   `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28` (`ConnectTimeout=20`;
-   if it times out completely, that itself is the finding -- report it,
-   don't guess). Then `bash scripts/verify_kernel.sh` (fails loudly on a
-   kernel/driver mismatch) and `ls /mnt/vmadmin` (if "No such file or
+0. **Check whether EXP-008 is still running or has finished** first,
+   before anything else: `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28
+   "ps -ef | grep run_experiment | grep -v grep; ls
+   /mnt/vmadmin/projects/sarcasm/results/EXP-008 2>&1"`.
+   - **Still running:** skip straight to re-arming monitoring (step 3)
+     and follow its progress -- do not relaunch it.
+   - **Finished (results dir exists with config/metrics/predictions):**
+     pull back (`bash scripts/sync_from_vm.sh`), quality-check, record in
+     EXPERIMENT_LOG.md, commit+push (see step 8's standard rhythm), then
+     move on to M6 (step 5 below). This is M5's last experiment -- once
+     this is validated and committed, M5 as a whole is DONE.
+   - **Neither** (no process, no results dir): it crashed or the VM
+     restarted again -- check for a `/mnt` wipe (step 1) and/or a kernel
+     mismatch (`bash scripts/verify_kernel.sh`) before relaunching with
+     `python -m src.classification.run_experiment --config
+     configs/dspy_mipro_v2.json` (single step, not the chain script).
+1. **Reconnect and check for another VM restart** (this has now happened
+   FIVE times -- assume nothing): `ssh -i ~/.ssh/azure_vm_key
+   vmadmin@20.245.56.28` (`ConnectTimeout=20`; if it times out completely,
+   that itself is the finding -- report it, don't guess, but it's fine to
+   just wait a few minutes and retry once, that resolved it last time).
+   Then `bash scripts/verify_kernel.sh` (fails loudly on a kernel/driver
+   mismatch -- if it reports the wrong kernel despite the `grub-set-default`
+   fix, check `cat /boot/grub/grubenv | grep saved_entry` to see if
+   something reset it, then re-apply the fix from EXPERIMENT_LOG.md's
+   2026-08-14 entry, step 7) and `ls /mnt/vmadmin` (if "No such file or
    directory", `/mnt` was wiped again -- run the full recovery procedure
-   documented in `EXPERIMENT_LOG.md`, "VM restart -- `/mnt` ephemeral-disk
-   data loss incident and recovery" / "Second VM restart" / "Third VM
-   restart," steps 1-9, verbatim; it's been used three times already and
-   works every time. Note: `/mnt` may come back **root-owned** -- if
-   `mkdir`/`chown` on `/mnt/vmadmin` gives "Permission denied", `sudo
-   mkdir -p /mnt/vmadmin/{projects,sarcasm-env,huggingface} && sudo chown
-   -R vmadmin:vmadmin /mnt/vmadmin` first, seen on the third recovery).
+   documented in `EXPERIMENT_LOG.md`'s VM-restart incident entries,
+   verbatim; it's been used five times already and works every time.
+   Note: `/mnt` may come back **root-owned** -- if `mkdir`/`chown` on
+   `/mnt/vmadmin` gives "Permission denied", `sudo mkdir -p
+   /mnt/vmadmin/{projects,sarcasm-env,huggingface} && sudo chown -R
+   vmadmin:vmadmin /mnt/vmadmin` first).
 2. **If the environment needed rebuilding**, after it's back: re-run
    `scripts/verify_gpu.py`, `pytest tests/test_classification_*.py`
    (expect 61/61), and the Qwen zero-shot smoke test (`--limit 20`) --
    should reproduce accuracy 0.25 / macro F1 0.20 exactly, same as every
-   prior rebuild. If it doesn't match, STOP and report -- that would mean
-   something about the environment actually changed.
+   prior rebuild (six confirmations now). If it doesn't match, STOP and
+   report -- that would mean something about the environment actually
+   changed. Remember `optuna` is now part of `environment_stage_b.txt`'s
+   pinned freeze -- installing from that file covers it, no separate step
+   needed. (DeBERTa download currently fails with a torch-version/
+   safetensors guard -- not needed for M5/EXP-008, only flag it if M6 is
+   next; see EXPERIMENT_LOG.md's 2026-08-14 entry, item 3.)
 3. **Re-arm background monitoring** (Monitor-tool tasks do NOT persist
    across sessions -- these need to be relaunched fresh every session,
    even if the VM itself didn't restart):
@@ -73,31 +86,11 @@ step 4 below:
      tail the relevant experiment's log + `ps -ef | grep run_experiment`
      over SSH, `sleep 900` loop.
    - State-change watcher on whichever chain log is about to run
-     (`grep -E "starting|finished|Chain complete|Traceback|Error|Killed|FAILED"`).
-4. **Only EXP-008 (MIPROv2) is left for M5** -- EXP-006 and EXP-007 are
-   both done (see EXPERIMENT_LOG.md). **One judgment call before
-   launching it, not purely mechanical:** EXP-007 measured ~7.5s/DEV-example
-   with few-shot demos embedded (vs. EXP-006's ~2.5s), ~3x slower than the
-   methodology's rough estimate assumed -- MIPROv2 with `auto="light"`
-   (`configs/dspy_mipro_v2.json`) does a bootstrap phase similar to
-   EXP-007's PLUS several trial evaluations against a 100-example valset
-   each, so it could plausibly take significantly longer than EXP-007's
-   2h48m. Options: (a) launch as-is and accept a possibly long run, now
-   that the risk is known and documented, or (b) reduce
-   `valset_sample_size`/trial count first and note the deviation in
-   EXPERIMENT_LOG.md. Use judgment; this isn't blocked on asking the user
-   first (already flagged and it's their call whether to intervene once
-   they see actual progress), but don't launch without at least
-   registering which option was chosen and why. Command either way:
-   `python -m src.classification.run_experiment --config configs/dspy_mipro_v2.json`
-   on the VM (this single step, not the full chain script -- EXP-006/007
-   are already done, no need to rerun `run_m5_chain.sh` from scratch).
-   Consider `py-spy` (already installed on the VM as of this session --
-   `sudo /mnt/vmadmin/sarcasm-env/bin/py-spy dump --pid <pid> --locals`)
-   if the progress display looks frozen -- reading the `run_dspy_experiment`
-   frame's `_` (loop index) or `results` list locals gives real progress
-   even when DSPy's own tqdm bar is buffered/invisible for a long stretch
-   (this worked well for EXP-007, not a hang).
+     (`grep -E "STEP|Trial|Traceback|Error|Killed|FAILED"` for EXP-008
+     specifically, since it has no "starting/finished" markers of its own).
+4. (Reserved -- EXP-008 launch judgment call already made and executed
+   this session: launched as-is with default `auto="light"`/
+   `valset_sample_size=100`, reasoning recorded in EXPERIMENT_LOG.md.)
 5. **After M5, M6 (DeBERTa) is next** -- not chained automatically (its
    smoke test gates a real fp16-stability judgment call). See "6. M6"
    section below for the exact procedure.

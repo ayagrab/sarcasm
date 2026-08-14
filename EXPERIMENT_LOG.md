@@ -1371,3 +1371,114 @@ chown` step.
 - **Artifacts:** `results/EXP-007/{config.json, metrics.json, predictions.csv, compiled_program.json}` -- pulled back and committed immediately.
 - **TEST not touched**, per the sealing policy -- correct.
 - **M5 chain paused here per explicit user request**: the chain auto-advanced to EXP-008 (MIPROv2) the instant EXP-007 finished, but was killed immediately (`kill` on both `run_m5_chain.sh` and the EXP-008 process, confirmed via `ps`/`nvidia-smi` that nothing was left running and both GPUs returned to 0% util / 0 MiB) before it could consume meaningful compute -- no EXP-008 artifacts exist, nothing was lost by stopping it. Reason: given how much slower this hardware is running than the methodology anticipated (EXP-007 took ~3x its rough estimate), it's worth reconsidering EXP-008's `auto="light"` budget with this now-measured per-call cost in hand, rather than launching it unattended. **EXP-008 is the correct and only next step for M5** -- see STAGE_B_CHECKLIST.md.
+
+### Fourth VM restart (`/mnt` wiped) + kernel auto-switch broke the NVIDIA driver entirely (2026-08-14)
+
+**What happened, in order, across a session gap that was never documented at
+the time (found reconstructed from local uncommitted artifacts, not from
+any session log):**
+
+1. Sometime after the EXP-007 commit, a session actually launched EXP-008
+   (`configs/dspy_mipro_v2.json`) rather than stopping before it as the
+   prior checklist entry claimed. It ran for real -- bootstrap phase
+   progressed to "Bootstrapping set 4/6" (log timestamp 2026-08-13
+   16:25-16:26) -- then stopped mid-run with no results directory ever
+   created. Evidence: an untracked `logs/EXP-008-dspy-mipro-dev.log`
+   (partial) and two untracked smoke-test result dirs
+   (`SMOKE-recovery2/3-qwen-zero-shot`) were sitting locally, uncommitted,
+   at the start of this session -- consistent with a fourth `/mnt` wipe
+   interrupting that run before anything could be pulled back or
+   documented.
+2. This session (2026-08-14) reconnected and confirmed: SSH fine, VM
+   itself alive (same hostname), but `/mnt` completely empty again (32 KB
+   used / 1.5 TB, same signature as the first three incidents) -- the
+   fourth `/mnt` wipe. Ran the full recovery procedure a fourth time
+   (mkdir/chown -- root-owned again, same as the third recovery -- sync
+   repo, rebuild venv, reinstall pinned stack, re-download Qwen, restore
+   `data/llm_cache/` from the local backup). `verify_kernel.sh`,
+   `verify_gpu.py`, pytest (61/61), and a zero-shot smoke test
+   (`SMOKE-recovery4-qwen-zero-shot`, accuracy 0.25 / macro F1 0.20) all
+   reproduced exactly, a fourth time.
+3. **New finding during this recovery:** `microsoft/deberta-v3-base`
+   (needed for M6, not M5) now fails to download/load with
+   `ValueError: ...we now require users to upgrade torch to at least
+   v2.6...` (transformers' `check_torch_load_is_safe` guard, triggered
+   because that HF repo has no safetensors weights and pinned
+   `torch==2.5.1`). Not investigated further since M6 isn't reached yet
+   this session -- **flagged here for whoever picks up M6**, deliberately
+   not "fixed" by upgrading torch (would risk destabilizing the verified
+   M2-M5 stack) without discussion first.
+4. Relaunched EXP-008 -- **immediately failed** with
+   `ImportError: MIPROv2 requires optional dependency 'optuna'`. This is
+   a **real, pre-existing environment gap**, not caused by any VM
+   incident: `optuna` was never in any prior pip-freeze capture of
+   `environment_stage_b.txt`, so this session's first EXP-008 attempt
+   (item 1 above) would have hit the exact same failure at its
+   optimization step regardless of the fourth `/mnt` wipe -- it just
+   hadn't gotten far enough to reach it yet. Installed `optuna==4.9.0`
+   and added it to `environment_stage_b.txt` for durability.
+5. Relaunched EXP-008 again -- **the VM became completely SSH-unreachable
+   within seconds** (`ssh: connect ... Operation timed out`, not the
+   `/mnt`-only signature of prior incidents), while this session's own
+   internet connectivity was independently confirmed fine (google.com/
+   github.com both reachable). Per the standing "if it times out
+   completely, that itself is the finding -- report it, don't guess"
+   guidance, this was reported to the user rather than guessed at; user
+   asked to just retry in a few minutes, which worked -- SSH came back
+   ~4 minutes later.
+6. **On reconnect: `/mnt` wiped a fifth time, AND `nvidia-smi` failed
+   outright** (`couldn't communicate with the NVIDIA driver`) even though
+   the VM itself was reachable -- a new, more serious failure mode than
+   any prior incident (previously the driver always came back healthy
+   immediately). Diagnosis: `uname -r` showed `6.8.0-1064-azure`, not the
+   known-good `6.8.0-1029-azure` -- **exactly the scenario
+   `scripts/verify_kernel.sh`'s own header comment was written to catch**
+   (a newer kernel package sitting on disk, unbooted, since the very
+   first 2026-08-12 incident). `last reboot` showed several reboots
+   within the same hour alternating between the two kernels -- consistent
+   with something (unattended-upgrades' periodic dpkg run, and/or
+   Azure-portal restarts around the same time the user was independently
+   reconnecting) landing on the newer kernel by default, since GRUB's
+   *default* boot entry was never pinned after the very first incident's
+   one-shot `grub-reboot` (which only affects the single next boot, not
+   subsequent ones).
+7. **Fix, in two parts:**
+   - Immediate: found the exact GRUB menu entry ID for
+     `6.8.0-1029-azure` under "Advanced options" (`sudo grep -n
+     "menuentry_id_option 'gnulinux-6.8.0-1029" /boot/grub/grub.cfg`),
+     `sudo grub-reboot '<advanced-submenu-id>><entry-id>'`, `sudo reboot`.
+     Came back on `6.8.0-1029-azure`, driver healthy again (both Tesla
+     M60s idle, driver 535.230.02).
+   - **New durability fix (not done after any prior incident):**
+     `sudo grub-set-default '<same path>'` + `sudo update-grub` --
+     unlike `grub-reboot` (one-shot), this makes `6.8.0-1029-azure` the
+     *permanent* default, so any future reboot (unattended-upgrades,
+     Azure-portal restart, crash) lands on the known-good kernel
+     automatically without needing this manual fix repeated. Verified via
+     `grubenv`'s `saved_entry`. This is the first time root-causing this
+     specific mechanism (rather than just re-running the same recovery)
+     has paid off -- worth checking `saved_entry` early in any future
+     kernel-related incident before assuming another one-shot
+     `grub-reboot` is needed.
+8. Redid the full recovery a fifth time (same procedure as step 2, since
+   the reboot re-wiped `/mnt`): repo sync, venv + pinned stack + `optuna`,
+   Qwen re-download, cache restore. `verify_kernel.sh`, pytest (61/61),
+   and a second zero-shot smoke test (`SMOKE-recovery5-qwen-zero-shot`)
+   all passed -- accuracy 0.25 / macro F1 0.20 reproduced exactly a sixth
+   time now.
+9. **EXP-008 relaunched a third time and confirmed genuinely running**
+   past the point of both prior failures (into MIPROv2's "STEP 2: PROPOSE
+   INSTRUCTION CANDIDATES", both GPUs active 41-50% util, ~5.9 GB each).
+   Background monitoring re-armed (cache backup every 5 min, 15-min
+   heartbeat, state-change watcher on the EXP-008 log).
+
+**Root cause of the `/mnt` wipes themselves is still not fully pinned
+down** (now five occurrences) -- this incident adds real evidence though:
+at least this particular wipe coincided with a kernel-driven reboot, and
+the reboot pattern in `last reboot` suggests portal-level restarts (the
+user reported reconnecting independently around the same window) rather
+than a purely internal VM process. The GRUB default-entry fix in step 7
+should prevent the *driver-breaking* consequence from recurring even if
+the underlying restart cause (whatever triggers it) continues -- `/mnt`
+being ephemeral and wiped on any restart remains expected and handled by
+the existing recovery procedure regardless.
