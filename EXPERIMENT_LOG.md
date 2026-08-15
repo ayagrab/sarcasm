@@ -1644,3 +1644,32 @@ environment/version gaps unrelated to the `/mnt` wipe:**
 
 M6/EXP-009 (DeBERTa-v3-base fine-tuning, full run) is next, per user
 instruction to continue from the documented resume point.
+
+### EXP-009 — Fine-tuned `microsoft/deberta-v3-base` (M6) -- **DEV-EVALUATED, NEW BEST BY A LARGE MARGIN** (TEST sealed, not yet run)
+
+- **Date:** 2026-08-15. **Environment:** Azure `Standard_NV24s_v3`, single Tesla M60 (`CUDA_VISIBLE_DEVICES=0`), post-6th-`/mnt`-wipe environment, identical pinned stack, `dtype=torch.float32` + `warmup_steps` fixes from the smoke-test debugging above applied.
+- **Command:** `python -m src.classification.run_experiment --config configs/transformer_deberta_v3_base.json`, launched detached (`nohup ... & disown`) so it survives SSH disconnects.
+- **Config:** full TRAIN split (`n_train=6706`), `max_length=128`, `learning_rate=1e-5`, `train_batch_size=16`, `eval_batch_size=32`, `num_epochs=5` (early stopping `patience=2` on DEV Macro F1), `warmup_ratio=0.1`, `weight_decay=0.01`, `fp16=true`, `use_safetensors=true`, `use_fast_tokenizer=false`, `seed=42`.
+- **Runtime:** ~22 minutes wall-clock (15:56-16:18 local VM time) for the full run, including per-epoch DEV eval -- dramatically faster than any M2-M5 LLM-based method (which ran 1-3 hours each), as expected for a 184M-parameter encoder vs. a 4B-parameter LLM doing generative inference.
+- **Training dynamics:** DEV Macro F1 by epoch -- 1: 0.8193, 2: **0.8254 (best)**, 3: 0.8178 (regression), then early stopping triggered after epoch 4 also failed to improve (`patience=2`); best checkpoint (epoch 2) restored automatically via `load_best_model_at_end=True`. Training loss kept decreasing after epoch 2 (0.53 -> 0.36 -> 0.25 across the logged steps) while DEV metrics plateaued/regressed -- classic overfitting onset on a 6,706-example TRAIN set with a 184M-parameter encoder, exactly what early stopping exists to catch.
+- **Full DEV metrics (best checkpoint, epoch 2):**
+
+  | Metric | Value |
+  |---|---:|
+  | Accuracy | 0.8254 |
+  | Macro F1 | **0.8254** |
+  | Weighted F1 | 0.8254 |
+  | not_sarcastic: P / R / F1 (support 672) | 0.8211 / 0.8333 / 0.8272 |
+  | sarcastic: P / R / F1 (support 668) | 0.8298 / 0.8174 / 0.8235 |
+  | Confusion matrix [gold rows, pred cols, order (not_sarcastic, sarcastic)] | `[[560, 112], [122, 546]]` |
+
+- **Quality checks performed:**
+  - `n_examples=1340`, 1,340 unique `example_id`s, no duplicates; `example_id` set matches `data/splits/dev.csv` exactly.
+  - Gold label distribution (672/668) matches the canonical DEV split exactly.
+  - Predicted distribution (682 not_sarcastic / 658 sarcastic) is close to gold, not collapsed to one class.
+  - Predicted-sarcastic rate by category: GEN 50.4%, HYP 54.8%, RQ 40.3% -- some spread but not wildly skewed toward one category.
+  - Agreement with EXP-006 (Qwen `Predict`, unoptimized zero-shot-style): 68.1%. Agreement with EXP-008 (Qwen `MIPROv2`, prior best): 70.8%. Meaningfully different from both, consistent with a genuinely different model family (fine-tuned encoder vs. prompted generative LLM) rather than a near-duplicate or a labeling artifact.
+- **Result: by far the best result of any method in Stage B.** Macro F1 0.8254 vs. the previous best (EXP-008, M5 MIPROv2) at 0.6700 -- a **+0.1554** absolute improvement, and the first method to clear 0.80. Consistent with expectations: a small model *trained* (not just prompted) directly on 6,706 in-domain labeled examples should outperform a much larger general-purpose LLM used zero/few-shot, and it does here by a wide margin, while also running ~5-8x faster per experiment.
+- **Artifacts:** `results/EXP-009/{config.json, metrics.json, predictions.csv}` -- pulled back and committed immediately. Best checkpoint at `models/EXP-009/best_checkpoint/` (gitignored, kept durable on local Mac disk via `sync_from_vm.sh`, per the project's models/ policy -- see `web/README.md` for where the web app's DeBERTa adapter expects to find it).
+- **TEST not touched**, per the sealing policy -- correct.
+- **M6 is now DONE** (single checkpoint; the smoke test already validated `fp16=true` stability, so no repeat-across-seeds pass was deemed necessary given the very wide margin over every other method -- can revisit if Phase 2 needs a variance estimate before freezing). Next: cross-model DEV disagreement analysis (STAGE_B_CHECKLIST.md section 7), then Phase 2 (freeze configs, unseal TEST).

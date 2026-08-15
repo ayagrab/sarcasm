@@ -9,18 +9,21 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-15, ~16:00 local VM time):** M1-M5 are all
-DEV-evaluated and committed (M5 complete, EXP-008 Macro F1 0.6700 is the
-current best of any method in Stage B). **M6 is in progress**: recovered
-from a sixth `/mnt` wipe, resolved the DeBERTa-v3-base download blocker
-(flagged but unresolved as of the 2026-08-14 session), fixed two more
-real code bugs surfaced by the M6 smoke test (a `transformers==5.15.0`
-`TrainingArguments` API change, and an fp16 NaN root-caused to the HF-hub
-checkpoint's `pytorch_model.bin` itself being float16), and the smoke
-test (`SMOKE-deberta`) now passes cleanly end-to-end with `fp16=true`.
-Full detail: `EXPERIMENT_LOG.md`'s 2026-08-15 entries ("Sixth VM restart"
-section onward). **EXP-009 (the full M6 training run) has not been
-launched yet** -- that's the very next action, no further setup needed.
+**Where things stand (2026-08-15, ~16:20 local VM time):** M1-M6 are all
+DEV-evaluated and committed. **M6 is now DONE and is the best result of
+any method in Stage B by a huge margin**: EXP-009 (fine-tuned
+`microsoft/deberta-v3-base`) scored **Macro F1 0.8254** vs. the previous
+best (EXP-008, M5 MIPROv2) at 0.6700 -- +0.1554 absolute. Along the way
+this session recovered from a sixth `/mnt` wipe, resolved the
+DeBERTa-v3-base download blocker (flagged but unresolved as of the
+2026-08-14 session), and fixed two more real code bugs surfaced by the M6
+smoke test (a `transformers==5.15.0` `TrainingArguments` API change, and
+an fp16 NaN root-caused to the HF-hub checkpoint's `pytorch_model.bin`
+itself being float16). Full detail: `EXPERIMENT_LOG.md`'s 2026-08-15
+entries ("Sixth VM restart" section onward, and the "EXP-009" entry).
+**Next up: cross-model DEV disagreement analysis (section 7 below), then
+Phase 2** (freeze one config per method, unseal TEST, evaluate each
+once).
 
 1. **Reconnect and check for another VM restart first** (this has now
    happened SIX times -- assume nothing): `ssh -i ~/.ssh/azure_vm_key
@@ -66,15 +69,9 @@ launched yet** -- that's the very next action, no further setup needed.
      tail the relevant experiment's log + `ps -ef | grep run_experiment`
      over SSH, `sleep 900` loop.
    - State-change watcher on whichever log is about to run.
-4. **Launch EXP-009** (`configs/transformer_deberta_v3_base.json`, full
-   M6 training run) -- smoke test already passed, config already has
-   `fp16=true` (validated stable) and `use_safetensors=true`; `finetune.py`
-   now forces `dtype=torch.float32` on load, so no further setup is
-   needed. Single GPU: `CUDA_VISIBLE_DEVICES=0`. After it finishes:
-   validate + `sync_from_vm.sh` + record in `EXPERIMENT_LOG.md` + check
-   off "6. M6" below, per the standing rhythm in item 7.
-5. **After M6: cross-model DEV disagreement analysis** (section "7"),
-   then **Phase 2** (freeze one config per method, unseal TEST, evaluate
+4. **M6 is DONE (EXP-009, Macro F1 0.8254, new best of any method by a
+   huge margin) -- next up is section "7", cross-model DEV disagreement
+   analysis**, then **Phase 2** (freeze one config per method, unseal TEST, evaluate
    each once), then the **final `PROJECT_SUMMARY.md` writeup** (section
    "8"). Follow this file's numbered sections in order from here.
    **Note on Phase 2 timing for M5:** whichever DSPy variant gets frozen,
@@ -84,7 +81,7 @@ launched yet** -- that's the very next action, no further setup needed.
    `compiled_program.json` and evaluating -- so freezing EXP-007 or
    EXP-008 costs a full re-run (~2h48m / ~2h29m) on TEST, not a quick
    eval. Budget for this when picking which M5 config to freeze.
-6. **After Stage B fully completes** (or if there's a natural lull with
+5. **After Stage B fully completes** (or if there's a natural lull with
    the GPU busy and nothing else to validate): resume the **web app**
    (`web/`, currently a fully-built and tested but *dormant* app -- see
    `web/README.md`). The one remaining connective step is writing
@@ -94,8 +91,8 @@ launched yet** -- that's the very next action, no further setup needed.
    per user request ("don't do anything in the meantime") -- safe to
    resume once Stage B experiments are running/paused and there's nothing
    else productive to do, or once Stage B is fully done.
-7. **After every experiment finishes** (M6's runs, Phase 2's TEST runs,
-   anything else): validate (quality checks -- n_examples, dup/missing
+6. **After every experiment finishes** (Phase 2's TEST runs, anything
+   else): validate (quality checks -- n_examples, dup/missing
    IDs, gold label distribution, category-uniformity + agreement checks
    if the result looks skewed), `bash scripts/sync_from_vm.sh` immediately
    (not at the end of the session), record it in `EXPERIMENT_LOG.md` with
@@ -325,10 +322,10 @@ M5/M6 not started automatically; awaiting go-ahead.
 
 - [x] Tiny overfit/smoke test (`configs/transformer_deberta_v3_base_smoke.json`, 64 train / 32 dev) -- forward/backward pass, checkpoint save, DEV eval all confirmed working, no NaN. (Loss doesn't visibly decrease in 24 steps on 64 examples -- expected, not a bug; not enough signal/steps for a base encoder, see EXPERIMENT_LOG.md 2026-08-15.)
 - [x] Confirm `fp16=true` stability on Tesla M60 during the smoke test -- **stable after fixing a real bug**: `finetune.py` now forces `dtype=torch.float32` on model load (the HF-hub checkpoint's `pytorch_model.bin` is itself fp16, which caused the earlier "unscale FP16 gradients" crash and NaN losses). See EXPERIMENT_LOG.md, 2026-08-15.
-- [ ] Full training run (`configs/transformer_deberta_v3_base.json`) -- single GPU (`CUDA_VISIBLE_DEVICES=0`), early stopping on DEV Macro F1
-- [ ] If runtime permits: repeat the final chosen config across 2-3 seeds, report DEV mean/variance
+- [x] Full training run (`configs/transformer_deberta_v3_base.json`) -- single GPU (`CUDA_VISIBLE_DEVICES=0`), early stopping on DEV Macro F1 -- **DONE (EXP-009).** ~22min. Best checkpoint epoch 2: **Macro F1 0.8254, Accuracy 0.8254 -- new best of any method in Stage B by a huge margin** (prior best EXP-008 MIPROv2: 0.6700, +0.1554 absolute). Epoch 3+ regressed (overfitting), early stopping (patience=2) restored the epoch-2 checkpoint correctly.
+- [ ] If runtime permits: repeat the final chosen config across 2-3 seeds, report DEV mean/variance -- not done (margin over other methods is wide enough that this wasn't judged necessary before Phase 2; revisit if Phase 2 needs a variance estimate)
 - [ ] (Optional) `configs/transformer_roberta_base.json` as a second-encoder DEV comparison
-- [ ] Record in `EXPERIMENT_LOG.md`
+- [x] Record in `EXPERIMENT_LOG.md` -- done, see the "EXP-009" entry, 2026-08-15.
 
 ### 7. Cross-model DEV analysis
 
