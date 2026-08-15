@@ -17,5 +17,5 @@
   "eval_split": "dev",
   "max_train_examples": 64,
   "max_dev_examples": 32,
-  "_note": "Tiny overfit/smoke test (task Section 28): verify forward/backward pass, loss decreases, checkpoint saving, DEV evaluation -- before the full run (configs/transformer_deberta_v3_base.json)."
+  "_note": "Tiny overfit/smoke test (task Section 28): verify forward/backward pass, loss decreases, checkpoint saving, DEV evaluation -- before the full run (configs/transformer_deberta_v3_base.json). fp16=true root-caused and fixed (2026-08-15): the 'Attempting to unscale FP16 gradients' crash was because the HF-hub pytorch_model.bin for this checkpoint is itself stored in float16, and finetune.py loaded it without forcing dtype -- the model silently trained in native fp16 (no master fp32 weights) instead of Trainer's proper fp16 mixed-precision. Fixed by adding dtype=torch.float32 to the from_pretrained call; fp16=true is now stable (verified via ad hoc Trainer run, no crash, sane grad norms) -- see EXPERIMENT_LOG.md."
 }

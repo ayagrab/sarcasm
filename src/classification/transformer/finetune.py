@@ -150,6 +150,7 @@ def finetune_and_evaluate(config: TransformerConfig, eval_split: str = "dev") ->
         id2label=ID2LABEL,
         label2id=LABEL2ID,
         use_safetensors=config.use_safetensors,
+        dtype=torch.float32,
     ).to(device)
 
     train_dataset = build_dataset(tokenizer, train_df, config.max_length)
@@ -162,7 +163,7 @@ def finetune_and_evaluate(config: TransformerConfig, eval_split: str = "dev") ->
         per_device_train_batch_size=config.train_batch_size,
         per_device_eval_batch_size=config.eval_batch_size,
         num_train_epochs=config.num_epochs,
-        warmup_ratio=config.warmup_ratio,
+        warmup_steps=config.warmup_ratio,
         weight_decay=config.weight_decay,
         eval_strategy="epoch",
         save_strategy="epoch",

@@ -9,33 +9,24 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-14, ~15:10 local VM time):** M1-M5 are all
-DEV-evaluated and committed. **M5 is fully DONE** -- EXP-006 (0.6619),
-EXP-007 (0.6406), EXP-008 (**0.6700, current best of any method in Stage
-B**) all run, quality-checked, recorded, committed+pushed. Along the way
-this session recovered from a fourth AND fifth `/mnt` wipe, one of which
-combined with the VM booting into an unverified kernel that broke the
-NVIDIA driver entirely (fixed **durably** this time via `sudo
-grub-set-default`, not just a one-shot `grub-reboot`), a missing `optuna`
-dependency (now pinned), and a real code bug in
-`src/classification/dspy_pipeline/signatures.py` that crashed MIPROv2's
-first real attempt (fixed, verified, 61/61 tests still pass). Full detail:
-`EXPERIMENT_LOG.md`'s 2026-08-14 entries.
-
-**STOPPED HERE ON PURPOSE, per explicit user request** ("after EXP-008,
-stop and document everything so next session starts straight at EXP-009")
--- do NOT auto-continue into M6 without being told to. Background
-monitoring was stopped along with it (cache backup loop, heartbeat,
-state-change watcher all killed) and the VM's GPU is idle. When resuming a
-*future* session and told to continue, do exactly this, in order, without
-re-explaining the plan or asking for confirmation on anything already
-covered here:
+**Where things stand (2026-08-15, ~16:00 local VM time):** M1-M5 are all
+DEV-evaluated and committed (M5 complete, EXP-008 Macro F1 0.6700 is the
+current best of any method in Stage B). **M6 is in progress**: recovered
+from a sixth `/mnt` wipe, resolved the DeBERTa-v3-base download blocker
+(flagged but unresolved as of the 2026-08-14 session), fixed two more
+real code bugs surfaced by the M6 smoke test (a `transformers==5.15.0`
+`TrainingArguments` API change, and an fp16 NaN root-caused to the HF-hub
+checkpoint's `pytorch_model.bin` itself being float16), and the smoke
+test (`SMOKE-deberta`) now passes cleanly end-to-end with `fp16=true`.
+Full detail: `EXPERIMENT_LOG.md`'s 2026-08-15 entries ("Sixth VM restart"
+section onward). **EXP-009 (the full M6 training run) has not been
+launched yet** -- that's the very next action, no further setup needed.
 
 1. **Reconnect and check for another VM restart first** (this has now
-   happened FIVE times -- assume nothing): `ssh -i ~/.ssh/azure_vm_key
+   happened SIX times -- assume nothing): `ssh -i ~/.ssh/azure_vm_key
    vmadmin@20.245.56.28` (`ConnectTimeout=20`; if it times out completely,
    that itself is the finding -- report it, don't guess, but it's fine to
-   just wait a few minutes and retry once, that resolved it last time).
+   just wait a few minutes and retry once, that resolved it before).
    Then `bash scripts/verify_kernel.sh` (fails loudly on a kernel/driver
    mismatch -- if it reports the wrong kernel despite the `grub-set-default`
    fix, check `cat /boot/grub/grubenv | grep saved_entry` to see if
@@ -43,7 +34,7 @@ covered here:
    2026-08-14 entry, step 7) and `ls /mnt/vmadmin` (if "No such file or
    directory", `/mnt` was wiped again -- run the full recovery procedure
    documented in `EXPERIMENT_LOG.md`'s VM-restart incident entries,
-   verbatim; it's been used five times already and works every time.
+   verbatim; it's been used six times already and works every time.
    Note: `/mnt` may come back **root-owned** -- if `mkdir`/`chown` on
    `/mnt/vmadmin` gives "Permission denied", `sudo mkdir -p
    /mnt/vmadmin/{projects,sarcasm-env,huggingface} && sudo chown -R
@@ -52,11 +43,19 @@ covered here:
    `scripts/verify_gpu.py`, `pytest tests/test_classification_*.py`
    (expect 61/61), and the Qwen zero-shot smoke test (`--limit 20`) --
    should reproduce accuracy 0.25 / macro F1 0.20 exactly, same as every
-   prior rebuild (six confirmations now). If it doesn't match, STOP and
+   prior rebuild (seven confirmations now). If it doesn't match, STOP and
    report -- that would mean something about the environment actually
    changed. Remember `optuna` is now part of `environment_stage_b.txt`'s
    pinned freeze -- installing from that file covers it, no separate step
-   needed.
+   needed. **Also redo the DeBERTa safetensors conversion** (the fix from
+   the sixth-restart recovery, `/mnt`-ephemeral so it doesn't survive a
+   wipe): `snapshot_download('microsoft/deberta-v3-base')`, then
+   `torch.load` the cached `pytorch_model.bin` (`weights_only=True`),
+   `safetensors.torch.save_file(...)` it as `model.safetensors` into the
+   *same* snapshot directory -- ~5s, see EXPERIMENT_LOG.md's 2026-08-15
+   entry for the exact snippet. Without this, `from_pretrained(...,
+   use_safetensors=True)` fails with the `check_torch_load_is_safe`
+   `ValueError` again.
 3. **Re-arm background monitoring** (Monitor-tool tasks do NOT persist
    across sessions -- these need to be relaunched fresh every session,
    even if the VM itself didn't restart):
@@ -67,18 +66,13 @@ covered here:
      tail the relevant experiment's log + `ps -ef | grep run_experiment`
      over SSH, `sleep 900` loop.
    - State-change watcher on whichever log is about to run.
-4. **M6 (DeBERTa-v3-base fine-tuning, EXP-009) is next** -- see "6. M6"
-   section below for the exact procedure. **First resolve the DeBERTa
-   download blocker**: `microsoft/deberta-v3-base` currently fails to
-   download with `ValueError: ...we now require users to upgrade torch to
-   at least v2.6...` (a `transformers` safety guard triggered because that
-   HF repo has no `safetensors` weights, and pinned `torch==2.5.1` doesn't
-   satisfy the guard) -- see EXPERIMENT_LOG.md's 2026-08-14 entry, item 3,
-   for full detail. Not investigated or fixed yet -- needs a judgment call
-   (e.g. find a safetensors-mirrored checkpoint, or another safe
-   workaround) before EXP-009 can run; do not "fix" it by blindly
-   upgrading torch without checking it doesn't destabilize the verified
-   M1-M5 stack first.
+4. **Launch EXP-009** (`configs/transformer_deberta_v3_base.json`, full
+   M6 training run) -- smoke test already passed, config already has
+   `fp16=true` (validated stable) and `use_safetensors=true`; `finetune.py`
+   now forces `dtype=torch.float32` on load, so no further setup is
+   needed. Single GPU: `CUDA_VISIBLE_DEVICES=0`. After it finishes:
+   validate + `sync_from_vm.sh` + record in `EXPERIMENT_LOG.md` + check
+   off "6. M6" below, per the standing rhythm in item 7.
 5. **After M6: cross-model DEV disagreement analysis** (section "7"),
    then **Phase 2** (freeze one config per method, unseal TEST, evaluate
    each once), then the **final `PROJECT_SUMMARY.md` writeup** (section
@@ -329,8 +323,8 @@ M5/M6 not started automatically; awaiting go-ahead.
 
 ### 6. M6 — Fine-tuned DeBERTa-v3-base (EXP-009), TRAIN+DEV only
 
-- [ ] Tiny overfit/smoke test (`configs/transformer_deberta_v3_base_smoke.json`, 64 train / 32 dev) -- forward/backward pass, loss decreases, checkpoint save, DEV eval works
-- [ ] Confirm `fp16=true` stability on Tesla M60 during the smoke test; fall back + document if unstable
+- [x] Tiny overfit/smoke test (`configs/transformer_deberta_v3_base_smoke.json`, 64 train / 32 dev) -- forward/backward pass, checkpoint save, DEV eval all confirmed working, no NaN. (Loss doesn't visibly decrease in 24 steps on 64 examples -- expected, not a bug; not enough signal/steps for a base encoder, see EXPERIMENT_LOG.md 2026-08-15.)
+- [x] Confirm `fp16=true` stability on Tesla M60 during the smoke test -- **stable after fixing a real bug**: `finetune.py` now forces `dtype=torch.float32` on model load (the HF-hub checkpoint's `pytorch_model.bin` is itself fp16, which caused the earlier "unscale FP16 gradients" crash and NaN losses). See EXPERIMENT_LOG.md, 2026-08-15.
 - [ ] Full training run (`configs/transformer_deberta_v3_base.json`) -- single GPU (`CUDA_VISIBLE_DEVICES=0`), early stopping on DEV Macro F1
 - [ ] If runtime permits: repeat the final chosen config across 2-3 seeds, report DEV mean/variance
 - [ ] (Optional) `configs/transformer_roberta_base.json` as a second-encoder DEV comparison

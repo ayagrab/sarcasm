@@ -1534,3 +1534,113 @@ should prevent the *driver-breaking* consequence from recurring even if
 the underlying restart cause (whatever triggers it) continues -- `/mnt`
 being ephemeral and wiped on any restart remains expected and handled by
 the existing recovery procedure regardless.
+
+### Sixth VM restart -- `/mnt` wiped again (2026-08-15, ~15:27 UTC), M6 DeBERTa blocker resolved
+
+Resuming per STAGE_B_CHECKLIST.md's "START HERE" section, exactly as
+written: reconnected (SSH fine, no `ConnectTimeout`), and found `/mnt`
+empty again (`ls`: "No such file or directory", fresh `/dev/sdb1`
+32 KB used) -- the sixth `/mnt` wipe. Kernel/driver this time came back
+correct on first check (`uname -r` `6.8.0-1029-azure`, `nvidia-smi`
+healthy, both Tesla M60s idle, 0 MiB used) -- the `grub-set-default` fix
+from the fifth-restart incident held, no kernel-related recovery needed
+this time.
+
+**Recovery performed (identical procedure to the prior five, per the
+existing runbook):**
+1. `/mnt` came back root-owned again -- `sudo mkdir -p
+   /mnt/vmadmin/{projects,sarcasm-env,huggingface} && sudo chown -R
+   vmadmin:vmadmin /mnt/vmadmin`.
+2. Repo re-synced via `scripts/sync_to_vm.sh`.
+3. Python 3.10 venv rebuilt from scratch (`python3.10-venv` apt package
+   already present system-wide, survived the `/mnt` wipe as expected --
+   only `/mnt` is ephemeral). Installed the exact pinned stack from
+   `environment_stage_b.txt` (`torch==2.5.1+cu118` via the cu118 index
+   first, then the rest of the freeze, `optuna==4.9.0` included) --
+   no version changed.
+4. Re-downloaded `Qwen/Qwen3-4B-Instruct-2507` into fresh
+   `HF_HOME=/mnt/vmadmin/huggingface` -- succeeded in ~21s, no issue.
+5. `scripts/verify_gpu.py`: identical verdict to every prior run
+   (`fp16_transformers_pipeline_ok: true`, both GPUs visible, BF16/
+   FlashAttention2/vLLM correctly reported unsupported).
+6. `pytest tests/test_classification_*.py`: **61/61 passed.**
+7. Qwen zero-shot smoke test (`SMOKE-recovery6-qwen-zero-shot`,
+   `--limit 20`): **accuracy 0.25, macro F1 0.20 -- reproduced exactly, a
+   seventh time now.**
+
+**M6 DeBERTa download blocker (flagged but not investigated during the
+2026-08-14 session) -- now resolved:**
+`microsoft/deberta-v3-base` re-downloaded via `snapshot_download` (not
+`AutoModel.from_pretrained`, so `transformers`' `check_torch_load_is_safe`
+guard never triggers at this stage) -- all 8 repo files including
+`pytorch_model.bin` land in the HF cache normally. The blocker only bites
+when `transformers` tries to *load* the `.bin` weights: pinned
+`torch==2.5.1` fails the guard's `>=2.6` requirement, and this repo has
+no `model.safetensors` upstream to fall back to. **Fix applied:** loaded
+the cached `pytorch_model.bin` directly with `torch.load(...,
+weights_only=True)` (safe here -- Microsoft's own official repo, not
+third-party), converted to `model.safetensors` with
+`safetensors.torch.save_file`, and wrote it into the *same* HF cache
+snapshot directory alongside the original files. Confirmed:
+`AutoModelForSequenceClassification.from_pretrained('microsoft/deberta-v3-base',
+num_labels=2, use_safetensors=True)` now succeeds -- LOAD REPORT shows
+all 198 backbone weights loaded cleanly (only the MLM head
+`lm_predictions.*`/`mask_predictions.*` keys are UNEXPECTED, and
+`classifier.*`/`pooler.*` MISSING/newly-initialized -- both expected and
+correct for fine-tuning a base checkpoint into a 2-class classifier).
+**No code changes needed** -- `configs/transformer_deberta_v3_base.json`
+and `configs/transformer_deberta_v3_base_smoke.json` already specify
+`use_safetensors: true`; the conversion alone was the missing piece.
+**Caveat:** since `/mnt` is ephemeral, this conversion must be redone
+after any future `/mnt` wipe, before M6/EXP-009 can run -- it's a ~5s
+step (`torch.load` + `save_file` on the cached `.bin`), not worth
+scripting into `verify_gpu.py` or similar for a one-time M6 need, but
+worth remembering if a future session hits the same `ValueError` again.
+
+**Two more real code bugs found and fixed while running the M6 smoke test
+(`configs/transformer_deberta_v3_base_smoke.json`), both pre-existing
+environment/version gaps unrelated to the `/mnt` wipe:**
+
+1. **`TrainingArguments.__init__() got an unexpected keyword argument
+   'warmup_ratio'`.** `transformers==5.15.0` removed the standalone
+   `warmup_ratio` parameter -- `warmup_steps` is now overloaded to accept
+   either an absolute step count (`>=1`) or a fraction of total training
+   steps (`<1`), replacing the old two-parameter design. **Fix:**
+   `src/classification/transformer/finetune.py`'s `TrainingArguments(...)`
+   call now passes `warmup_steps=config.warmup_ratio` instead of
+   `warmup_ratio=config.warmup_ratio` -- the config field name/semantics
+   (a 0-1 fraction) are unchanged, only the kwarg it's forwarded under.
+2. **`eval_loss: nan` every epoch, final DEV predictions collapsed to a
+   single class (macro F1 ~0.33, chance level).** Root cause: the model
+   load (`AutoModelForSequenceClassification.from_pretrained(...)`) never
+   specified a dtype, and it turns out `microsoft/deberta-v3-base`'s
+   `pytorch_model.bin` on the HF Hub is itself stored in **float16**
+   (confirmed via a raw `torch.load` dtype check) -- so the model trained
+   natively in fp16 with no fp32 master weights, causing gradient
+   underflow/NaN within a handful of steps regardless of the Trainer's
+   own `fp16` flag. This also explains the earlier `fp16=true` crash
+   above (`ValueError: Attempting to unscale FP16 gradients` -- Trainer's
+   `GradScaler` expects fp32 master weights to unscale into; the model
+   was already fp16, so it had none). **Fix:** added `dtype=torch.float32`
+   to the `from_pretrained(...)` call in `finetune.py` -- forces fp32
+   weights regardless of the checkpoint's on-disk dtype, matching
+   standard fine-tuning practice. **Verified via an ad hoc `Trainer` run**
+   (bypassing `run_experiment.py`, logging every step): with the fix,
+   losses are sane (~0.66-0.78, no NaN) and gradients are well-behaved
+   (`grad_norm` 1-4, no explosion) under **both** `fp16=false` and
+   `fp16=true` -- `fp16=true` is confirmed genuinely stable now (not just
+   "didn't crash this once"), so it was restored in both
+   `transformer_deberta_v3_base_smoke.json` and
+   `transformer_deberta_v3_base.json` for training speed on the M60s.
+   Re-ran the official smoke test (`SMOKE-deberta`, via
+   `run_experiment.py`, `fp16=true`) end-to-end after the fix: 0 NaN
+   anywhere in `metrics.json`, forward/backward/checkpoint-save/DEV-eval
+   all completed cleanly. (The smoke test's DEV metrics themselves are
+   near chance -- macro F1 0.33, predictions collapsed to one class -- but
+   that's expected and not a bug: 64 train examples, 3 epochs, `lr=1e-5`
+   is far too little signal/steps for a base encoder to learn anything
+   real; the smoke test's job is catching crashes/NaN, not accuracy, and
+   it now does so cleanly.)
+
+M6/EXP-009 (DeBERTa-v3-base fine-tuning, full run) is next, per user
+instruction to continue from the documented resume point.

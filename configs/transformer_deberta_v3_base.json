@@ -15,5 +15,5 @@
   "use_fast_tokenizer": false,
   "use_safetensors": true,
   "eval_split": "dev",
-  "_note": "PRIMARY M6 experiment (Stage B handoff): microsoft/deberta-v3-base is the primary supervised encoder checkpoint. use_fast_tokenizer=false (slow/SentencePiece tokenizer required for DeBERTa-v3). use_safetensors=true (transformers on torch>=2.5 blocks unsafe torch.load for some checkpoint formats). fp16=true to try -- validate stability on Tesla M60 via the smoke test (configs/transformer_deberta_v3_base_smoke.json) before the full run; fall back to fp16=false if unstable, and record why in EXPERIMENT_LOG.md."
+  "_note": "PRIMARY M6 experiment (Stage B handoff): microsoft/deberta-v3-base is the primary supervised encoder checkpoint. use_fast_tokenizer=false (slow/SentencePiece tokenizer required for DeBERTa-v3). use_safetensors=true (transformers on torch>=2.5 blocks unsafe torch.load for some checkpoint formats). fp16=true validated stable via the smoke test (configs/transformer_deberta_v3_base_smoke.json) after fixing finetune.py to force dtype=torch.float32 on load (the hub checkpoint's pytorch_model.bin is itself fp16 -- see EXPERIMENT_LOG.md, 2026-08-15)."
 }
