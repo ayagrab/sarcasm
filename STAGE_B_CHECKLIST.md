@@ -329,14 +329,16 @@ M5/M6 not started automatically; awaiting go-ahead.
 
 ### 7. Cross-model DEV analysis
 
-- [ ] Per-example disagreement table across M1/M2/M3/M4/M5/M6 DEV predictions (+ gold)
-- [ ] Error analysis: false positives/negatives per model, patterns (rhetorical Qs, hyperbole, short/ambiguous, the 22 label-conflict rows)
-- [ ] Confidence/low-confidence review where available (TF-IDF proba, DeBERTa softmax)
+- [x] Per-example disagreement table across M1/M2/M3/M4/M5/M6 DEV predictions (+ gold) -- done, `results/cross_model_dev_analysis.csv`. Key finding: LLM-based methods (M2-M5) cluster at 86-95% mutual agreement; M1/M6 (trained-on-labels methods) agree with each other (82.3%) far more than with any LLM method (58-71%).
+- [x] Error analysis: false positives/negatives per model, patterns (rhetorical Qs, hyperbole, short/ambiguous, the 22 label-conflict rows) -- done. Headline finding: every LLM method is heavily FP-skewed (over-predicts sarcastic, e.g. M5-MIPROv2 FP=353/FN=70) while M1/M6 are balanced (M6 FP=112/FN=122) -- explains most of the gap. Worst category for nearly every method is HYP (hyperbole); only 2/22 label-conflict rows fall in DEV, too few for a firm conclusion.
+- [x] Confidence/low-confidence review where available (TF-IDF proba, DeBERTa softmax) -- done. Both M1 and M6 are reasonably well-calibrated (accuracy rises monotonically with confidence bucket); M6's confidence is far more concentrated near 1.0.
+
+See `EXPERIMENT_LOG.md`'s "Cross-model DEV analysis" entry (2026-08-15) for full detail.
 
 ## PHASE 2 — Freeze + sealed TEST evaluation (only after Phase 1 fully checked off)
 
-- [ ] Review complete DEV results for every method
-- [ ] Select exactly ONE final configuration per method (M2, M3, M4, M5, M6), record why in `EXPERIMENT_LOG.md`, mark FROZEN with its config file path
+- [x] Review complete DEV results for every method -- done, see cross-model DEV analysis above.
+- [x] Select exactly ONE final configuration per method (M2, M3, M4, M5, M6), record why in `EXPERIMENT_LOG.md`, mark FROZEN with its config file path -- done, see EXPERIMENT_LOG.md's "PHASE 2 -- Config freeze" entry and `results/frozen_configs.json`. Every method freezes its DEV-best: M2=EXP-002 (only candidate), M3=EXP-003 (random beats curated), M4=EXP-005 (only candidate), M5=EXP-008 (MIPROv2, best of 3, accepting its TEST-time recompile cost), M6=EXP-009 (only candidate, and overall best -- `production_model`).
 - [ ] Evaluate M1 (already frozen from Stage A), M2, M3, M4, M5, M6 frozen configs on TEST -- once each
 - [ ] No re-tuning after seeing TEST results
 - [ ] Final cross-model TEST-based comparison table
