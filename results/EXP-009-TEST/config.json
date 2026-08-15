@@ -1,0 +1,9 @@
+{
+  "approach": "M6_finetuned_transformer_eval_only",
+  "checkpoint_dir": "models/EXP-009/best_checkpoint",
+  "source_experiment_id": "EXP-009",
+  "eval_split": "test",
+  "max_length": 128,
+  "device": "cuda",
+  "n_eval": 1340
+}

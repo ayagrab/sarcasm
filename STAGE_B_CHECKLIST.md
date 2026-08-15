@@ -9,32 +9,39 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-15, ~19:10 local VM time):** Phase 1 (all
+**Where things stand (2026-08-15, ~21:50 local VM time):** Phase 1 (all
 DEV-only development, M1-M6) is fully done -- M6 (fine-tuned
 `microsoft/deberta-v3-base`, EXP-009) is the best DEV result of any
 method by a huge margin: Macro F1 **0.8254** vs. the previous best
-(EXP-008, M5 MIPROv2) at 0.6700. **Phase 2 has started**: every method's
-final config is frozen (`results/frozen_configs.json`, `production_model
-= "deberta"`) and sealed-TEST evaluation is **partially done**: M1
-(0.7403), M2 (0.6005), M3 (0.5947) all evaluated on TEST and committed.
-**Stopped here on purpose, per explicit user request** ("stop after M3
-finishes, I need to shut down the VM") -- M4/M5/M6 TEST evaluation is
-still pending. Along the way this session also recovered from a sixth
-`/mnt` wipe, resolved the DeBERTa-v3-base download blocker, fixed two
-more real M6 code bugs (`transformers==5.15.0`'s `TrainingArguments` API
-change, an fp16 NaN from the HF-hub checkpoint itself being float16), did
-the cross-model DEV disagreement analysis (section 7), and found +
-fixed a real gap where M6's TEST step would have silently retrained a
-second model instead of evaluating the frozen EXP-009 checkpoint (see
-`scripts/eval_frozen_checkpoint.py`). Full detail: `EXPERIMENT_LOG.md`'s
-2026-08-15 entries, especially "PHASE 2 -- Sealed TEST evaluation" (the
-last entry in the file).
+(EXP-008, M5 MIPROv2) at 0.6700. **Phase 2 is nearly done**: every
+method's final config is frozen (`results/frozen_configs.json`,
+`production_model = "deberta"`) and sealed-TEST evaluation has only **one
+method left**: M1 (0.7403), M2 (0.6005), M3 (0.5947), M4 (0.5758), M6
+(**0.8209, best -- confirms M6's DEV lead holds on genuinely unseen
+data**) are all done and committed. **Only M5 (MIPROv2, ~2h29m full
+recompile) remains.** **Stopped here on purpose, per explicit user
+request** ("stop after M6, tomorrow I'll continue M5, the summaries, and
+the site") -- next session should go straight to M5, then the final
+cross-model TEST comparison table, then `PROJECT_SUMMARY.md`, then the
+web app. This session recovered from a *seventh* `/mnt` wipe mid-session
+(the VM was deliberately shut down and restarted once already today) --
+recovery procedure identical to every prior time, now including
+re-uploading `models/EXP-009/best_checkpoint` and already-done TEST
+results by hand (see EXPERIMENT_LOG.md's "Update, same day, later
+session" continuation). Full detail: `EXPERIMENT_LOG.md`'s 2026-08-15
+entries, especially "PHASE 2 -- Sealed TEST evaluation" (the last entry
+in the file, covering both pause points today).
 
-**Since the user is deliberately shutting the VM down**, assume a
-seventh `/mnt` wipe on next reconnect -- don't just "check", expect it.
+**Since the user is deliberately shutting the VM down again**, assume an
+eighth `/mnt` wipe on next reconnect -- don't just "check", expect it,
+and remember to re-upload `models/EXP-009/best_checkpoint` (needed only
+if M6 needs re-running, which it shouldn't -- M6 is done) and confirm
+`results/EXP-002-TEST` through `EXP-009-TEST` survived in git (they
+should have, already committed) before trusting the chain script's
+resume-skip logic.
 
 1. **Reconnect and check for another VM restart first** (this has now
-   happened SIX times, and a seventh is expected given the VM was
+   happened SEVEN times, and an eighth is expected given the VM was
    deliberately shut down this time): `ssh -i ~/.ssh/azure_vm_key
    vmadmin@20.245.56.28` (`ConnectTimeout=20`; if it times out completely,
    that itself is the finding -- report it, don't guess, but it's fine to
@@ -78,20 +85,19 @@ seventh `/mnt` wipe on next reconnect -- don't just "check", expect it.
      tail the relevant experiment's log + `ps -ef | grep run_experiment`
      over SSH, `sleep 900` loop.
    - State-change watcher on whichever log is about to run.
-4. **Resume Phase 2's TEST evaluation, exactly where it stopped:**
-   `bash scripts/run_phase2_test_chain.sh` (launch detached, e.g. `nohup
-   ... < /dev/null > logs/phase2-test-chain.log 2>&1 & disown` -- plain
-   `&` without `< /dev/null` has left the SSH command hanging on stdin
+4. **Finish Phase 2's TEST evaluation -- only M5 left:** `bash
+   scripts/run_phase2_test_chain.sh` (launch detached, e.g. `nohup ...
+   < /dev/null > logs/phase2-test-chain.log 2>&1 & disown` -- plain `&`
+   without `< /dev/null` has left the SSH command hanging on stdin
    before). The script is resume-aware (skips any step whose
    `results/<experiment_id>/metrics.json` already exists), so it will
-   skip M2/M3 automatically and start at M4. Remaining budget: M4
-   (~1h02m) + M5 MIPROv2 (~2h29m, full recompile -- no "load compiled
-   program" path exists) + M6 (~few min, eval-only against the existing
-   `models/EXP-009/best_checkpoint`, via `scripts/eval_frozen_checkpoint.py`
-   -- do NOT use `configs/transformer_deberta_v3_base.json` directly for
-   this, it retrains from scratch) ≈ **3.5 hours total**. After each step
-   finishes: validate + `sync_from_vm.sh` + record in `EXPERIMENT_LOG.md`
-   (same rhythm as every prior experiment).
+   skip M2/M3/M4/M6 automatically and go straight to M5. Or run M5 alone
+   directly: `python -m src.classification.run_experiment --config
+   configs/EXP-008-TEST.json`. Budget: **~2h29m** (MIPROv2, full
+   recompile -- no "load compiled program" path exists, this is the last
+   known TEST-run cost in the project). After it finishes: validate +
+   `sync_from_vm.sh` + record in `EXPERIMENT_LOG.md` (same rhythm as
+   every prior experiment).
 5. **After all of Phase 2's TEST runs are in:** final cross-model
    TEST-based comparison table, then the **final `PROJECT_SUMMARY.md`
    writeup** (section "8"). Follow this file's numbered sections in order
@@ -357,7 +363,7 @@ See `EXPERIMENT_LOG.md`'s "Cross-model DEV analysis" entry (2026-08-15) for full
 
 - [x] Review complete DEV results for every method -- done, see cross-model DEV analysis above.
 - [x] Select exactly ONE final configuration per method (M2, M3, M4, M5, M6), record why in `EXPERIMENT_LOG.md`, mark FROZEN with its config file path -- done, see EXPERIMENT_LOG.md's "PHASE 2 -- Config freeze" entry and `results/frozen_configs.json`. Every method freezes its DEV-best: M2=EXP-002 (only candidate), M3=EXP-003 (random beats curated), M4=EXP-005 (only candidate), M5=EXP-008 (MIPROv2, best of 3, accepting its TEST-time recompile cost), M6=EXP-009 (only candidate, and overall best -- `production_model`).
-- [x] Evaluate M1 (already frozen from Stage A), M2, M3, M4, M5, M6 frozen configs on TEST -- once each -- **PARTIAL, paused after M3 per user request (VM needed to shut down).** M1 (0.7403), M2 (0.6005), M3 (0.5947) done. M4/M5/M6 remaining -- see EXPERIMENT_LOG.md's "PHASE 2 -- Sealed TEST evaluation" entry for the exact resume procedure (`scripts/run_phase2_test_chain.sh` is now resume-aware, just re-launch it).
+- [x] Evaluate M1 (already frozen from Stage A), M2, M3, M4, M5, M6 frozen configs on TEST -- once each -- **PARTIAL, paused after M6 per user request ("stop after M6, tomorrow I'll continue M5 + the writeup").** M1 (0.7403), M2 (0.6005), M3 (0.5947), M4 (0.5758), M6 (**0.8209, best**) done. Only **M5 remains** (~2h29m, MIPROv2 full recompile) -- see EXPERIMENT_LOG.md's "PHASE 2 -- Sealed TEST evaluation" entry (both the initial pause and the "Update, same day, later session" continuation) for detail. `scripts/run_phase2_test_chain.sh` is resume-aware and will correctly skip straight to M5 (M6 was run directly via `scripts/eval_frozen_checkpoint.py`, but under the same `EXP-009-TEST` experiment ID the chain checks for -- verified this works before writing this note) -- just re-launch the chain as-is.
 - [ ] No re-tuning after seeing TEST results -- N/A yet, not all TEST results are in
 - [ ] Final cross-model TEST-based comparison table
 
