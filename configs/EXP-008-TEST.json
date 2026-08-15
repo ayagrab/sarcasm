@@ -1,0 +1,14 @@
+{
+  "approach_family": "dspy",
+  "experiment_id": "EXP-008-TEST",
+  "optimizer": "mipro_v2",
+  "eval_split": "test",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "optimizer_config": {
+    "auto": "light"
+  },
+  "seed": 42,
+  "_note": "Phase 2 sealed-TEST evaluation of the frozen configs/dspy_mipro_v2.json config, once, per STAGE_B_CHECKLIST.md Phase 2. build_program() always recompiles from scratch -- there is no load-compiled-program path in the current code -- so this necessarily re-runs the full MIPROv2 optimization (using TRAIN + this eval_split as valset) rather than loading EXP-008 compiled_program.json directly. Same hyperparameters as the frozen DEV config."
+}

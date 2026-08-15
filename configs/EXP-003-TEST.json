@@ -1,0 +1,13 @@
+{
+  "approach_family": "llm",
+  "experiment_id": "EXP-003-TEST",
+  "mode": "few_shot",
+  "eval_split": "test",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "few_shot_variant": "random",
+  "n_shots": 8,
+  "seed": 42,
+  "_note": "Phase 2 sealed-TEST evaluation of the frozen configs/llm_few_shot_random_8_qwen_local.json config, once, per STAGE_B_CHECKLIST.md Phase 2. Identical hyperparameters to the frozen DEV config, only eval_split and experiment_id differ."
+}

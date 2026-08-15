@@ -1,0 +1,40 @@
+{
+  "n_examples": 1340,
+  "accuracy": 0.6395522388059701,
+  "macro_f1": 0.6004910992883505,
+  "weighted_f1": 0.5978808083420657,
+  "per_class": {
+    "not_sarcastic": {
+      "precision": 0.9240506329113924,
+      "recall": 0.3201754385964912,
+      "f1": 0.4755700325732899,
+      "support": 684
+    },
+    "sarcastic": {
+      "precision": 0.5784224841341795,
+      "recall": 0.9725609756097561,
+      "f1": 0.7254121660034111,
+      "support": 656
+    }
+  },
+  "positive_label": "sarcastic",
+  "sarcastic_precision": 0.5784224841341795,
+  "sarcastic_recall": 0.9725609756097561,
+  "sarcastic_f1": 0.7254121660034111,
+  "confusion_matrix": {
+    "labels": [
+      "not_sarcastic",
+      "sarcastic"
+    ],
+    "matrix": [
+      [
+        219,
+        465
+      ],
+      [
+        18,
+        638
+      ]
+    ]
+  }
+}
