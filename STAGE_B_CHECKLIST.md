@@ -9,36 +9,54 @@ For final results, see `PROJECT_SUMMARY.md`.
 
 ## START HERE (next session) — read this section first, top to bottom
 
-**Where things stand (2026-08-15, ~21:50 local VM time):** Phase 1 (all
-DEV-only development, M1-M6) is fully done -- M6 (fine-tuned
-`microsoft/deberta-v3-base`, EXP-009) is the best DEV result of any
-method by a huge margin: Macro F1 **0.8254** vs. the previous best
-(EXP-008, M5 MIPROv2) at 0.6700. **Phase 2 is nearly done**: every
-method's final config is frozen (`results/frozen_configs.json`,
-`production_model = "deberta"`) and sealed-TEST evaluation has only **one
-method left**: M1 (0.7403), M2 (0.6005), M3 (0.5947), M4 (0.5758), M6
-(**0.8209, best -- confirms M6's DEV lead holds on genuinely unseen
-data**) are all done and committed. **Only M5 (MIPROv2, ~2h29m full
-recompile) remains.** **Stopped here on purpose, per explicit user
-request** ("stop after M6, tomorrow I'll continue M5, the summaries, and
-the site") -- next session should go straight to M5, then the final
-cross-model TEST comparison table, then `PROJECT_SUMMARY.md`, then the
-web app. This session recovered from a *seventh* `/mnt` wipe mid-session
-(the VM was deliberately shut down and restarted once already today) --
-recovery procedure identical to every prior time, now including
-re-uploading `models/EXP-009/best_checkpoint` and already-done TEST
-results by hand (see EXPERIMENT_LOG.md's "Update, same day, later
-session" continuation). Full detail: `EXPERIMENT_LOG.md`'s 2026-08-15
-entries, especially "PHASE 2 -- Sealed TEST evaluation" (the last entry
-in the file, covering both pause points today).
+**Where things stand (2026-08-16, ~18:31 local VM time):** Phase 1 and
+Phase 2 are now **both fully complete**. Every one of the 6 methods has a
+sealed, one-shot, frozen-configuration TEST score:
 
-**Since the user is deliberately shutting the VM down again**, assume an
-eighth `/mnt` wipe on next reconnect -- don't just "check", expect it,
-and remember to re-upload `models/EXP-009/best_checkpoint` (needed only
-if M6 needs re-running, which it shouldn't -- M6 is done) and confirm
-`results/EXP-002-TEST` through `EXP-009-TEST` survived in git (they
-should have, already committed) before trusting the chain script's
-resume-skip logic.
+| Method | TEST Macro F1 |
+|---|---:|
+| M1 (TF-IDF+LR) | 0.7403 |
+| M2 (Qwen zero-shot) | 0.6005 |
+| M3 (Qwen few-shot random) | 0.5947 |
+| M4 (Qwen reasoning) | 0.5758 |
+| M5 (DSPy MIPROv2) | 0.6681 |
+| M6 (DeBERTa-v3-base, fine-tuned) | **0.8209 (best)** |
+
+M5 finished last (2026-08-16, 16:23-18:31, after restarting from scratch
+following an unplanned VM outage -- see EXPERIMENT_LOG.md's "unplanned VM
+outage mid-M5-run" and "M5 (EXP-008-TEST, MIPROv2) -- DONE" entries for
+full detail, including the recovered exact winning prompt in
+`results/EXP-008-TEST/compiled_program.json`). `sync_from_vm.sh` already
+run -- all results are on the local Mac and durable; the VM is **no
+longer needed** for anything in the immediate next steps (comparison
+table + `PROJECT_SUMMARY.md` are pure local analysis; the web app's
+adapter-code fixes are also GPU-free, per `web/README.md`'s
+mocked-model-loading test setup) -- safe to shut down now unless/until a
+live Qwen/DSPy web demo is specifically wanted later (see the parked
+OpenRouter decision a few paragraphs below).
+
+**Next, in order:**
+1. Final cross-model TEST comparison table (extends the existing DEV-only
+   cross-model analysis in EXPERIMENT_LOG.md with the now-complete TEST
+   numbers).
+2. `PROJECT_SUMMARY.md` writeup (section "8") -- **must include the
+   explicit content the user required this session**, detailed further
+   down in this file: full train/dev/test split methodology, a
+   per-method TRAIN/DEV/TEST usage table, and M5's exact optimized prompt
+   quoted from `compiled_program.json`.
+3. The web app (`web/`) -- two adapter fixes (`qwen_adapter.py`,
+   `dspy_adapter.py`) plus the still-open, explicitly parked OpenRouter
+   decision (below) about whether/how the live demo should work without
+   requiring the VM.
+
+**Reference runbook below (steps 1-8) -- NOT "next steps" anymore now
+that Phase 2 is done and the VM isn't needed for the immediate work.**
+Keep this for whenever the VM is needed again (e.g. if the OpenRouter
+decision above lands on "keep needing the VM for live Qwen/DSPy demo," or
+any future re-run/extension of Stage B). It predates Phase 2 completing
+and its "next" language refers to that now-finished work, not the current
+resume point -- go by the numbered list above for what to actually do
+next.
 
 1. **Reconnect and check for another VM restart first** (this has now
    happened SEVEN times, and an eighth is expected given the VM was
@@ -102,6 +120,55 @@ resume-skip logic.
    TEST-based comparison table, then the **final `PROJECT_SUMMARY.md`
    writeup** (section "8"). Follow this file's numbered sections in order
    from here.
+
+   **Explicit user requirement (2026-08-16) for what `PROJECT_SUMMARY.md`
+   must cover -- do not skip when writing it:**
+   - **Full train/dev/test split methodology, written out and explained**,
+     not just referenced: exact sizes (TRAIN 6,706 / DEV 1,340 / TEST
+     1,340 -- 71.4/14.3/14.3%, target was 70/15/15, small deviation because
+     the split is grouped), `StratifiedGroupKFold` grouped by
+     `dup_group_id` (so near-duplicate text can't land in both TRAIN and
+     TEST -- no leakage) and stratified by label, fixed seed
+     (`src/classification/data/make_splits.py`,
+     `config/classification_settings.py`'s `train_frac`/`dev_frac`/`test_frac`).
+   - **A per-method table of exactly how TRAIN/DEV/TEST were each used**,
+     since it differs by method type and that difference should be
+     explained, not left implicit: M1/M6 train on TRAIN + select via DEV;
+     M3 selects its few-shot demos from TRAIN; M2/M4 have no TRAIN role at
+     all (zero-shot/reasoning has nothing to fit or select -- this is by
+     design, not an oversight, and the writeup should say so explicitly);
+     M5 samples 150 from TRAIN for bootstrapping and 100 from DEV as
+     MIPROv2's optimization valset (confirmed hardcoded to DEV even during
+     the TEST run, so TEST never leaks into optimization). Every method's
+     TEST number is a single, one-shot, frozen-configuration evaluation --
+     state this explicitly as the sealing methodology, not just show the
+     numbers.
+   - **M5's actual optimized prompt, documented concretely, not just
+     "MIPROv2 found something better."** **CORRECTION (2026-08-16, after
+     EXP-008-TEST actually finished): the assumption below that the
+     compiled program is never persisted was WRONG** -- re-reading
+     `run_dspy_experiment` past line 190 (missed on first read) shows it
+     already calls `program.save(str(Path(out_dir) / "compiled_program.json"))`
+     whenever `optimizer != "predict"`. `results/EXP-008-TEST/compiled_program.json`
+     exists and contains the full winning program: instructions text
+     (matches what was independently found by reading the log, confirming
+     both methods agree) **and the exact 4 few-shot demos actually used**:
+     *"Dude, go jack off to your god somewhere else. We don't need to see
+     it. emoticonXKill"* (sarcastic, bootstrapped), *"i'm not disputing the
+     numbers... don't you find it the least bit odd that it's been 30
+     years since a president received a plurality? waxy"* (not_sarcastic,
+     bootstrapped), *"Nope. However, he does get to pay child support if
+     he gets caught."* (sarcastic, labeled), *"you really believed me? wow!
+     i never knew i had such power ;)"* (sarcastic, labeled). Winning
+     instruction: *"Classify the given sentence as \"sarcastic\" or
+     \"not_sarcastic\" based on linguistic cues such as irony,
+     exaggeration, contradiction, or mocking tone."* **`PROJECT_SUMMARY.md`
+     should quote `compiled_program.json` directly (it's the authoritative
+     source) rather than the log cross-referencing method used before this
+     was found** -- both happen to agree here, but the JSON file is the
+     ground truth going forward. **No web-app action item needed** -- this
+     already works for every DSPy run/optimizer other than `predict`, no
+     code change required.
 6. **Resume the web app** (`web/`, fully built and tested but still
    *dormant*). `results/frozen_configs.json` already exists (written
    2026-08-15) so all 6 methods now report FROZEN -- but **two real gaps
@@ -115,6 +182,27 @@ resume-skip logic.
    whatever DSPy 3.3.0's save/load API looks like). See EXPERIMENT_LOG.md's
    "PHASE 2 -- Config freeze" entry for detail. Do this once Phase 2's TEST
    runs are done (or sooner, if there's a natural lull).
+
+   **Open decision, parked here per explicit user instruction (2026-08-16)
+   -- resolve before/while doing this step, not before:** the user asked
+   whether an OpenRouter API key (free tier) could let the live web demo's
+   Qwen/DSPy methods run without needing the always-on GPU VM. Checked:
+   OpenRouter does **not** offer the exact frozen checkpoint
+   (`Qwen/Qwen3-4B-Instruct-2507`) for free -- only `qwen/qwen3-4b:free`,
+   which is a genuinely different checkpoint (the earlier dual-mode
+   thinking/non-thinking Qwen3-4B, not the instruct-only 2507 release this
+   project's M2-M5 results are all based on). The `-Instruct-2507` line
+   does exist on OpenRouter but only at 30B/235B sizes, not 4B. So a free
+   OpenRouter key would mean the live web demo runs a **different model**
+   than the one the frozen TEST scores describe -- not just "the same
+   model via a different API." User was informed of this and chose to
+   defer the decision (three options discussed: (a) live-demo-only via the
+   free substitute model, clearly labeled as not the frozen benchmark
+   model; (b) treat it as a genuinely new side-by-side comparison and
+   re-run M2-M5 against it; (c) skip API entirely, keep requiring the VM
+   for live Qwen/DSPy demo) until Phase 2 + `PROJECT_SUMMARY.md` are done.
+   **Do not implement any OpenRouter adapter path without re-confirming
+   which of these three the user wants first.**
 7. **After every experiment finishes** (Phase 2's TEST runs, anything
    else): validate (quality checks -- n_examples, dup/missing
    IDs, gold label distribution, category-uniformity + agreement checks
@@ -363,13 +451,23 @@ See `EXPERIMENT_LOG.md`'s "Cross-model DEV analysis" entry (2026-08-15) for full
 
 - [x] Review complete DEV results for every method -- done, see cross-model DEV analysis above.
 - [x] Select exactly ONE final configuration per method (M2, M3, M4, M5, M6), record why in `EXPERIMENT_LOG.md`, mark FROZEN with its config file path -- done, see EXPERIMENT_LOG.md's "PHASE 2 -- Config freeze" entry and `results/frozen_configs.json`. Every method freezes its DEV-best: M2=EXP-002 (only candidate), M3=EXP-003 (random beats curated), M4=EXP-005 (only candidate), M5=EXP-008 (MIPROv2, best of 3, accepting its TEST-time recompile cost), M6=EXP-009 (only candidate, and overall best -- `production_model`).
-- [x] Evaluate M1 (already frozen from Stage A), M2, M3, M4, M5, M6 frozen configs on TEST -- once each -- **PARTIAL, paused after M6 per user request ("stop after M6, tomorrow I'll continue M5 + the writeup").** M1 (0.7403), M2 (0.6005), M3 (0.5947), M4 (0.5758), M6 (**0.8209, best**) done. Only **M5 remains** (~2h29m, MIPROv2 full recompile) -- see EXPERIMENT_LOG.md's "PHASE 2 -- Sealed TEST evaluation" entry (both the initial pause and the "Update, same day, later session" continuation) for detail. `scripts/run_phase2_test_chain.sh` is resume-aware and will correctly skip straight to M5 (M6 was run directly via `scripts/eval_frozen_checkpoint.py`, but under the same `EXP-009-TEST` experiment ID the chain checks for -- verified this works before writing this note) -- just re-launch the chain as-is.
-- [ ] No re-tuning after seeing TEST results -- N/A yet, not all TEST results are in
-- [ ] Final cross-model TEST-based comparison table
+- [x] Evaluate M1 (already frozen from Stage A), M2, M3, M4, M5, M6 frozen configs on TEST -- once each -- **DONE, ALL 6.** M1 0.7403, M2 0.6005, M3 0.5947, M4 0.5758, M5 **0.6681** (finished 2026-08-16 ~18:31, after restarting from scratch following an unplanned VM outage), M6 **0.8209 (best)**. See EXPERIMENT_LOG.md's "PHASE 2 -- Sealed TEST evaluation" and "M5 (EXP-008-TEST, MIPROv2) -- DONE" entries.
+- [x] No re-tuning after seeing TEST results -- confirmed: no config was touched or re-run after any TEST score was seen.
+- [x] Final cross-model TEST-based comparison table -- `results/cross_model_test_analysis.csv`, written up in `PROJECT_SUMMARY.md` Section 7.
 
 ## 8. Final writeup
 
-- [ ] `PROJECT_SUMMARY.md` results table fully populated (no leftover `TBD` for anything actually run)
-- [ ] Final recommendation: predictive performance vs. computational cost, separately
-- [ ] `EXPERIMENT_LOG.md` Current Status section updated to reflect Stage B completion
-- [ ] This checklist fully checked off
+- [x] `PROJECT_SUMMARY.md` results table fully populated (no leftover `TBD` for anything actually run) -- full rewrite 2026-08-16: final 6-method TEST table, split methodology (3.1), per-method TRAIN/DEV/TEST usage table (3.2), M5's exact optimized prompt quoted from `compiled_program.json` (6.1), cross-model comparison (7), error analysis (8), conclusions (9), updated limitations (10), recommended production approach (11), future work (12).
+- [x] Final recommendation: predictive performance vs. computational cost, separately -- `PROJECT_SUMMARY.md` Section 11 (M6 recommended: best on both axes; M1 as the CPU-only fallback).
+- [x] `EXPERIMENT_LOG.md` Current Status section updated to reflect Stage B completion -- see this file's own "START HERE" section and EXPERIMENT_LOG.md's latest entries.
+- [x] This checklist fully checked off (remaining open item is the web app, tracked separately below -- not part of Stage B's core experimental work).
+
+## 9. Web app (post-Stage-B, in progress)
+
+- [x] `qwen_adapter.py`'s few-shot config now reads `config_path` from `results/frozen_configs.json` via `frozen_registry.frozen_config_path()` instead of a hardcoded curated-config guess -- fixed 2026-08-16, covered by `test_qwen_few_shot_uses_registry_config_not_hardcoded_curated`.
+- [x] `dspy_adapter.py` now loads the actual frozen MIPROv2 compiled program (`results/<experiment_id>/compiled_program.json`, via `dspy.Predict.load()`) instead of reconstructing an unoptimized `Predict` baseline -- fixed 2026-08-16, covered by `test_dspy_adapter_loads_frozen_compiled_program` and its missing-file fallback test. Loads `EXP-008`'s program (the DEV-frozen run) by default, matching `frozen_experiment_id("dspy")`.
+- [x] `requirements-classification.txt`: added missing `sentencepiece` (needed by `DebertaV2Tokenizer`, was in the VM's pinned freeze but never added here -- a real gap for any machine other than the VM, e.g. this local Mac).
+- [x] Backend test suite updated to match the new reality (all 6 methods now genuinely FROZEN, not a hypothetical future state) -- `test_api.py`'s status assertions now expect UNAVAILABLE (not NOT_FROZEN_YET) for GPU-only methods on a no-GPU dev machine, `test_predict_valid_sentence` follows `production_model=deberta`. All 20 backend tests pass.
+- [ ] **Open, real blocker found while fixing the above, NOT silently worked around:** the DeBERTa checkpoint (`models/EXP-009/best_checkpoint/`) was saved by `transformers==5.15.0` (the Azure VM's pinned freeze) but this repo's own `requirements.txt` caps `transformers<5.0.0` -- loading the checkpoint's tokenizer fails under the repo's pinned version, both `use_fast=True` (a version-specific `AttributeError` in `transformers==4.57.6`'s `DebertaV2TokenizerFast.__init__`) and `use_fast=False` (the checkpoint only saved `tokenizer.json`, the fast-tokenizer artifact -- no raw `.model` SentencePiece vocab file for the slow tokenizer to load). **Confirmed the fix**: installing `transformers==5.15.0` in an isolated scratch venv loads both fast and slow tokenizers cleanly, identical token IDs either way. **Not applied to `requirements.txt` yet** -- this is a shared, repo-wide pin that could also affect the pre-existing sarcasm-interpretation pipeline (untested here), so it needs the user's decision, not a unilateral bump. Until resolved, `deberta` genuinely reports `UNAVAILABLE` on this local Mac (correct, honest behavior given the real environment -- not a bug in the adapter).
+- [ ] The OpenRouter live-demo decision, parked earlier in this file (see the "Open decision" note under the old numbered step 6) -- still unresolved, still requires the user's choice among the three options listed there before any adapter code changes toward it.
+- [ ] Frontend: no changes made this session -- `web/frontend/` still needs to be pointed at the corrected backend behavior if any UI text assumed the old NOT_FROZEN_YET-everywhere state (not verified either way this session).

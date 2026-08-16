@@ -14,6 +14,15 @@ dspy>=2.5.0
 # current transformers versions (this repo pins transformers<5.0.0).
 accelerate>=0.26.0
 
+# Required by DebertaV2Tokenizer (M6, microsoft/deberta-v3-base) --
+# use_fast_tokenizer=false is used throughout this project for M6 (see
+# EXPERIMENT_LOG.md), which loads the slow, SentencePiece-backed
+# tokenizer rather than the fast Rust one. Was present in the Azure VM's
+# pinned freeze (environment_stage_b.txt) but missing here -- a real gap,
+# not an optional extra: without it DeBERTa fails to load anywhere this
+# file is the only install source (e.g. a fresh local Mac dev environment).
+sentencepiece>=0.2.0
+
 # Optional embedding baseline (Section 12 of the task, secondary to the
 # core 6-approach comparison) -- only needed if that variant is added.
 sentence-transformers>=3.0.0

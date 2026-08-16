@@ -61,6 +61,16 @@ def frozen_experiment_id(method: str) -> str | None:
     return entry.get("experiment_id") if entry else None
 
 
+def frozen_config_path(method: str) -> str | None:
+    """The exact config file Stage B Phase 2 froze for this method (e.g.
+    which few-shot variant -- random vs. curated -- won), so adapters
+    never have to hardcode a guess that can silently drift out of sync
+    with the actual freeze decision."""
+    registry = _load_registry()
+    entry = registry.get("frozen", {}).get(method)
+    return entry.get("config_path") if entry else None
+
+
 def get_production_model() -> str:
     """Which method backs Simple Mode. Defaults to `tfidf` -- the only
     method frozen so far -- and is meant to be swapped the moment Stage B

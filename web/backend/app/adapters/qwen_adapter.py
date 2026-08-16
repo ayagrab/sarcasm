@@ -18,18 +18,20 @@ import json
 
 from app import PROJECT_ROOT
 from app.adapters.base import BaseAdapter
-from app.frozen_registry import is_frozen
+from app.frozen_registry import frozen_config_path, is_frozen
 from app.schemas import ModelStatus
 
 CHECKPOINT = "Qwen/Qwen3-4B-Instruct-2507"
 
-# Fallback config paths (used only to know which few-shot demo set to load
-# for `few_shot` mode) if a method is frozen but the registry doesn't name
-# an explicit config -- kept in sync with the Stage B config directory,
-# never hand-edited "to make the demo look better".
+# Fallback config paths (used only if a method is frozen but the registry
+# entry has no `config_path` -- shouldn't happen once Phase 2 has written
+# `results/frozen_configs.json` for real, but keeps this adapter safe to
+# construct even against a hand-edited/partial registry file) -- kept in
+# sync with the Stage B config directory, never hand-edited "to make the
+# demo look better".
 DEFAULT_CONFIG_PATHS = {
     "qwen_zero_shot": PROJECT_ROOT / "configs" / "llm_zero_shot_qwen_local.json",
-    "qwen_few_shot": PROJECT_ROOT / "configs" / "llm_few_shot_curated_8_qwen_local.json",
+    "qwen_few_shot": PROJECT_ROOT / "configs" / "llm_few_shot_random_8_qwen_local.json",
     "qwen_reasoning": PROJECT_ROOT / "configs" / "llm_reasoning_qwen_local.json",
 }
 MODE_BY_METHOD = {
@@ -94,7 +96,8 @@ class QwenAdapter(BaseAdapter):
         from src.classification.llm.few_shot_selection import select_curated_few_shot, select_random_few_shot
         from src.classification.llm.run_llm_classification import format_demonstrations
 
-        config_path = DEFAULT_CONFIG_PATHS[self.method]
+        registry_path = frozen_config_path(self.method)
+        config_path = (PROJECT_ROOT / registry_path) if registry_path else DEFAULT_CONFIG_PATHS[self.method]
         with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
         train_df = pd.read_csv(classification_settings.splits_dir / "train.csv")

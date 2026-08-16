@@ -1,9 +1,13 @@
 """API-level tests. TF-IDF is real (fast, CPU, no external dependency --
 fits in-process at adapter construction) so its /predict path is tested
-for real. Everything else is expected to report a non-AVAILABLE status in
-this environment (no Stage B freeze yet, no GPU/checkpoint on a plain dev
-machine) -- these tests assert that honestly, and never require loading
-Qwen/DeBERTa to pass."""
+for real. Every method is FROZEN as of Stage B Phase 2
+(`results/frozen_configs.json` exists), but Qwen/DSPy still report
+UNAVAILABLE on a plain CPU-only dev machine with no CUDA GPU -- these
+tests assert that honestly, and never require loading Qwen to pass.
+DeBERTa's status is left unasserted precisely (it depends on whether this
+machine's `transformers` version can load the checkpoint's tokenizer --
+see STAGE_B_CHECKLIST.md) rather than pinned to a snapshot of one
+machine's current state."""
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
@@ -33,15 +37,19 @@ def test_tfidf_is_frozen_and_available():
     assert response.json()["status"] == ModelStatus.AVAILABLE.value
 
 
-def test_non_frozen_methods_report_honest_status():
+def test_frozen_but_gpu_only_methods_report_honest_status():
     response = client.get("/methods")
     by_method = {m["method"]: m["status"] for m in response.json()}
-    assert by_method["qwen_zero_shot"] == ModelStatus.NOT_FROZEN_YET.value
-    assert by_method["qwen_few_shot"] == ModelStatus.NOT_FROZEN_YET.value
-    assert by_method["qwen_reasoning"] == ModelStatus.NOT_FROZEN_YET.value
-    assert by_method["dspy"] == ModelStatus.NOT_FROZEN_YET.value
-    # deberta: NOT_TRAINED_YET takes priority when no checkpoint exists at all
-    assert by_method["deberta"] in (ModelStatus.NOT_TRAINED_YET.value, ModelStatus.NOT_FROZEN_YET.value)
+    # Frozen since Phase 2, but this test machine has no CUDA GPU -- must
+    # never fabricate AVAILABLE, and must never crash instead of reporting.
+    assert by_method["qwen_zero_shot"] == ModelStatus.UNAVAILABLE.value
+    assert by_method["qwen_few_shot"] == ModelStatus.UNAVAILABLE.value
+    assert by_method["qwen_reasoning"] == ModelStatus.UNAVAILABLE.value
+    assert by_method["dspy"] == ModelStatus.UNAVAILABLE.value
+    # deberta doesn't need a GPU, so its status here depends on whether
+    # this machine's transformers version can load the checkpoint -- both
+    # outcomes are honest, neither is a bug in the adapter itself.
+    assert by_method["deberta"] in (ModelStatus.AVAILABLE.value, ModelStatus.UNAVAILABLE.value)
 
 
 def test_get_unknown_method_404():
@@ -50,11 +58,18 @@ def test_get_unknown_method_404():
 
 
 def test_predict_valid_sentence():
+    from app.registry import production_adapter
+
     response = client.post("/predict", json={"text": "Oh wonderful, another meeting that could have been an email."})
+    if production_adapter().status() != ModelStatus.AVAILABLE:
+        # production_model (deberta, per frozen_configs.json) isn't loadable
+        # on this machine -- must be an honest 503, never a fabricated prediction.
+        assert response.status_code == 503
+        return
     assert response.status_code == 200
     body = response.json()
     assert body["label"] in ("sarcastic", "not_sarcastic")
-    assert body["model"] == "tfidf"  # default production_model, no frozen_configs.json present in tests
+    assert body["model"] == "deberta"  # production_model per results/frozen_configs.json
     assert isinstance(body["runtime_seconds"], float)
 
 
@@ -82,9 +97,10 @@ def test_compare_returns_all_methods():
     tfidf_entry = next(p for p in body["predictions"] if p["method"] == "tfidf")
     assert tfidf_entry["status"] == ModelStatus.AVAILABLE.value
     assert tfidf_entry["label"] in ("sarcastic", "not_sarcastic")
-    # A not-frozen-yet method must carry no fabricated prediction.
+    # A method that's frozen but can't actually run here (no GPU) must
+    # carry no fabricated prediction.
     qwen_entry = next(p for p in body["predictions"] if p["method"] == "qwen_zero_shot")
-    assert qwen_entry["status"] == ModelStatus.NOT_FROZEN_YET.value
+    assert qwen_entry["status"] == ModelStatus.UNAVAILABLE.value
     assert qwen_entry["label"] is None
     assert qwen_entry["confidence"] is None
 

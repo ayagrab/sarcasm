@@ -1,0 +1,19 @@
+{
+  "experiment_id": "EXP-008-TEST",
+  "approach": "M5_dspy",
+  "optimizer": "mipro_v2",
+  "optimizer_config": {
+    "auto": "light",
+    "trainset_sample_size": 150,
+    "valset_sample_size": 100
+  },
+  "provider": "local_hf",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "temperature": 0.0,
+  "eval_split": "test",
+  "n_eval": 1340,
+  "seed": 42,
+  "dspy_version": "3.3.0",
+  "train_size": 6706,
+  "dev_size_used_for_optimization": 1340
+}
