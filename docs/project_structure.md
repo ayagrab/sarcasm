@@ -201,6 +201,9 @@ Research documentation — the "why" and "what happened," as opposed to code.
   B's own test suite plus `PROJECT_SUMMARY.md` cover the classification
   pipeline's validation.)
 - **`project_structure.md`** — this file.
+- **`sign_paper.pdf`** — local copy of the original SIGN paper (ACL 2017)
+  that the interpretation pipeline's dataset and starting point are drawn
+  from; see `methodology.md` and `project_history.md`.
 
 ---
 

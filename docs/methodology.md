@@ -8,8 +8,9 @@ the chronological, meeting-by-meeting narrative behind these decisions, see
 ## 1. Dataset preparation
 
 The project starts from the original test data used by the SIGN paper
-(sarcasm interpretation). The reference/result column is removed, leaving
-only the sarcastic tweets that are sent to the models.
+(sarcasm interpretation; local copy at `docs/sign_paper.pdf`). The
+reference/result column is removed, leaving only the sarcastic tweets that
+are sent to the models.
 
 ```bash
 python -m src.preprocessing.clean_dataset
