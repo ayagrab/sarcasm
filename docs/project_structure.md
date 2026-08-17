@@ -209,9 +209,12 @@ Research documentation — the "why" and "what happened," as opposed to code.
 Raw stdout logs from Stage B experiment runs on the Azure GPU VM, kept
 for reproducibility/audit alongside the structured `results/` artifacts.
 - **`EXP-003/004/005/006/007/008/009-*.log`** — per-experiment run logs.
-- **`m3_m4_chain.log`, `m5_chain.log`, `phase2-test-chain.log`,
-  `phase2-test-chain-resume.log`** — combined logs from the chain scripts
-  under `scripts/` that ran several experiments back-to-back.
+- **`m3_m4_chain.log`, `m5_chain.log`** — combined logs from the DEV-phase
+  chain scripts that ran M2–M5's development experiments back-to-back
+  (the scripts themselves were removed once the VM was no longer needed —
+  see `scripts/`, above).
+- **`phase2-test-chain.log`, `phase2-test-chain-resume.log`** — combined
+  logs from `scripts/run_phase2_test_chain.sh`, still in the repo.
 - **`M5-dspy-smoke-test.log`, `hf_download.log`** — one-off verification
   logs (DSPy adapter smoke test, Hugging Face model download).
 
@@ -221,9 +224,9 @@ for reproducibility/audit alongside the structured `results/` artifacts.
 
 Trained model checkpoints (currently `EXP-009/best_checkpoint/`, the
 fine-tuned DeBERTa-v3-base weights). **Gitignored** — binary artifacts,
-not source; kept durable via `scripts/sync_from_vm.sh` pulling them to
-local disk independently of the VM's ephemeral storage. Regenerable by
-re-running `configs/transformer_deberta_v3_base.json`.
+not source; kept durable on local disk independently of the VM's
+ephemeral storage. Regenerable by re-running
+`configs/transformer_deberta_v3_base.json`.
 
 ---
 
@@ -296,29 +299,22 @@ Other files:
 
 ## `scripts/`
 
-Operational scripts for the Azure GPU VM workflow (Stage B needs a CUDA
-GPU that this project ran on a rented Azure VM, not locally).
-- **`sync_to_vm.sh`** — pushes the local repo to the VM (rsync, excludes
-  caches/venvs/results — code and config only).
-- **`sync_from_vm.sh`** — pulls `results/`, `logs/`, and `models/` back
-  from the VM to the local Mac, so they survive independently of the
-  VM's ephemeral disk.
-- **`sync_cache_from_vm.sh`** — pulls `data/llm_cache/` back specifically;
-  safe to run continuously (including while an experiment is running).
-- **`verify_kernel.sh`** — startup guard: fails loudly if the VM booted
-  into an unverified kernel or the NVIDIA driver isn't working, before
-  any GPU work is attempted.
-- **`verify_gpu.py`** — records GPU count/model/VRAM/driver/CUDA version
-  and checks the minimum requirement (a CUDA GPU visible to torch) is met.
+What remains once Stage B's experiments were all complete and sealed —
+the scripts still needed to reproduce a result, not the one-time Azure
+GPU VM setup/sync/kernel-verification tooling used to produce them
+(removed once the VM was no longer needed; see `EXPERIMENT_LOG.md`'s
+"Environment and Infrastructure" section for what that tooling did).
+
 - **`smoke_test_dspy.py`** — exercises the DSPy/local-Qwen adapter on a
   handful of examples before committing to a full-DEV run.
 - **`eval_frozen_checkpoint.py`** — evaluates an already-trained M6
   checkpoint on a given split without retraining (the standalone
-  eval-only path `finetune.py` doesn't otherwise provide).
-- **`run_m3_m4_chain.sh`, `run_m5_chain.sh`, `run_phase2_test_chain.sh`**
-  — run several experiments back-to-back unattended, each step gated on
-  the previous one exiting cleanly; `run_phase2_test_chain.sh` is
-  resume-aware (skips any step whose result already exists).
+  eval-only path `finetune.py` doesn't otherwise provide) — used to
+  reproduce M6's TEST result.
+- **`run_phase2_test_chain.sh`** — runs every frozen non-M1 config once
+  on the sealed TEST split, in sequence; resume-aware (skips any step
+  whose result already exists). The exact script used to produce every
+  TEST number in `PROJECT_SUMMARY.md`.
 
 ---
 

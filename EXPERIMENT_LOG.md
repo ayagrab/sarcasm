@@ -194,7 +194,11 @@ capability >= 7.0) — the LLM runtime plan uses plain float16
 `transformers` generation with `attn_implementation="eager"` throughout.
 
 Supporting infrastructure, all implemented before real execution and
-unit-tested with mocks/guards first:
+unit-tested with mocks/guards first (the VM-specific scripts named below
+— `verify_gpu.py`, `verify_kernel.sh`, `sync_to_vm.sh`, `sync_from_vm.sh`,
+`sync_cache_from_vm.sh`, and the DEV-phase chain scripts — were later
+removed from the repository once the VM was no longer needed; described
+here as the historical record of what was built and used):
 - `scripts/verify_gpu.py` — the mandatory Stage B gate: runs
   `nvidia-smi`, records exact GPU count/model/VRAM/driver version, checks
   `torch.cuda` compute capability against BF16/FlashAttention2/vLLM

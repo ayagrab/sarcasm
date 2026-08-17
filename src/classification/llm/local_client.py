@@ -10,10 +10,12 @@ architecture, CUDA compute capability 5.2)**. Maxwell does NOT support:
   generation instead (this module), not vLLM
 
 **Do not import-and-instantiate `LocalHFClient` (i.e. do not load a model)
-before GPU compatibility has been verified** with `scripts/verify_gpu.py`
-on the target machine. This module raises immediately if no CUDA GPU is
-visible, but that alone doesn't confirm compute-capability-dependent
-assumptions -- run the verification script first regardless.
+before confirming a CUDA GPU is actually visible on the target machine**
+(`python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`).
+This module raises immediately if no CUDA GPU is visible, but that alone
+doesn't confirm compute-capability-dependent assumptions (BF16/
+FlashAttention2/vLLM support) -- check those explicitly first if targeting
+different hardware than the Tesla M60s this was built for.
 
 Mimics the small subset of the OpenAI/OpenRouter client interface that
 `src.classification.llm.run_llm_classification` uses
@@ -29,10 +31,8 @@ from dataclasses import dataclass
 
 DEFAULT_CHECKPOINT = "Qwen/Qwen3-4B-Instruct-2507"
 
-# Feature -> minimum CUDA compute capability required. Matches
-# scripts/verify_gpu.py's MIN_COMPUTE_CAPABILITY -- kept in sync manually
-# since they serve different purposes (this is a runtime guard, that's a
-# standalone diagnostic).
+# Feature -> minimum CUDA compute capability required (Tesla M60 = 5.2,
+# below both thresholds below).
 UNSUPPORTED_ON_M60 = {
     "bfloat16": "Maxwell (compute capability 5.2) has no native BF16 support -- use float16 or float32.",
     "flash_attention_2": "FlashAttention2 requires compute capability >= 8.0 (Ampere+) -- use attn_implementation='eager'.",
@@ -83,8 +83,8 @@ class LocalHFClient:
             raise ValueError(UNSUPPORTED_ON_M60["flash_attention_2"])
         if not torch.cuda.is_available():
             raise RuntimeError(
-                "No CUDA GPU visible to torch. Run `python scripts/verify_gpu.py` "
-                "first -- do not load a model on unverified GPU hardware."
+                "No CUDA GPU visible to torch -- do not load a model on "
+                "unverified GPU hardware."
             )
 
         from transformers import AutoModelForCausalLM, AutoTokenizer

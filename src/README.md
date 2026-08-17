@@ -1,9 +1,12 @@
 # `src/` — Code Overview
 
-All Python code for the project, organized by pipeline stage. Every
-subfolder is an importable package (`__init__.py`, empty) and every
-runnable script follows the same pattern: a pure function doing the work,
-plus a thin `main()` with `argparse`, run as:
+All Python code for the project's two phases: sarcasm **interpretation**
+(`common/`, `preprocessing/`, `generation/`, `evaluation/`,
+`postprocessing/`, `tools/`) and sarcasm **detection**
+(`classification/`, its own self-contained subpackage). Every subfolder
+is an importable package (`__init__.py`, empty) and every runnable script
+follows the same pattern: a pure function doing the work, plus a thin
+`main()` with `argparse`, run as:
 
 ```bash
 python -m src.<subfolder>.<script> [options]
@@ -170,3 +173,69 @@ pipeline itself.
   endpoint and pretty-prints the current usage/limit as JSON. Useful before
   a long generation/evaluation run to confirm there's enough quota left.
   Needs `OPENROUTER_API_KEY`.
+
+---
+
+## `classification/` — sarcasm detection (the project's second phase)
+
+A self-contained subpackage: its own config files (`configs/`), prompts
+(`prompts/classification/`), and tests — never imports from `common/`,
+`generation/`, `evaluation/`, or `postprocessing/` above, so the two
+phases can never collide. Entry point:
+`python -m src.classification.run_experiment --config configs/<name>.json`
+(reads a JSON config, dispatches to the right approach module by its
+`approach_family` field).
+
+- **`data/`** — dataset construction, run once, reused by every approach:
+  - `build_canonical_dataset.py` — combines the 3 raw category files into
+    one canonical table with global IDs and duplicate/label-conflict
+    flags.
+  - `audit_dataset.py` — data-quality report (never silently fixes/drops
+    anything).
+  - `make_splits.py` — the one canonical train/dev/test split, grouped by
+    duplicate-text group and stratified by label (see
+    `PROJECT_SUMMARY.md` §3.1 for the full methodology).
+
+- **`classical/`** — M1:
+  - `tfidf_baseline.py` — TF-IDF vectorizer → Logistic Regression (Linear
+    SVM also supported).
+
+- **`llm/`** — M2/M3/M4, the manual-prompt LLM approaches:
+  - `client.py` — client factory, `provider="openrouter"` or
+    `"local_hf"`.
+  - `local_client.py` — local Hugging Face Transformers inference
+    (`Qwen/Qwen3-4B-Instruct-2507`), built for Tesla M60 GPUs (no
+    bfloat16/FlashAttention2/vLLM support — plain fp16 `transformers`
+    generation).
+  - `few_shot_selection.py` — deterministic demo selection from TRAIN
+    only, given `(variant, n_shots, seed)`.
+  - `run_llm_classification.py` — zero-shot / few-shot / reasoning
+    classification: retried on failure, disk-cached, bounded concurrency.
+  - `schema.py` — structured-output parsing (every LLM response must
+    resolve to exactly one of the two canonical labels).
+
+- **`dspy_pipeline/`** — M5:
+  - `local_lm.py` — a `dspy.BaseLM` adapter that runs DSPy programs
+    against the local Qwen client, so DSPy uses the exact same model as
+    M2–M4 with no external server.
+  - `signatures.py` — the DSPy signature for sarcasm classification.
+  - `run_dspy.py` — `Predict` / `BootstrapFewShot` / `MIPROv2` variants.
+    TRAIN is used for optimization/bootstrapping, DEV is the optimizer's
+    validation metric, TEST is only ever touched once per frozen config.
+
+- **`transformer/`** — M6:
+  - `finetune.py` — fine-tunes a pretrained encoder
+    (`microsoft/deberta-v3-base`) via `transformers.Trainer`, with early
+    stopping on DEV Macro F1.
+
+- **`evaluation/`** — shared by every approach:
+  - `metrics.py` — `compute_metrics`: the single implementation of every
+    metric used for model selection and comparison.
+  - `io.py` — persists/loads one experiment's `results/<experiment_id>/`
+    artifacts.
+  - `error_analysis.py` — cross-model disagreement analysis: merges
+    multiple experiments' `predictions.csv` into one wide table, produces
+    pairwise disagreement subsets (e.g. "TF-IDF right, Qwen wrong").
+
+For full results and methodology, see `PROJECT_SUMMARY.md` Part II; for
+the detailed technical record, `EXPERIMENT_LOG.md`.

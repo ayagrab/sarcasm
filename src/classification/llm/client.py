@@ -5,9 +5,8 @@ Two providers are wired up:
   `src.common.openrouter_client`, matching this repository's
   OpenRouter-first convention for the interpretation pipeline.
 - "local_hf": a local Hugging Face Transformers model on GPU (e.g. Qwen3-4B
-  on the Azure Stage B VM) -- see `src.classification.llm.local_client`.
-  **Do not select this provider before GPU compatibility has been verified**
-  (`scripts/verify_gpu.py`) on the target machine.
+  on a CUDA-capable machine) -- see `src.classification.llm.local_client`,
+  which raises immediately if no CUDA GPU is visible.
 """
 from __future__ import annotations
 

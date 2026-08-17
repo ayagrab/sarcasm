@@ -1,50 +1,37 @@
-# Sarcasm Interpretation Benchmark
+# Sarcasm Interpretation & Detection
 
-This project evaluates how well different large language models interpret
-sarcastic tweets as clear, sincere, non-sarcastic statements, and whether an
-LLM judge can reliably replace human annotators for scoring that task.
+A two-phase NLP project on sarcastic English text, complete end to end.
+Full results, methodology, and conclusions for both phases:
+**[`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md)**.
+
+- **Phase 1 — Interpretation** (`src/generation/`, `src/evaluation/`,
+  `src/postprocessing/`): given a sarcastic tweet, have an LLM rewrite it
+  as a clear, sincere statement, and evaluate how well that rewrite
+  captures the intended meaning — automatically, by an LLM judge, and by
+  human annotators (including whether the LLM judge can validly replace
+  human annotators, via the Alt-Test).
+- **Phase 2 — Detection** (`src/classification/`): given a short English
+  text, predict whether it's sarcastic at all — a 6-way comparison of
+  classical ML, LLM zero/few-shot/reasoning prompting, DSPy-optimized
+  prompting, and a fine-tuned Transformer encoder. Started after Phase 1
+  repeatedly found that models often can't tell a sentence is sarcastic
+  in the first place, which no amount of rewriting-prompt refinement can
+  fix — see `docs/project_history.md` for the full narrative of that
+  pivot.
+
+Both phases are complete: every result below is real, executed, and
+recorded — nothing is a plan or a placeholder.
 
 ```text
-Original sarcastic tweet
-        |
-        v
-LLM generates a sincere interpretation
-        |
-        v
-The interpretation is evaluated (automatic metrics + LLM judge + humans)
-        |
-        v
-Results are summarized, statistically analyzed, and compared across models/prompts
+Phase 1 — Interpretation
+Original sarcastic tweet -> LLM generates a sincere interpretation
+        -> evaluated (automatic metrics + LLM judge + humans)
+        -> summarized, statistically analyzed, compared across models/prompts
+
+Phase 2 — Detection
+Short English text -> 6 competing approaches (M1-M6) each predict
+sarcastic / not_sarcastic -> compared on a shared, sealed test split
 ```
-
-## What's implemented right now
-
-- Cleaning the original sarcasm dataset.
-- Generating interpretations with Gemini and with OpenRouter models
-  (Nvidia, Liquid, or any other OpenRouter-hosted model).
-- Evaluating outputs with an LLM judge (primary) or an NLI model (alternative).
-- Automatic text metrics: BLEU, ROUGE, PINC, and a combined score.
-- Human annotation workflow and comparison against the LLM judge, including
-  the Alt-Test (a statistical test for whether an LLM can replace human
-  annotators), Fleiss' Kappa, Kruskal-Wallis significance tests, Spearman
-  correlation, and linguistic/structural analysis.
-
-## Sarcasm *detection* (classification) — a second, separate phase
-
-A second, independent pipeline lives under `src/classification/`:
-comparing classical ML, LLM zero/few-shot/reasoning prompting,
-DSPy-optimized prompting, and fine-tuned Transformer encoders on the
-*detection* task (is a sentence sarcastic at all?), using the
-already-staged `data/raw/sarcasm_corpus_v2/`. This supersedes the
-BERT-only plan in `docs/finetuning_plan.md` with a broader comparison. It
-is deliberately kept separate from the interpretation pipeline above (own
-config, own prompts, own tests) — see `EXPERIMENT_LOG.md` and
-`PROJECT_SUMMARY.md` at the repo root for full detail. All six approaches
-have been run to completion and evaluated on a sealed test split.
-
-- See `docs/project_history.md` for the full narrative of how the project
-  arrived at this plan.
-- Full results, methodology, and conclusions: see `PROJECT_SUMMARY.md`.
 
 ---
 
@@ -142,9 +129,12 @@ Windows (cmd.exe):
 ### 4. Install dependencies
 
 ```bash
+# Base (Phase 1, always needed):
 pip install -r requirements.txt
-# add -r requirements-dev.txt as well if you want to run the test suite:
-pip install -r requirements.txt -r requirements-dev.txt
+# + Phase 2 (detection) extras, needed only for src/classification/:
+pip install -r requirements-classification.txt
+# + testing dependencies, if you want to run the test suite:
+pip install -r requirements-dev.txt
 ```
 
 ### 5. IDE setup (optional but recommended)
@@ -179,7 +169,7 @@ your .env file.` -- not a confusing traceback.
 
 ---
 
-## Running the pipeline
+## Running Phase 1 — the interpretation pipeline
 
 ### Which stages need what
 
@@ -260,6 +250,35 @@ sarcastic_sentence,model_interpretation,classification
 
 ---
 
+## Running Phase 2 — the detection pipeline
+
+Needs `requirements-classification.txt` installed (`dspy`, `accelerate`,
+`sentencepiece` — see step 4 of Installation above) and, for the LLM/DSPy
+approaches (M2–M5) and the Transformer fine-tune (M6), a CUDA GPU; M1
+(TF-IDF) needs neither.
+
+```bash
+# 1. Build the canonical dataset from the raw Sarcasm Corpus V2 files
+python -m src.classification.data.build_canonical_dataset
+python -m src.classification.data.audit_dataset
+python -m src.classification.data.make_splits
+
+# 2. Run any approach via its config file under configs/
+python -m src.classification.run_experiment --config configs/tfidf.json
+python -m src.classification.run_experiment --config configs/llm_zero_shot_qwen_local.json
+python -m src.classification.run_experiment --config configs/dspy_mipro_v2.json
+python -m src.classification.run_experiment --config configs/transformer_deberta_v3_base.json
+```
+
+Every experiment's configuration, metrics, and per-example predictions
+land under `results/<experiment_id>/`. See `PROJECT_SUMMARY.md` §13 for
+the exact commands and configs used to produce every result in this
+repository (including the frozen-configuration TEST evaluations), and
+`EXPERIMENT_LOG.md`'s per-method sections (M1–M6) for the full technical
+detail behind each one.
+
+---
+
 ## Testing and validation
 
 ### Run the test suite
@@ -269,13 +288,17 @@ pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
 
-The suite (in `tests/`) never calls a real API, never downloads a model,
-and never touches real project data -- everything uses temporary fixtures
-or mocked responses. It covers: environment-variable validation, prompt
-loading (read-only), CLI `--help` for every script, text-metric functions,
-JSON parsing, the Alt-Test algorithm, NLI label-mapping logic, and mocked
-Gemini/OpenRouter/LLM-judge/quota-check request-and-response handling
-(including error paths).
+The suite (in `tests/`) covers both phases, never calls a real API, never
+downloads a model, and never needs a GPU -- everything uses temporary
+fixtures or mocked responses. **Phase 1:** environment-variable
+validation, prompt loading (read-only), CLI `--help` for every script,
+text-metric functions, JSON parsing, the Alt-Test algorithm, NLI
+label-mapping logic, and mocked Gemini/OpenRouter/LLM-judge/quota-check
+request-and-response handling (including error paths). **Phase 2:**
+canonical dataset construction, splitting (including the no-leakage
+assertion), few-shot demo selection, the shared metrics implementation,
+cross-model error analysis, and the LLM/local-HF client with a mocked
+model.
 
 ### Real API smoke test (requires your own keys)
 
@@ -323,39 +346,42 @@ this environment, and why (no real keys, no model download performed here).
 
 ## Known limitations
 
+**Phase 1 (interpretation):**
+
 - **`google-generativeai` (used for Gemini) is deprecated** by Google in
   favor of `google.genai`. It still works today (pinned versions in
   `requirements.txt` keep it functional), but will not receive further
-  fixes. Migrating is future work, not part of this cleanup.
+  fixes.
 - **The NLI evaluation path (`evaluate_with_nli.py`) has not been executed
   in this environment** -- only statically reviewed and tested via mocked
   label-mapping logic (`tests/test_nli_utils.py`), since running it for
   real requires downloading a model. See `docs/validation.md`.
-- **API-backed scripts (Gemini, OpenRouter, LLM judge, quota check) have
-  not been re-tested with real credentials in this environment** -- they
-  were previously tested with real keys, but this cleanup only validated
-  them via imports, static review, and mocked responses (see
-  `docs/validation.md`). Run the real API smoke test above once you have
-  your own keys.
+- **API-backed scripts (Gemini, OpenRouter, LLM judge, quota check)**
+  were validated via imports, static review, and mocked responses (see
+  `docs/validation.md`); run the real API smoke test above with your own
+  keys to confirm live behavior.
 - **`prompts/evaluation/nli_premise_template.txt` and
   `nli_hypothesis_template.txt`** are minimal pass-through templates
-  (`{sarcastic_sentence}` / `{model_interpretation}` respectively) created
-  because the code referenced them but the files didn't exist. Their exact
-  original methodological intent (whether more elaborate wording was
-  planned) was not independently confirmed -- review before relying on
-  wording changes here.
-- **`data/manual_scoring/aya.numbers`** shows as modified relative to an
-  earlier version of the repository; this predates the current cleanup,
-  was not investigated, and has been left untouched.
+  (`{sarcastic_sentence}` / `{model_interpretation}` respectively); their
+  exact original methodological intent (whether more elaborate wording
+  was planned) was not independently confirmed -- review before relying
+  on wording changes here.
+
+**Phase 2 (detection):** see `PROJECT_SUMMARY.md` §10 -- the base model
+and hardware the LLM results are specific to, the single-seed fine-tuning
+run, and the source corpus's own limitations (dated forum text, no
+author/conversation metadata for leakage control beyond text-level
+deduplication).
 
 ## Future work
 
-The sarcasm-detection phase (`src/classification/`) is complete -- all six
-methods have sealed, one-shot TEST results, see `PROJECT_SUMMARY.md`. What
-remains open:
+Both phases are complete -- Phase 1's Alt-Test/human-agreement analysis
+and Phase 2's six sealed, one-shot TEST results are both final (see
+`PROJECT_SUMMARY.md`). What remains open, for either phase:
 
 - Multi-seed variance estimate for the winning fine-tuned model (M6).
-- Manual qualitative characterization of the examples every method gets
-  wrong (see `PROJECT_SUMMARY.md`, "Future work" for the full list).
+- Manual qualitative characterization of the examples every detection
+  method gets wrong (see `PROJECT_SUMMARY.md`'s Future Work for the full
+  list, both phases).
 - Migrating off the deprecated `google-generativeai` package.
 - Additional test coverage (e.g. more end-to-end fixture pipelines).
