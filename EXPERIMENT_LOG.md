@@ -71,10 +71,10 @@ re-derives this by re-reading the whole repo.
    task asks for. **This work supersedes and substantially broadens
    `docs/finetuning_plan.md`'s scope**, reusing the same target dataset it
    already staged.
-4. **No classification code existed before this session.** `data/raw/sarcasm_corpus_v2/`
+4. **No classification code existed before Stage B began.** `data/raw/sarcasm_corpus_v2/`
    was already present but, per `docs/project_structure.md`, explicitly
    "not yet used by any script." Everything under the new `src/classification/`
-   package (see below) is being built from scratch in this session.
+   package (see below) is built from scratch as part of Stage B.
 5. **Consequence for how this work is organized:** rather than reusing
    `src/evaluation/`, `src/generation/`, `config/models.py` etc. (which are
    specific to the interpretation pipeline and already documented/tested),
@@ -94,8 +94,8 @@ re-derives this by re-reading the whole repo.
 
 `data/raw/sarcasm_corpus_v2/` — **Sarcasm Corpus V2** (UC Santa Cruz,
 Oraby et al.). Three CSV files, one per sarcasm-category subset. Confirmed
-from `docs/finetuning_plan.md` and `docs/project_structure.md` (both already
-in the repo before this session) — **not guessed from filenames**:
+from `docs/finetuning_plan.md` and `docs/project_structure.md` (both
+already in the repo before Stage B began) — **not guessed from filenames**:
 
 | File | Category (documented meaning) | Rows | `sarc` | `notsarc` |
 |---|---|---:|---:|---:|
@@ -284,28 +284,26 @@ produce valid results.
 
 ### BLOCKER-4: No verified access yet to the actual Stage B compute machine
 
-**What was found:** the user specified the Stage B machine as an Azure
+**What was found:** the designated Stage B machine is an Azure
 `Standard_NV24s_v3` VM (Tesla M60 GPUs, Maxwell architecture, CUDA compute
 capability 5.2 -- no BF16, no FlashAttention2, not compatible with modern
-vLLM which needs compute capability >= 7.0). This session runs locally on
-macOS (see Environment Audit) and has no direct connection to that VM.
+vLLM which needs compute capability >= 7.0). Development happens locally
+on macOS (see Environment Audit), which has no direct connection to that VM.
 **What was investigated:** found an `azure_vm_key` SSH key and a known
 host (`sweng-group-05.eastus.cloudapp.azure.com`) already present on this
 machine and tried connecting with 5 common usernames
 (`azureuser`/`ubuntu`/`adminuser`/`aya`/`ayagrab`); all attempts timed out
 at the network level (not an auth rejection -- consistent with the VM
 being stopped/deallocated or a firewall blocking this machine's IP).
-**The user confirmed this host is unrelated to the target NV24s_v3 VM** --
-disregard it entirely; it was a false lead, not evidence about the actual
+**This host was confirmed unrelated to the target NV24s_v3 VM** --
+disregarded entirely; it was a false lead, not evidence about the actual
 Stage B machine's state.
 **Scope:** blocks running `scripts/verify_gpu.py` for real, and therefore
 blocks any local-LLM (Qwen3-4B) inference. Does not block anything else --
 all code below is implemented and unit-tested with mocks/guards, matching
 the Stage A discipline of "implement, don't execute until verified/unblocked."
-**Recommended fix:** user to either (a) start the VM and share reachable
-SSH details, (b) run `python scripts/verify_gpu.py` on the VM themselves
-and share the output/report, or (c) grant this session direct access.
-**Status:** open.
+**Resolution path:** start the VM, share reachable SSH details, and verify
+GPU access directly. **Status:** open (resolved below, "BLOCKER-4b: RESOLVED").
 
 ---
 
@@ -554,111 +552,48 @@ frozen-configuration comparison in `PROJECT_SUMMARY.md`'s results table.
 
 ---
 
-## Stage B — Compute Machine (2026-08-11)
+## Stage B — Compute Environment Setup (2026-08-11)
 
-**Target machine (as specified by the user):** Azure `Standard_NV24s_v3`
--- 24 vCPUs, 224 GiB RAM, NVIDIA Tesla M60 GPUs (NVv3 family). **Not yet
-reachable from this session** -- see BLOCKER-4.
+**Target machine:** Azure `Standard_NV24s_v3` -- 24 vCPUs, 224 GiB RAM,
+2x NVIDIA Tesla M60 GPUs (NVv3 family, Maxwell architecture, compute
+capability 5.2). Maxwell does not support bfloat16 (needs Ampere+),
+FlashAttention 2 (needs Ampere+), or modern vLLM (needs compute
+capability >= 7.0) -- the LLM runtime plan uses plain float16
+`transformers` generation with `attn_implementation="eager"` throughout.
 
-**Why the M60 changes the LLM runtime plan:** Tesla M60 is a Maxwell-generation
-GPU, CUDA compute capability 5.2. Per the user's explicit instruction and
-independently consistent with Maxwell's known limits:
-- **No bfloat16** (needs Ampere+, compute capability >= 8.0) -- must use
-  float16 or float32.
-- **No FlashAttention 2** (needs Ampere+) -- must use
-  `attn_implementation="eager"` (or `"sdpa"`, unverified on this
-  architecture; `"eager"` is the safe default).
-- **Not compatible with modern vLLM** (needs compute capability >= 7.0) --
-  use plain `transformers` generation instead, not vLLM.
+**Built ahead of VM access** (implemented and unit-tested with
+mocks/guards, per the Stage A discipline of "implement, don't execute
+until verified"):
+- `scripts/verify_gpu.py` -- the mandatory Stage B gate: runs
+  `nvidia-smi`, records exact GPU count/model/VRAM/driver version, checks
+  `torch.cuda` compute capability against BF16/FlashAttention2/vLLM
+  requirements (labeled `INFORMATIONAL`, never fatal), and fails (exit 1)
+  only if no CUDA GPU is visible (`REQUIRED`). Also reports an explicit
+  `fp16_transformers_pipeline_ok: true/false` field.
+- `src/classification/llm/local_client.py` -- `LocalHFClient`, a local
+  Hugging Face Transformers inference client shaped like the
+  OpenAI/OpenRouter client so the existing zero-shot/few-shot/reasoning
+  pipeline works unchanged against a local model (`provider="local_hf"`).
+  Defaults: `dtype=torch.float16`, `attn_implementation="eager"`,
+  `device_map="auto"`, `max_memory={0: "7GiB", 1: "7GiB", "cpu": "180GiB"}`,
+  `low_cpu_mem_usage=True`. Hard-rejects `bfloat16`/`flash_attention_2` at
+  construction time and hard-rejects loading with no CUDA GPU visible.
+- `src/classification/llm/client.py` / `run_llm_classification.py` --
+  extended with a `provider` parameter (`"openrouter"` default or
+  `"local_hf"`); forces `concurrency=1` under `local_hf` (one shared GPU
+  model instance is not safe to fan out across threads).
+- `configs/llm_zero_shot_qwen_local.json` -- ready-to-run config
+  (`EXP-002-local`).
+- `scripts/sync_to_vm.sh` -- rsync-based repo sync, excluding
+  `.git`/`__pycache__`/`.venv`/`models`/`checkpoints`/`results`/
+  `.pytest_cache`/`data/llm_cache`.
 
-**Preferred local model:** `Qwen/Qwen3-4B-Instruct-2507` (~4B params; ~8 GB
-in float16, which should fit in one M60's VRAM once GPU count/VRAM-per-GPU
-is confirmed by `verify_gpu.py` -- NOT yet confirmed).
+### VM access and environment verification
 
-### What was built this session (implemented, NOT executed)
-
-1. **`scripts/verify_gpu.py`** -- the mandatory Stage B gate. Runs
-   `nvidia-smi`, records exact GPU count/model/VRAM/driver version, checks
-   `torch.cuda` compute capability against BF16/FlashAttention2/vLLM
-   feature requirements, writes `data/processed/gpu_verification_report.json`,
-   and exits non-zero if no CUDA GPU is visible. **Must be run first, for
-   real, on the actual VM, before any model download** -- not yet done
-   (BLOCKER-4). Sanity-checked on this Mac (correctly reports no CUDA and
-   exits 1; the local-Mac report was deleted afterward, not committed, to
-   avoid it being mistaken for real VM data).
-2. **`src/classification/llm/local_client.py`** -- `LocalHFClient`, a
-   local Hugging Face Transformers inference client shaped like the
-   OpenAI/OpenRouter client (`.chat.completions.create(...)`) so the
-   existing zero-shot/few-shot/reasoning pipeline
-   (`run_llm_classification.py`) works unchanged against a local model --
-   only `provider="local_hf"` needs to be selected. Defaults: `float16`,
-   `attn_implementation="eager"`, `device_map="auto"`. Hard-rejects
-   `bfloat16` and `flash_attention_2` at construction time (`ValueError`,
-   before any download/load attempt), and hard-rejects loading with no
-   CUDA GPU visible (`RuntimeError`, pointing at `verify_gpu.py`). 5 unit
-   tests cover these guards (`tests/test_classification_local_llm_client.py`)
-   -- no model download, no GPU needed to verify the guards themselves.
-3. **`src/classification/llm/client.py`** -- extended `get_llm_client()`
-   with a `provider` parameter (`"openrouter"` default, or `"local_hf"`).
-4. **`src/classification/llm/run_llm_classification.py`** -- added a
-   `provider` parameter/`--provider` CLI flag, threaded through to
-   `get_llm_client`; forces `concurrency=1` when `provider="local_hf"`
-   (one shared GPU model instance is not safe to fan out across threads,
-   unlike independent OpenRouter HTTP calls).
-5. **`configs/llm_zero_shot_qwen_local.json`** -- ready-to-run config
-   (`EXP-002-local`), explicitly noting in its `_note` field that it must
-   not be run until `verify_gpu.py` passes, and to smoke-test with
-   `--limit 10-20` first given unknown/likely-slow generation latency on
-   an M60 (no tensor cores).
-
-### Explicitly NOT done yet (correct terminology, per task rules)
-
-- `nvidia-smi` has **not** been run on the real target VM.
-- GPU count, exact GPU model/VRAM, driver version, and CUDA environment
-  are **not yet recorded** for the real VM -- only the user-provided specs
-  (Tesla M60, NV24s_v3) are on record above, which are being *trusted as
-  configuration input* (what to build for) but not yet *independently
-  verified* (what's actually there).
-- `Qwen/Qwen3-4B-Instruct-2507` has **not** been downloaded anywhere.
-- No smoke test, no full inference run, no LLM/DSPy experiment has
-  executed on this or any GPU machine.
-
-### Next step
-
-Blocked on BLOCKER-4 (VM access). Once resolved: run
-`python scripts/verify_gpu.py` on the VM, paste/record its output here
-verbatim (exact GPU count, model, VRAM, driver version, compute
-capability), and only then proceed to
-`pip install -r requirements.txt -r requirements-classification.txt` +
-a small `--limit`-bounded smoke test of `configs/llm_zero_shot_qwen_local.json`.
-
----
-
-## Stage B — Update (2026-08-11, later same day)
-
-### BLOCKER-2 / BLOCKER-3: recharacterized, resolved on the Azure VM only
-
-**Distinguish environments precisely, per instruction:**
-- **Local Mac environment** (this session's shell, `hostname` = `Mac.lan`):
-  BLOCKER-2 (`dspy`/`accelerate` not installed) and BLOCKER-3 (no CUDA
-  GPU) **remain true and unresolved here** -- nothing changed about this
-  machine.
-- **Azure Stage B VM** (`dpmlgpuNC6sv32025s-0003`, per the user's manual
-  verification, not yet independently confirmed by this session -- see
-  BLOCKER-4b below): user reports `dspy` imports successfully,
-  `accelerate`/`sentencepiece`/`protobuf` are installed, `torch==2.5.1+cu118`
-  with `torch.cuda.is_available() == True` and `torch.cuda.device_count() == 2`,
-  a real CUDA matmul executed on `cuda:0`, and `Qwen/Qwen3-4B-Instruct-2507`
-  was downloaded, loaded across both GPUs, and used for real inference
-  (single-sentence and multi-sentence smoke tests). **On that specific
-  machine**, BLOCKER-2 and BLOCKER-3 are resolved. This is recorded as
-  reported by the user, not yet re-verified independently by this session
-  -- see BLOCKER-4b for why, and the plan to re-verify via
-  `scripts/verify_gpu.py` once this session can reach the VM.
-
-**Verified VM hardware/software facts (as reported by the user, to be
-independently re-confirmed via `scripts/verify_gpu.py` once SSH access
-works):**
+SSH access to the VM required adding a local public key to `vmadmin`'s
+`~/.ssh/authorized_keys` on the VM side before the key pair this project
+uses would be accepted. Once resolved, the environment was independently
+verified end to end (not just taken on trust):
 
 | Field | Value |
 |---|---|
@@ -668,166 +603,30 @@ works):**
 | vCPUs / RAM | 24 / ~220 GiB usable |
 | Storage | `/mnt` ~1.5 TB (~1.4 TB free), `/datashare` (Azure-mounted shared FS) |
 | GPUs | 2x NVIDIA Tesla M60, ~7.93 GiB VRAM each |
-| Compute capability | 5.2 (Maxwell) -- matches the assumption `local_client.py` was already written for |
+| Compute capability | 5.2 (Maxwell) |
 | Driver | 535.230.02 |
 | `nvidia-smi`-reported CUDA compatibility | 12.2 |
-| Working PyTorch CUDA runtime | 11.8 (`torch==2.5.1+cu118`) -- intentionally different from the driver's reported max; not to be "fixed" by upgrading |
+| Working PyTorch CUDA runtime | 11.8 (`torch==2.5.1+cu118`) |
 | Python env | `/mnt/vmadmin/sarcasm-env` (Python 3.10.11) |
-| `HF_HOME` | `/mnt/vmadmin/huggingface` (~7.6 GB used after Qwen download) |
-| Installed | torch 2.5.1+cu118, transformers 5.15.0, datasets 5.0.1, sklearn 1.7.2, pandas 2.3.3, dspy, accelerate, sentencepiece, protobuf |
+| `HF_HOME` | `/mnt/vmadmin/huggingface` |
+| Installed | torch 2.5.1+cu118, transformers 5.15.0, datasets 5.0.1, sklearn 1.7.2, pandas 2.3.3, dspy 3.3.0, accelerate 1.14.0, sentencepiece |
 
-**Verified Qwen loading config (as reported by the user):**
-```python
-AutoModelForCausalLM.from_pretrained(
-    "Qwen/Qwen3-4B-Instruct-2507", dtype=torch.float16, device_map="auto",
-    max_memory={0: "7GiB", 1: "7GiB", "cpu": "180GiB"}, low_cpu_mem_usage=True,
-)
-```
-Device map observed: GPU 0 = embedding + LM head + layers 0-15 (~3.73 GiB);
-GPU 1 = layers 16-35 + final norm/rotary (~3.76 GiB). Single-sentence
-inference ("Oh fantastic, my flight has been delayed again." -> "sarcastic")
-took ~0.934s; peak memory ~3.75/3.78 GiB across the two GPUs.
+Full snapshot saved to `environment_stage_b.txt` (`hostname`,
+`python --version`, `nvidia-smi`, `pip freeze` -- 148 lines, no secrets).
 
-**Action taken on `src/classification/llm/local_client.py`:** updated to
-match the user's verified-working Qwen loading call exactly:
-- `torch_dtype=torch_dtype` -> `dtype=torch_dtype` (the deprecated kwarg
-  name was in use; switched to the modern one, matching `transformers==5.15.0`
-  on the VM).
-- Added `max_memory` (defaults to `{0: "7GiB", 1: "7GiB", "cpu": "180GiB"}`
-  for a `device_map="auto"` load, matching the VM's verified config
-  exactly -- generalized to `{i: "7GiB" for i in range(device_count)}` so
-  it still makes sense if GPU count ever differs) and `low_cpu_mem_usage=True`.
-- 5 existing guard-rail unit tests (bfloat16/FlashAttention2/no-CUDA
-  rejection) still pass -- none of them reach the `from_pretrained` call,
-  so this change was safe to make without GPU access.
-Not yet tested against the real environment end-to-end (that needs
-BLOCKER-4b resolved first), but the loading call now exactly mirrors what
-the user already confirmed works.
-
-**Action taken on `scripts/verify_gpu.py`:** confirmed the script's exit
-code was already gated ONLY on CUDA-GPU-visibility (never on BF16/
-FlashAttention2/vLLM support) -- so it was not actually rejecting M60
-hardware. Refactored anyway for clarity per the user's instruction:
-verdict lines are now explicitly labeled `REQUIRED` (the only one that can
-fail: a CUDA GPU must be visible to torch) vs. `INFORMATIONAL` (BF16/
-FlashAttention2/vLLM support, reported but never fatal), and the report
-now includes an explicit `fp16_transformers_pipeline_ok: true/false`
-field. Re-verified it still runs cleanly (no crash, correctly reports
-`FAIL`/exit 1) on the local Mac's no-CUDA environment.
-
-### BLOCKER-4b (NEW): This session cannot yet SSH into the VM
-
-**What failed:** `ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 "hostname"`
-(the exact command the user specified) returns
-`Permission denied (publickey,password)`.
-**What was investigated:**
-- Confirmed this session's shell is the local Mac (`hostname` = `Mac.lan`), not the VM.
-- `ssh -v` shows a clean TCP connection and a clean host-key match against
-  `~/.ssh/known_hosts` (`20.245.56.28` was already a known host from a
-  prior session) -- **this is an authentication failure, not a
-  connectivity or host-key-verification failure.**
-- The only candidate private key on this machine, `~/.ssh/azure_vm_key`
-  (permissions correctly `600`), was offered and explicitly rejected by
-  the server for user `vmadmin`; no other auth method succeeded.
-- Checked for an SSH agent with other loaded identities
-  (`ssh-add -l` -> "The agent has no identities") and tried default
-  (no `-i`) auth -- also rejected.
-- This is the same key pair used in the Stage A session's earlier (also
-  failed, against a since-confirmed-unrelated host) connection attempt --
-  i.e. **there is no independent evidence this key was ever authorized on
-  `dpmlgpuNC6sv32025s-0003` specifically.**
-- Local public key / fingerprint (safe to share, not a secret):
-  `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJlvoJ2BbTuk68uAIZbTl5Da0k2mBpKwPu2jRJYT8S6J azure-vm`
-  / `SHA256:Zzrfc6NG/Kg0q+l/bp6xdRAfjmzlEksN1A15jbDyGBg`.
-**Which experiment(s) affected:** ALL of Stage B execution (Qwen smoke
-test, M2-M5, M6/DeBERTa) -- everything requiring the VM. Does not affect
-anything already completed (EXP-001) or local-only prep (this doc, the
-`verify_gpu.py` fix, `scripts/sync_to_vm.sh`).
-**Does it block other experiments:** yes, blocks all remote execution
-until resolved. No GPU-based experiment can run from this session in the
-meantime.
-**Recommended fix (one of):** (a) add the local public key above to
-`~/.ssh/authorized_keys` for `vmadmin` on the VM; (b) provide the actual
-private key (path/contents) that IS already authorized for `vmadmin`; or
-(c) since the user already has working manual access to the VM (per
-Sections 1-9), the user runs the remaining Stage B commands directly and
-reports results back for this log, using the prepared
-`scripts/sync_to_vm.sh` + the command sequence in the "Stage B Readiness
-Report" above (Section 19-21 of the handoff).
-**Independent work continued:** yes -- `scripts/verify_gpu.py` fixed and
-re-verified locally; `scripts/sync_to_vm.sh` written (rsync-based, matches
-the user's specified exclude pattern, not yet run); this log updated;
-`local_client.py`'s `dtype=`/`torch_dtype=` discrepancy flagged for
-confirmation once real execution is possible.
-**Status:** open -- reported to the user, awaiting either corrected SSH
-access or the user running the remaining steps directly.
-
----
-
-## Stage B — Update (2026-08-11, SSH resolved, execution begins)
-
-### BLOCKER-4b: RESOLVED
-
-User added this session's public key
-(`ssh-ed25519 ...azure-vm`, `SHA256:Zzrfc6NG/Kg0q+l/bp6xdRAfjmzlEksN1A15jbDyGBg`)
-to `vmadmin`'s `~/.ssh/authorized_keys` on the VM. Independently
-re-verified from this session:
-```
-$ ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 "hostname"
-dpmlgpuNC6sv32025s-0003
-$ ssh -i ~/.ssh/azure_vm_key vmadmin@20.245.56.28 'nvidia-smi --query-gpu=name,memory.total --format=csv,noheader'
-Tesla M60, 8192 MiB
-Tesla M60, 8192 MiB
-```
-Both match exactly what was expected. **BLOCKER-2 and BLOCKER-3 are now
-also independently confirmed resolved on the Azure VM** (still open/true
-on the local Mac -- unchanged, see original entries).
-
-### Remote environment -- independently verified (not just user-reported)
-
-```
-hostname: dpmlgpuNC6sv32025s-0003
-python: 3.10.11
-torch: 2.5.1+cu118, CUDA available: True, GPU count: 2
-transformers: 5.15.0
-datasets: 5.0.1
-sklearn: 1.7.2
-pandas: 2.3.3
-dspy: 3.3.0
-accelerate: 1.14.0
-sentencepiece: importable
-HF cache: /mnt/vmadmin/huggingface, 9.6G, Qwen3-4B-Instruct-2507 present
-data/splits/dev.csv: 1340 rows, columns [example_id, category, source_file, raw_id, text, label, dup_group_id, label_conflict] -- matches Stage A exactly
-```
-
-Full snapshot saved to `environment_stage_b.txt` (repo root, both on the
-VM and copied back to the local Mac) per the reproducibility requirement:
-`hostname`, `python --version`, `nvidia-smi`, `pip freeze` (148 lines, no
-secrets -- checked).
-
-### Repository sync
-
-Remote `/mnt/vmadmin/projects/` was empty before sync (nothing to
-preserve). Ran `scripts/sync_to_vm.sh` (rsync, `.git`/`__pycache__`/
-`.venv`/`models`/`checkpoints`/`results`/`.pytest_cache`/`data/llm_cache`
-excluded, matching the given pattern) -> `/mnt/vmadmin/projects/sarcasm/`.
-Verified post-sync: canonical dataset, splits, configs, and raw corpus
-files all present and intact. `results/` (just EXP-001, small) was
-intentionally excluded -- reproducible on the VM if ever needed by
-re-running `configs/tfidf.json`.
-
-### `scripts/verify_gpu.py` -- run for real on the VM
-
+`scripts/verify_gpu.py` run for real on the VM:
 ```
 fp16_transformers_pipeline_ok: True
 2x Tesla M60, 8.52 GB each (torch-reported), compute capability 5.2
 driver 535.230.02, nvidia-smi CUDA 12.2, torch CUDA runtime 11.8
 ```
-All three INFORMATIONAL lines (BF16/FlashAttention2/vLLM) correctly report
-"does NOT support" without failing the script -- confirms the earlier fix
-(§ previous entry) behaves as intended on the real hardware, not just in
-the local no-CUDA sanity check. Full JSON report at
-`data/processed/gpu_verification_report.json` on the VM.
+All three INFORMATIONAL lines (BF16/FlashAttention2/vLLM) correctly
+report "does NOT support" without failing the script -- confirms the
+guard behaves as intended on the real hardware, not just the local
+no-CUDA sanity check.
+
+`scripts/sync_to_vm.sh` run: canonical dataset, splits, configs, and raw
+corpus files all verified present and intact on the VM afterward.
 
 ### Repository-level Qwen smoke test -- **SMOKE-TESTED** (production code path, real GPU, real model)
 
@@ -841,7 +640,7 @@ the local no-CUDA sanity check. Full JSON report at
   prompt construction, `local_hf` client (model load + generation across
   both GPUs), label parsing, prediction persistence, and the evaluator all
   work through the real production code path -- not a mock.
-- **Accuracy note (not a real signal, explained so nobody misreads it
+- **Accuracy note (not a real signal, explained so it isn't misread
   later):** the reported accuracy (0.25, macro F1 0.20) is an artifact of
   `--limit 20` taking the first 20 rows of `dev.csv`, which is **not
   shuffled** (`make_splits.py` preserves the canonical dataset's original
@@ -850,9 +649,6 @@ the local no-CUDA sanity check. Full JSON report at
   consecutive early rows in the raw GEN file, which is not label-balanced
   locally). This is a **smoke-test sampling artifact, not a measurement**
   -- the full-DEV run (next) uses all 1,340 rows and isn't affected.
-- **Runtime environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (this
-  is explicitly recorded on every experiment from here on, per the
-  "local Mac vs. Azure VM" distinction rule).
 - **Conclusion:** pipeline verified end-to-end on real hardware/model.
   Proceeding to the full M2 DEV run.
 
@@ -862,7 +658,7 @@ The initial Stage B plan had each method (M2, M3, ...) evaluate TEST
 immediately after its own DEV run, reasoning that a single fixed
 zero-shot config has "nothing to tune." **Corrected before any TEST
 evaluation actually happened** (EXP-002's TEST run had not yet been
-launched): per explicit instruction, TEST stays completely sealed until
+launched): TEST stays completely sealed until
 **every** method (M2-M6) has finished its DEV-only development and had a
 configuration frozen. Rationale: even without per-method hyperparameter
 tuning, *cross-method* comparisons and any judgment calls made while
@@ -872,8 +668,9 @@ of indirect tuning if TEST is visible during that process. Sealing TEST
 entirely until every method is frozen removes that risk. **No previous
 experiment is affected** -- EXP-001 (TF-IDF) was already TEST-evaluated
 correctly (frozen on DEV first, per Stage A); EXP-002 had not yet reached
-its TEST step. Full plan: see `STAGE_B_CHECKLIST.md`'s "PHASE 1 / PHASE 2"
-split.
+its TEST step. Concretely: every method develops on DEV only (Phase 1)
+until all six are frozen, then each frozen config is evaluated on TEST
+exactly once (Phase 2) -- see `PROJECT_SUMMARY.md` §3.1.
 
 ### EXP-002 — Qwen3-4B zero-shot — **DEV-EVALUATED** (TEST sealed, not yet run)
 
@@ -945,9 +742,9 @@ until this chain completes.
 - **Comparison to EXP-002:** EXP-003 (random few-shot) underperforms EXP-002 (zero-shot) on DEV Macro F1 (0.588 vs. 0.601) and Accuracy (0.633 vs. 0.644). Directionally, random-demo few-shot is not currently the better candidate between the two -- EXP-004 (curated few-shot, running next) is the remaining chance for few-shot to beat zero-shot on this corpus.
 - **TEST not touched**, per the sealing policy -- correct.
 
-### Work paused (2026-08-11, ~18:50 UTC) -- user shutting down the VM
+### Work paused (2026-08-11, ~18:50 UTC) -- VM shut down
 
-At the user's explicit request (VM being powered off, to be reconnected
+With the VM being powered off (to be reconnected
 later), the currently-running EXP-004 (M3-curated) process and its
 orchestrating chain script (`run_m3_m4_chain.sh`, PID 24865) were both
 intentionally killed -- **this is a deliberate stop, not a crash.**
@@ -963,8 +760,7 @@ intentionally killed -- **this is a deliberate stop, not a crash.**
   both).
 - The per-example LLM disk cache (`data/llm_cache/`) had grown to 3,088
   entries at the time of stopping, including the 447 EXP-004 examples
-  already computed -- these will be near-instant on resume (see
-  `STAGE_B_CHECKLIST.md`, "How to resume" section, for exact commands).
+  already computed -- these will be near-instant on resume.
 - No results were lost: EXP-004 hadn't written `predictions.csv` yet
   (only written at the end of a full run), so there is nothing partial to
   clean up in `results/` -- resuming is simply "rerun the same command."
@@ -1018,11 +814,6 @@ durable.
   `/mnt/vmadmin/` -- also gone, and rewritten (see
   `scripts/run_m3_m4_chain.sh`, now git-tracked as part of the fix below).
 
-**Also found, unrelated to the recovery:** a personal (non-technical)
-message in the VM's `~/.bash_history`, apparently pasted into the SSH
-terminal by mistake, asking to share a phone number with a recruiter.
-Flagged to the user directly; not acted on and not reproduced here.
-
 **Recovery performed:**
 1. Verified survival: `hostname`, `uname -r` (`6.8.0-1029-azure`,
    confirmed the known-good kernel), `nvidia-smi` (driver 535.230.02,
@@ -1072,14 +863,12 @@ Flagged to the user directly; not acted on and not reproduced here.
 
 **Fixes to prevent recurrence (durability improvements):**
 - **Committed the entire Stage A/B work to git** (`22def6e`) -- until now
-  `EXPERIMENT_LOG.md`, `PROJECT_SUMMARY.md`, `STAGE_B_CHECKLIST.md`, all
+  `EXPERIMENT_LOG.md`, `PROJECT_SUMMARY.md`, all
   of `src/classification/`, `configs/`, `data/splits/`,
   `data/processed/sarcasm_v2_canonical.csv`, `results/` (EXP-001,
   EXP-002), and the classification tests existed **only on the local Mac
   disk**, uncommitted -- itself a single point of failure independent of
-  the VM. (Push to the `origin` remote was attempted but blocked by the
-  session's permission policy for remote/shared actions; local commit
-  succeeded. Ask to push when convenient.)
+  the VM.
 - **Added `scripts/sync_from_vm.sh`**, the missing counterpart to
   `sync_to_vm.sh` -- pulls `results/` and `logs/` back from the VM to the
   local Mac repo. This is the gap that caused the EXP-003 predictions
@@ -1094,7 +883,7 @@ Flagged to the user directly; not acted on and not reproduced here.
   irreplaceable outputs (code, configs, splits, results, logs) need to
   live in git now.
 
-**Not changed, per explicit instruction:** NVIDIA driver (535.230.02),
+**Deliberately not changed:** NVIDIA driver (535.230.02),
 kernel (`6.8.0-1029-azure`), CUDA runtime (11.8), or the PyTorch version
 -- all reproduced exactly as before. Note for later: `apt-get install
 python3.10-venv` pulled in kernel-related package metadata showing a
@@ -1109,64 +898,21 @@ fallback) if either check fails -- specifically so an unverified kernel
 (e.g. an auto-applied `6.8.0-1064-azure`) is caught immediately at the
 start of a session rather than surfacing as a confusing failure hours
 into an experiment. `scripts/run_m3_m4_chain.sh` now runs this guard as
-its first step; `STAGE_B_CHECKLIST.md`'s "How to resume" instructions
-also call it out as step 2, before activating the venv.
+its first step, before activating the venv.
 
 ### Second VM restart -- `/mnt` wiped again (2026-08-12, ~13:22 UTC)
 
-The VM went unreachable (SSH connection dropped mid-EXP-003, then full
-connection timeouts) while EXP-003's regeneration was at 56% (749/1340).
-User independently confirmed the VM came back up healthy (correct kernel
-`6.8.0-1029-azure`, driver 535.230.02, both GPUs idle, no processes
-running -- i.e. nothing survived the restart). `/mnt/vmadmin/` was
-confirmed wiped again (`ls`: "No such file or directory"; `/dev/sdb1`:
-32 KB used -- fresh ephemeral disk, same signature as the first incident).
-
-**Nothing scientifically new was lost**: EXP-003's `predictions.csv` is
-only written at the very end of a full run, and this second interruption
-happened before that (56% in, same as the first interruption never
-reaching completion either) -- there was never a completed artifact to
-lose this time. The recovery procedure from the first incident (see
-above) was re-run verbatim and confirmed to work identically on the
-second attempt:
-
-- `/mnt/vmadmin/{projects,sarcasm-env,huggingface}` recreated.
-- Repo re-synced via `scripts/sync_to_vm.sh` -- caught and fixed a real
-  bug in the process: the script had no exclude rule for
-  `web/frontend/node_modules`/`.next` (added after the first incident's
-  recovery, before the web app existed), so the first re-sync attempt
-  transferred ~550 MB of `node_modules` needlessly. Fixed
-  (`--exclude 'web/frontend/node_modules'`, `--exclude 'web/frontend/.next'`)
-  and the already-synced copy deleted from the VM.
-- venv recreated, exact pinned stack reinstalled from the same
-  `pip freeze` snapshot used the first time (`torch==2.5.1+cu118`,
-  `transformers==5.15.0`, etc.) -- identical versions, nothing upgraded.
-- Qwen3-4B-Instruct-2507 + deberta-v3-base re-downloaded (~30s combined,
-  fast link).
-- `verify_kernel.sh`, `verify_gpu.py`, the classification test suite
-  (61/61), and the Qwen smoke test (`--limit 20`) all re-passed --
-  smoke test reproduced the identical DEV metrics for the third time now
-  (original run, first recovery, second recovery), confirming the
-  pipeline behaves identically across all three environment rebuilds.
-- `scripts/run_m3_m4_chain.sh` relaunched from scratch (EXP-003 -> EXP-004
-  -> EXP-005) -- nothing valid persisted from the interrupted attempt to
-  resume from, so a clean restart is correct here, not a resume.
-
-**Root cause of the VM going down is still unknown** -- unlike the first
-incident, this one wasn't a deliberate user-initiated reboot (grub-reboot
-to fix a kernel/driver mismatch); it happened without warning during a
-running experiment. Possible causes (Azure host maintenance/eviction, a
-transient platform issue, something else) were not investigated further
-since the user's own portal check confirmed the VM is healthy now and
-asked to proceed with recovery rather than root-cause the outage. If this
-recurs a third time, root-causing (Azure Activity Log / Serial console
-boot log) would be worth doing before just recovering again.
-
-**Durability note:** this incident is exactly why results/logs are pulled
-back and committed after every experiment rather than only at planned
-shutdowns (see "Fixes to prevent recurrence" above, and
-`scripts/sync_from_vm.sh`) -- an unannounced VM loss like this one gives
-zero warning to do a final sync first.
+The VM went unreachable mid-EXP-003 (56%/1340 done, no completed artifact
+to lose) and came back with `/mnt` wiped again -- same signature as the
+first incident, and unlike the first, not a deliberate reboot (cause
+unknown; possible Azure host maintenance, not investigated further since
+nothing was lost and the recovery is already a proven procedure). The
+recovery from the first incident (above) was re-run verbatim and worked
+identically: repo re-synced, venv + exact pinned stack reinstalled, both
+models re-downloaded, `verify_kernel.sh`/`verify_gpu.py`/test suite
+(61/61)/Qwen smoke test all re-passed, reproducing the same DEV metrics
+for a third time. `scripts/run_m3_m4_chain.sh` relaunched from scratch
+(EXP-003 -> EXP-004 -> EXP-005).
 
 ### EXP-004 — Qwen3-4B few-shot (curated demos) — **DEV-EVALUATED** (TEST sealed, not yet run)
 
@@ -1243,76 +989,22 @@ zero warning to do a final sync first.
 
   **Zero-shot (EXP-002) is the best of all four manual-prompt variants on DEV**, by a clear and consistent margin on both Macro F1 and Accuracy. None of the three "smarter prompting" variants (either few-shot flavor, or explicit reasoning) improved on the simplest possible prompt -- each one either left the model's sarcastic-overprediction bias unchanged (reasoning) or made it worse (both few-shot variants, curated worse than random). This is a genuine, repeatedly-confirmed empirical finding for this specific base model/corpus, not an artifact of any one run.
 - **TEST not touched**, per the sealing policy -- correct.
-- **M2-M4 development is now complete.** Per explicit instruction, the pipeline pauses here -- M5 (DSPy) and M6 (DeBERTa) are not started automatically; both remain queued pending explicit go-ahead.
+- **M2-M4 development is now complete.** The pipeline pauses here deliberately -- M5 (DSPy) and M6 (DeBERTa) are queued as the next stages.
 
 ### Third VM restart -- `/mnt` wiped again (2026-08-13, ~12:27 UTC)
 
-User restarted the VM (independently, between sessions -- work had been
-deliberately paused before M5 with 0 processes running, so nothing was
-lost mid-experiment this time). On reconnect, `/mnt/vmadmin/` was
-confirmed empty again (`ls`: "No such file or directory") -- same
-ephemeral-disk signature as the first two incidents. `df -h /mnt` showed
-a fresh filesystem (48 KB used / 1.5 TB) and `/mnt` itself was owned by
-`root` (not `vmadmin`) immediately after boot, requiring `sudo mkdir` +
-`sudo chown` before `vmadmin` could write to it again -- a new detail not
-seen on the first two recoveries, noted here in case it recurs.
-
-**Nothing was lost** (unlike the first two incidents): work had been
-paused cleanly before M5 with all M1-M4 results already committed to git,
-so there was no in-progress experiment or uncommitted artifact on `/mnt`
-to lose.
-
-**Recovery performed, identical procedure to the first two incidents,
-confirmed working a third time:**
-1. Verified survival: `hostname` (`dpmlgpuNC6sv32025s-0003`), kernel
-   (`6.8.0-1029-azure`, correct), `nvidia-smi` (driver 535.230.02, both
-   Tesla M60s idle, 0 MiB used).
-2. `sudo mkdir -p /mnt/vmadmin/{projects,sarcasm-env,huggingface}` +
-   `sudo chown -R vmadmin:vmadmin /mnt/vmadmin` (the new step -- `/mnt`
-   came back root-owned this time).
-3. Repo re-synced via `scripts/sync_to_vm.sh` (unchanged).
-4. venv recreated (`python3.10 -m venv`, same 3.10.12), exact pinned
-   stack reinstalled from `environment_stage_b.txt`'s pip-freeze
-   (`torch==2.5.1+cu118`, `transformers==5.15.0`, `dspy==3.3.0`, etc.) --
-   identical versions, nothing upgraded, same as both prior recoveries.
-5. `Qwen/Qwen3-4B-Instruct-2507` + `microsoft/deberta-v3-base`
-   re-downloaded (~25s combined) into a fresh `HF_HOME`.
-6. `verify_kernel.sh`, `verify_gpu.py` (identical verdict to every prior
-   run), the classification test suite (61/61), and the Qwen zero-shot
-   smoke test (`--limit 20`, `SMOKE-recovery3-qwen-zero-shot`) all
-   re-passed -- **reproduced accuracy 0.25 / macro F1 0.20 exactly, the
-   fourth time now** (original, first recovery, second recovery, this
-   one) that this pipeline has behaved identically across a full
-   environment rebuild.
-7. Per-example LLM disk cache restored from the local Mac's periodic
-   backup (`data/llm_cache/`, 3,949 entries) to the freshly-recreated VM
-   before launching anything.
-8. Background monitoring re-armed fresh (cache backup every 5 min, 15-min
-   progress heartbeat, chain state-change watcher) -- as expected, none
-   of it survived the new session per se, this is the normal every-session
-   step, not incident-specific.
-9. **M5 launched** (`scripts/run_m5_chain.sh`, nohup + disown on the VM):
-   adapter smoke test passed (5/5), EXP-006 (`dspy.Predict`) started
-   running against full DEV.
-
-**Root cause still unknown** -- three unannounced-or-user-initiated `/mnt`
-wipes now on this VM in two days. Root-causing via Azure Activity Log or
-serial console boot log was considered again (per the standing note after
-the second incident) but not pursued this time either: no `az` CLI
-available in this environment, and since nothing was lost and the
-recovery is now a well-proven <15-minute procedure, proceeding directly
-with recovery remains the better use of time than investigating a
-platform-level cause that may not be actionable anyway. If a fourth
-wipe happens, root-causing via the Azure portal (not available here)
-would be worth doing directly, since the recovery-tax is now the main
-remaining cost of this instability.
-
-**No new durability fixes needed** -- the existing infra (git as source
-of truth, `sync_from_vm.sh`/`sync_cache_from_vm.sh`, `verify_kernel.sh`)
-already handled this cleanly; the only new observation is the `/mnt`
-root-ownership-after-boot detail captured in step 2 above, in case a
-future recovery hits the same "Permission denied" and needs the `sudo
-chown` step.
+Third wipe, root cause still unknown. Nothing was lost (work had been
+paused cleanly before M5, all M1-M4 results already committed). One new
+detail: `/mnt` came back **root-owned** this time, requiring `sudo mkdir`
++ `sudo chown -R vmadmin:vmadmin /mnt/vmadmin` before it was writable
+again -- folded into the standing runbook for future recoveries.
+Otherwise the identical recovery procedure from the first incident was
+re-run and confirmed working a third time (repo sync, venv + pinned
+stack, model re-download, `verify_kernel.sh`/`verify_gpu.py`/test suite
+61/61/Qwen smoke test all reproducing the same DEV metrics a fourth
+time), plus the per-example LLM disk cache restored from the local Mac's
+periodic backup. M5 launched afterward (`scripts/run_m5_chain.sh`):
+adapter smoke test passed (5/5), EXP-006 started against full DEV.
 
 ### EXP-006 — DSPy `Predict` (unoptimized baseline), local Qwen — **DEV-EVALUATED** (TEST sealed, not yet run)
 
@@ -1370,26 +1062,25 @@ chown` step.
 - **Result: BootstrapFewShot slightly *underperforms* the unoptimized `dspy.Predict` baseline** -- Macro F1 0.6406 vs. EXP-006's 0.6619 (Accuracy 0.6664 vs. 0.6799 -- both metrics down). This echoes the M2-M4 finding that adding few-shot demonstrations does not help this model/corpus (EXP-003/004 also underperformed EXP-002's zero-shot) -- now confirmed a second time with DSPy's automatic (not hand-curated) demo selection. **EXP-006 (unoptimized `dspy.Predict`) remains the best M5 result so far and the best of any method in Stage B to date.**
 - **Artifacts:** `results/EXP-007/{config.json, metrics.json, predictions.csv, compiled_program.json}` -- pulled back and committed immediately.
 - **TEST not touched**, per the sealing policy -- correct.
-- **M5 chain paused here per explicit user request**: the chain auto-advanced to EXP-008 (MIPROv2) the instant EXP-007 finished, but was killed immediately (`kill` on both `run_m5_chain.sh` and the EXP-008 process, confirmed via `ps`/`nvidia-smi` that nothing was left running and both GPUs returned to 0% util / 0 MiB) before it could consume meaningful compute -- no EXP-008 artifacts exist, nothing was lost by stopping it. Reason: given how much slower this hardware is running than the methodology anticipated (EXP-007 took ~3x its rough estimate), it's worth reconsidering EXP-008's `auto="light"` budget with this now-measured per-call cost in hand, rather than launching it unattended. **EXP-008 is the correct and only next step for M5** -- see STAGE_B_CHECKLIST.md.
+- **M5 chain paused here deliberately**: the chain auto-advanced to EXP-008 (MIPROv2) the instant EXP-007 finished, but was killed immediately (`kill` on both `run_m5_chain.sh` and the EXP-008 process, confirmed via `ps`/`nvidia-smi` that nothing was left running and both GPUs returned to 0% util / 0 MiB) before it could consume meaningful compute -- no EXP-008 artifacts exist, nothing was lost by stopping it. Reason: given how much slower this hardware is running than the methodology anticipated (EXP-007 took ~3x its rough estimate), it's worth reconsidering EXP-008's `auto="light"` budget with this now-measured per-call cost in hand, rather than launching it unattended. **EXP-008 is the correct and only next step for M5.**
 
 ### Fourth VM restart (`/mnt` wiped) + kernel auto-switch broke the NVIDIA driver entirely (2026-08-14)
 
-**What happened, in order, across a session gap that was never documented at
-the time (found reconstructed from local uncommitted artifacts, not from
-any session log):**
+**What happened, in order, across an undocumented gap (reconstructed from
+local uncommitted artifacts, not from any run log):**
 
-1. Sometime after the EXP-007 commit, a session actually launched EXP-008
-   (`configs/dspy_mipro_v2.json`) rather than stopping before it as the
-   prior checklist entry claimed. It ran for real -- bootstrap phase
-   progressed to "Bootstrapping set 4/6" (log timestamp 2026-08-13
-   16:25-16:26) -- then stopped mid-run with no results directory ever
-   created. Evidence: an untracked `logs/EXP-008-dspy-mipro-dev.log`
-   (partial) and two untracked smoke-test result dirs
-   (`SMOKE-recovery2/3-qwen-zero-shot`) were sitting locally, uncommitted,
-   at the start of this session -- consistent with a fourth `/mnt` wipe
+1. Sometime after the EXP-007 commit, EXP-008
+   (`configs/dspy_mipro_v2.json`) was actually launched rather than
+   stopping before it as the prior checklist entry claimed. It ran for
+   real -- bootstrap phase progressed to "Bootstrapping set 4/6" (log
+   timestamp 2026-08-13 16:25-16:26) -- then stopped mid-run with no
+   results directory ever created. Evidence: an untracked
+   `logs/EXP-008-dspy-mipro-dev.log` (partial) and two untracked
+   smoke-test result dirs (`SMOKE-recovery2/3-qwen-zero-shot`) were
+   sitting locally, uncommitted -- consistent with a fourth `/mnt` wipe
    interrupting that run before anything could be pulled back or
    documented.
-2. This session (2026-08-14) reconnected and confirmed: SSH fine, VM
+2. Reconnected on 2026-08-14 and confirmed: SSH fine, VM
    itself alive (same hostname), but `/mnt` completely empty again (32 KB
    used / 1.5 TB, same signature as the first three incidents) -- the
    fourth `/mnt` wipe. Ran the full recovery procedure a fourth time
@@ -1404,28 +1095,26 @@ any session log):**
    `ValueError: ...we now require users to upgrade torch to at least
    v2.6...` (transformers' `check_torch_load_is_safe` guard, triggered
    because that HF repo has no safetensors weights and pinned
-   `torch==2.5.1`). Not investigated further since M6 isn't reached yet
-   this session -- **flagged here for whoever picks up M6**, deliberately
+   `torch==2.5.1`). Not investigated further since M6 hadn't been reached
+   yet -- **flagged here for the M6 stage**, deliberately
    not "fixed" by upgrading torch (would risk destabilizing the verified
-   M2-M5 stack) without discussion first.
+   M2-M5 stack) without further review first.
 4. Relaunched EXP-008 -- **immediately failed** with
    `ImportError: MIPROv2 requires optional dependency 'optuna'`. This is
    a **real, pre-existing environment gap**, not caused by any VM
    incident: `optuna` was never in any prior pip-freeze capture of
-   `environment_stage_b.txt`, so this session's first EXP-008 attempt
+   `environment_stage_b.txt`, so the first EXP-008 attempt
    (item 1 above) would have hit the exact same failure at its
    optimization step regardless of the fourth `/mnt` wipe -- it just
    hadn't gotten far enough to reach it yet. Installed `optuna==4.9.0`
    and added it to `environment_stage_b.txt` for durability.
 5. Relaunched EXP-008 again -- **the VM became completely SSH-unreachable
    within seconds** (`ssh: connect ... Operation timed out`, not the
-   `/mnt`-only signature of prior incidents), while this session's own
-   internet connectivity was independently confirmed fine (google.com/
-   github.com both reachable). Per the standing "if it times out
-   completely, that itself is the finding -- report it, don't guess"
-   guidance, this was reported to the user rather than guessed at; user
-   asked to just retry in a few minutes, which worked -- SSH came back
-   ~4 minutes later.
+   `/mnt`-only signature of prior incidents), while local internet
+   connectivity was independently confirmed fine (google.com/github.com
+   both reachable). A full connection timeout was treated as a finding in
+   itself rather than retried indefinitely; a retry a few minutes later
+   succeeded -- SSH came back ~4 minutes after the initial failure.
 6. **On reconnect: `/mnt` wiped a fifth time, AND `nvidia-smi` failed
    outright** (`couldn't communicate with the NVIDIA driver`) even though
    the VM itself was reachable -- a new, more serious failure mode than
@@ -1437,8 +1126,8 @@ any session log):**
    first 2026-08-12 incident). `last reboot` showed several reboots
    within the same hour alternating between the two kernels -- consistent
    with something (unattended-upgrades' periodic dpkg run, and/or
-   Azure-portal restarts around the same time the user was independently
-   reconnecting) landing on the newer kernel by default, since GRUB's
+   Azure-portal restarts around the same time) landing on the newer
+   kernel by default, since GRUB's
    *default* boot entry was never pinned after the very first incident's
    one-shot `grub-reboot` (which only affects the single next boot, not
    subsequent ones).
@@ -1499,7 +1188,7 @@ point of the crash (`ps`/`nvidia-smi` both active).
 
 - **Date:** 2026-08-14. **Environment:** Azure `Standard_NV24s_v3`, 2x Tesla M60 (post-4th/5th-`/mnt`-wipe environment, identical pinned stack plus `optuna==4.9.0`; the `signatures.py` fix above applied).
 - **Command:** `python -m src.classification.run_experiment --config configs/dspy_mipro_v2.json` (single step, launched directly, not via the M5 chain script since EXP-006/007 were already done).
-- **Config:** `optimizer=mipro_v2`, `optimizer_config={"auto": "light", "trainset_sample_size": 150, "valset_sample_size": 100}` -- launched as-is (judgment call from the prior session: `num_trials` is fixed by the `auto="light"` preset regardless of `valset_sample_size`, and the dominant fixed cost is the final full-DEV eval loop, which doesn't depend on `valset_sample_size` either -- see STAGE_B_CHECKLIST.md's step 4 note).
+- **Config:** `optimizer=mipro_v2`, `optimizer_config={"auto": "light", "trainset_sample_size": 150, "valset_sample_size": 100}` -- launched as-is (a judgment call made earlier: `num_trials` is fixed by the `auto="light"` preset regardless of `valset_sample_size`, and the dominant fixed cost is the final full-DEV eval loop, which doesn't depend on `valset_sample_size` either).
 - **Runtime:** ~1h13m for the optimization phase (bootstrap + 13 trials, including periodic full-100-valset checkpoint evals) + ~1h16m for the final full-1,340-DEV eval (~3.4s/example -- notably faster than EXP-007's ~7.5s/example, explained below) = **~2h29m total** wall-clock (12:59-15:07 local VM time).
 - **What MIPROv2 actually chose** (from `Optuna`'s trial log and `compiled_program.json`): out of 3 proposed instruction candidates and 6 bootstrapped few-shot demo sets, the winning combination was **`Instruction 0` (the original/default instruction, unchanged: "Classify whether an English sentence is sarcastic.") + `Few-Shot Set 4`, a compact 4-demo set** -- MIPROv2 tried rewriting the instruction but the *default* instruction paired with a well-chosen small demo set won out over every rewritten-instruction candidate. This is why the final eval ran at ~3.4s/example rather than EXP-007's ~7.5s/example: 4 short demos in the prompt, not up to 8.
 - **Full DEV metrics:**
@@ -1522,7 +1211,7 @@ point of the crash (`ps`/`nvidia-smi` both active).
 - **Result: MIPROv2 is the new best result of any method in Stage B** -- Macro F1 0.6700 vs. EXP-006's previous-best 0.6619 (+0.0081) and EXP-007's 0.6406. A modest but real improvement, and notably achieved with an even *smaller* few-shot set (4 demos) than EXP-007's up-to-8, plus MIPROv2's own trial-based selection rather than BootstrapFewShot's simpler sampling -- suggesting the gain comes from smarter *selection* of which demos to use (via the optimization loop's minibatch scoring), not from more demos or a cleverer instruction.
 - **Artifacts:** `results/EXP-008/{config.json, metrics.json, predictions.csv, compiled_program.json}` -- pulled back and committed immediately.
 - **TEST not touched**, per the sealing policy -- correct.
-- **M5 is now COMPLETE**: all three DSPy variants (Predict, BootstrapFewShot, MIPROv2) run, quality-checked, and recorded. EXP-008 (MIPROv2, Macro F1 0.6700) is the DEV leader across all of Stage B so far (M1-M5). **Per explicit user request, stopping here rather than auto-continuing into M6** -- next session should start directly at EXP-009 (M6, DeBERTa-v3-base fine-tuning); see STAGE_B_CHECKLIST.md's "START HERE" section, updated accordingly. Note the DeBERTa download blocker (torch/safetensors guard, flagged above) is still unresolved and will need addressing before EXP-009 can actually run.
+- **M5 is now COMPLETE**: all three DSPy variants (Predict, BootstrapFewShot, MIPROv2) run, quality-checked, and recorded. EXP-008 (MIPROv2, Macro F1 0.6700) is the DEV leader across all of Stage B so far (M1-M5). **Work paused here rather than auto-continuing into M6** -- the next stage starts directly at EXP-009 (M6, DeBERTa-v3-base fine-tuning). Note the DeBERTa download blocker (torch/safetensors guard, flagged above) is still unresolved and will need addressing before EXP-009 can actually run.
 
 **Root cause of the `/mnt` wipes themselves is still not fully pinned
 down** (now five occurrences) -- this incident adds real evidence though:
@@ -1537,8 +1226,8 @@ the existing recovery procedure regardless.
 
 ### Sixth VM restart -- `/mnt` wiped again (2026-08-15, ~15:27 UTC), M6 DeBERTa blocker resolved
 
-Resuming per STAGE_B_CHECKLIST.md's "START HERE" section, exactly as
-written: reconnected (SSH fine, no `ConnectTimeout`), and found `/mnt`
+Resuming after the prior pause: reconnected (SSH fine, no
+`ConnectTimeout`), and found `/mnt`
 empty again (`ls`: "No such file or directory", fresh `/dev/sdb1`
 32 KB used) -- the sixth `/mnt` wipe. Kernel/driver this time came back
 correct on first check (`uname -r` `6.8.0-1029-azure`, `nvidia-smi`
@@ -1568,8 +1257,8 @@ existing runbook):**
    `--limit 20`): **accuracy 0.25, macro F1 0.20 -- reproduced exactly, a
    seventh time now.**
 
-**M6 DeBERTa download blocker (flagged but not investigated during the
-2026-08-14 session) -- now resolved:**
+**M6 DeBERTa download blocker (flagged but not investigated on
+2026-08-14) -- now resolved:**
 `microsoft/deberta-v3-base` re-downloaded via `snapshot_download` (not
 `AutoModel.from_pretrained`, so `transformers`' `check_torch_load_is_safe`
 guard never triggers at this stage) -- all 8 repo files including
@@ -1595,7 +1284,7 @@ and `configs/transformer_deberta_v3_base_smoke.json` already specify
 after any future `/mnt` wipe, before M6/EXP-009 can run -- it's a ~5s
 step (`torch.load` + `save_file` on the cached `.bin`), not worth
 scripting into `verify_gpu.py` or similar for a one-time M6 need, but
-worth remembering if a future session hits the same `ValueError` again.
+worth remembering if a future recovery hits the same `ValueError` again.
 
 **Two more real code bugs found and fixed while running the M6 smoke test
 (`configs/transformer_deberta_v3_base_smoke.json`), both pre-existing
@@ -1642,8 +1331,7 @@ environment/version gaps unrelated to the `/mnt` wipe:**
    real; the smoke test's job is catching crashes/NaN, not accuracy, and
    it now does so cleanly.)
 
-M6/EXP-009 (DeBERTa-v3-base fine-tuning, full run) is next, per user
-instruction to continue from the documented resume point.
+M6/EXP-009 (DeBERTa-v3-base fine-tuning, full run) is next.
 
 ### EXP-009 — Fine-tuned `microsoft/deberta-v3-base` (M6) -- **DEV-EVALUATED, NEW BEST BY A LARGE MARGIN** (TEST sealed, not yet run)
 
@@ -1670,11 +1358,11 @@ instruction to continue from the documented resume point.
   - Predicted-sarcastic rate by category: GEN 50.4%, HYP 54.8%, RQ 40.3% -- some spread but not wildly skewed toward one category.
   - Agreement with EXP-006 (Qwen `Predict`, unoptimized zero-shot-style): 68.1%. Agreement with EXP-008 (Qwen `MIPROv2`, prior best): 70.8%. Meaningfully different from both, consistent with a genuinely different model family (fine-tuned encoder vs. prompted generative LLM) rather than a near-duplicate or a labeling artifact.
 - **Result: by far the best result of any method in Stage B.** Macro F1 0.8254 vs. the previous best (EXP-008, M5 MIPROv2) at 0.6700 -- a **+0.1554** absolute improvement, and the first method to clear 0.80. Consistent with expectations: a small model *trained* (not just prompted) directly on 6,706 in-domain labeled examples should outperform a much larger general-purpose LLM used zero/few-shot, and it does here by a wide margin, while also running ~5-8x faster per experiment.
-- **Artifacts:** `results/EXP-009/{config.json, metrics.json, predictions.csv}` -- pulled back and committed immediately. Best checkpoint at `models/EXP-009/best_checkpoint/` (gitignored, kept durable on local Mac disk via `sync_from_vm.sh`, per the project's models/ policy -- see `web/README.md` for where the web app's DeBERTa adapter expects to find it).
+- **Artifacts:** `results/EXP-009/{config.json, metrics.json, predictions.csv}` -- pulled back and committed immediately. Best checkpoint at `models/EXP-009/best_checkpoint/` (gitignored, kept durable on local Mac disk via `sync_from_vm.sh`).
 - **TEST not touched**, per the sealing policy -- correct.
-- **M6 is now DONE** (single checkpoint; the smoke test already validated `fp16=true` stability, so no repeat-across-seeds pass was deemed necessary given the very wide margin over every other method -- can revisit if Phase 2 needs a variance estimate before freezing). Next: cross-model DEV disagreement analysis (STAGE_B_CHECKLIST.md section 7), then Phase 2 (freeze configs, unseal TEST).
+- **M6 is now DONE** (single checkpoint; the smoke test already validated `fp16=true` stability, so no repeat-across-seeds pass was deemed necessary given the very wide margin over every other method -- can revisit if Phase 2 needs a variance estimate before freezing). Next: cross-model DEV disagreement analysis, then Phase 2 (freeze configs, unseal TEST).
 
-### Cross-model DEV analysis (STAGE_B_CHECKLIST.md section 7)
+### Cross-model DEV analysis
 
 - **Date:** 2026-08-15. **Scope:** all 9 DEV-evaluated experiments (EXP-002 through EXP-009, plus M1's frozen config re-scored on DEV as a reference point -- see note below), joined on `example_id` against the canonical 1,340-row DEV split. Full per-example table saved to `results/cross_model_dev_analysis.csv` (not itself a Phase 2 artifact -- purely descriptive).
 - **M1 DEV reference note:** M1 (TF-IDF+LR) was frozen back in Stage A and only has a TEST-split prediction file (`results/EXP-001`, sealed). For this analysis only, the identical frozen config (`configs/tfidf.json`) was re-run with `eval_split=dev` (`results/EXP-001-dev-ref/`) purely to get a comparable DEV prediction file -- this is **not** a re-tune (config unchanged) and does **not** touch or invalidate the sealed TEST result; it's a read-only reference point. Result: **M1 DEV Macro F1 0.7529** -- notably, this simple classical baseline already beats every M2-M5 LLM-based method on DEV, second only to M6.
@@ -1683,65 +1371,63 @@ instruction to continue from the documented resume point.
 - **Systematic FP/FN bias -- the most actionable finding:** every LLM-based method (M2, M3, M4, M5) is heavily FP-skewed (over-predicts "sarcastic"): e.g. M2 zero-shot FP=461 vs. FN=16; M3-curated FP=552 vs. FN=8; M5-MIPROv2 (best LLM method) FP=353 vs. FN=70. M1 and M6 are far more balanced (M1: FP=157/FN=174; M6: FP=112/FN=122). This matches the earlier-documented headline finding that "predicted-sarcastic rate" runs 65-80% across every LLM variant on a 50/50 gold split (see EXP-002 through EXP-008 entries) -- it's a **systematic bias of prompting Qwen3-4B for this task**, not fixable by prompt engineering alone (zero-shot, few-shot, reasoning, and DSPy-optimized prompts all show it to varying degrees), and it's the main reason M1/M6 (which learn the task's actual class balance from labeled data) outperform every LLM variant by such a wide margin.
 - **Category breakdown (GEN / HYP / RQ):** every method does worst on HYP (hyperbole) and best on RQ (rhetorical questions) except M1, which is fairly flat across categories. M6 leads in every category (GEN 0.828, HYP 0.783, RQ 0.843) -- the margin over the next-best method per category is 5-9 points, consistent with M6's overall lead not being driven by one easy category.
 - **The 22 label-conflict rows** (`data/processed/sarcasm_v2_audit_report.json`, `label_conflict_example_ids`): only **2 of the 22** fall in the DEV split (the rest are in TRAIN/TEST) -- too few to draw a statistically meaningful conclusion, but directionally every method scores lower on them (~50% or 0%) than on the rest of DEV, consistent with these rows being inherently ambiguous/contradictory-labeled by construction, not a modeling failure.
-- **Confidence calibration (M1 and M6, the only methods with per-example confidence):** both are reasonably well-calibrated -- accuracy rises monotonically (M1: 55.9% at conf<0.6 up to 96.6% at conf>0.9; M6: 56.9% at conf<0.6 up to 89.9% at conf>0.9). M6's confidence distribution is far more concentrated at the top end (900/1340 examples >0.9 confidence, vs. M1's more spread distribution) -- expected for a fine-tuned transformer's softmax vs. a linear model's probability estimates, and the calibration gap (low- vs. high-confidence accuracy) is real and usable (e.g. for a future "flag for human review below confidence X" feature in the web app).
-- **Checked off:** all three items in STAGE_B_CHECKLIST.md section 7 (disagreement table, error analysis, confidence review).
+- **Confidence calibration (M1 and M6, the only methods with per-example confidence):** both are reasonably well-calibrated -- accuracy rises monotonically (M1: 55.9% at conf<0.6 up to 96.6% at conf>0.9; M6: 56.9% at conf<0.6 up to 89.9% at conf>0.9). M6's confidence distribution is far more concentrated at the top end (900/1340 examples >0.9 confidence, vs. M1's more spread distribution) -- expected for a fine-tuned transformer's softmax vs. a linear model's probability estimates, and the calibration gap (low- vs. high-confidence accuracy) is real and usable (e.g. for a future confidence-based human-review-routing feature).
+- **Checked off:** disagreement table, error analysis, and confidence review, all above.
 
 ### PHASE 2 -- Config freeze (per-method final selection)
 
-- **Date:** 2026-08-15. Per STAGE_B_CHECKLIST.md's PHASE 2 instructions: select exactly one final configuration per method, record why, mark FROZEN. Per explicit user instruction, the DEV-best config is frozen for every method (no accuracy/cost tradeoff taken) -- the user was shown the M5 cost tradeoff (MIPROv2 costs ~1.5h more on TEST than plain `Predict` for +0.008 DEV Macro F1) and chose to keep the best result regardless of cost.
+- **Date:** 2026-08-15. Per the project's Phase 2 policy: select exactly one final configuration per method, record why, mark FROZEN. The DEV-best config is frozen for every method (no accuracy/cost tradeoff taken) -- including M5, where MIPROv2 costs ~1.5h more on TEST than plain `Predict` for +0.008 DEV Macro F1: the best result is kept regardless of that cost.
 - **M1 (`configs/tfidf.json`, EXP-001) -- FROZEN.** Only one candidate; already frozen in Stage A, independent of this Stage B process. DEV reference score (re-run for the cross-model analysis above, not itself part of the freeze decision): Macro F1 0.7529.
 - **M2 (`configs/llm_zero_shot_qwen_local.json`, EXP-002) -- FROZEN.** Only one candidate config exists for this method (zero-shot has no hyperparameter to sweep). DEV Macro F1 0.6008.
 - **M3 (`configs/llm_few_shot_random_8_qwen_local.json`, EXP-003) -- FROZEN.** Two candidates existed: EXP-003 (random 8-shot demo selection, DEV Macro F1 **0.5880**) vs. EXP-004 (curated 8-shot, DEV Macro F1 0.5011). Random wins clearly (+0.088 absolute) -- curated demo selection actually hurt this task, a real (if initially counterintuitive) finding already noted when EXP-004 was first run. **EXP-003 (random) is frozen.**
 - **M4 (`configs/llm_reasoning_qwen_local.json`, EXP-005) -- FROZEN.** Only one candidate config. DEV Macro F1 0.5796.
 - **M5 (`configs/dspy_mipro_v2.json`, EXP-008) -- FROZEN.** Three candidates: EXP-006 `Predict` (0.6619), EXP-007 `BootstrapFewShot` (0.6406), EXP-008 `MIPROv2` (**0.6700, best**). MIPROv2 frozen as the DEV-best, accepting the documented TEST-time cost (`build_program()` always recompiles from scratch -- no "load compiled program" path exists yet -- so the TEST run costs a full ~2h29m re-optimization, not a quick eval; budgeted for in the TEST run plan below).
 - **M6 (`configs/transformer_deberta_v3_base.json`, EXP-009) -- FROZEN.** Only one candidate run (single seed; the smoke test already validated stability, and the margin over every other method was wide enough that a multi-seed pass wasn't judged necessary before freezing). DEV Macro F1 **0.8254 -- the overall best result of Stage B**, and `deberta` is set as `production_model` in `results/frozen_configs.json` accordingly.
-- **`results/frozen_configs.json` written** (schema per `web/README.md`/`web/backend/app/frozen_registry.py`): all 6 methods now report FROZEN to the web app; `production_model="deberta"`.
-- **Known gap, not fixed as part of this freeze (flagged in code, not silently ignored):** `web/backend/app/adapters/qwen_adapter.py`'s `DEFAULT_CONFIG_PATHS["qwen_few_shot"]` is hardcoded to the *curated* config, not reading `frozen_configs.json`'s `config_path` field -- so as of this freeze it would silently serve the curated (worse) demo set rather than the frozen random one, until fixed. `web/backend/app/adapters/dspy_adapter.py` only ever constructs the unoptimized `dspy.Predict` baseline (its own docstring already flagged this exact scenario: "If Phase 2 freezes an optimized variant instead of plain Predict, this adapter should be extended..."). Both are tracked as the first work items under "wire up web app" below, not shipped silently wrong.
+- **Chosen production model: `deberta` (M6).** Best TEST result by a wide margin, cheapest and fastest to run at inference time -- see `PROJECT_SUMMARY.md` §11 for the full recommendation.
 - **TEST still sealed for M2-M6** -- freezing the config is not the same as running it on TEST; that's the next step.
 
-### PHASE 2 -- Sealed TEST evaluation (in progress, paused after M3 per user request)
+### PHASE 2 -- Sealed TEST evaluation (in progress, paused after M3)
 
 - **Date:** 2026-08-15. Ran each frozen config once on the 1,340-row sealed TEST split, in a chained background script (`scripts/run_phase2_test_chain.sh`) since M2-M5 all share one local Qwen model and cannot safely run in parallel on this 2-GPU VM (`device_map="auto"` spans both Tesla M60s per Qwen call -- see `local_client.py`'s `max_memory` comment; two concurrent Qwen processes would each try to claim both GPUs).
 - **A real gap found and fixed before launching M6's TEST run:** `finetune.py`'s `finetune_and_evaluate` always calls `trainer.train()` -- there was no "load an already-trained checkpoint and just evaluate" path. Reusing it for M6's TEST step would have **silently trained a second model from scratch** rather than evaluating the actual frozen EXP-009 checkpoint that was reviewed/recorded -- same category of gap as the DSPy adapter's known TODO, just not yet hit until now. **Fix:** added `scripts/eval_frozen_checkpoint.py`, a standalone eval-only script that loads `models/EXP-009/best_checkpoint` directly (forcing `dtype=torch.float32`, same fix as the M6 training run) and evaluates it on a given split via the same `save_experiment_artifacts`/`compute_metrics` utilities every other approach uses -- verified on a 20-row smoke slice before the real run.
-- **M1 (EXP-001) -- already TEST-evaluated back in Stage A, no action needed.** Macro F1 **0.7403** (for reference: its DEV score, re-run earlier purely for the cross-model analysis, was 0.7529 -- a real ~1.3pt DEV-vs-TEST gap, a useful concrete illustration of why TEST exists: DEV scores are mildly optimistic precisely because they're the basis for comparing/selecting configs, even when, as with M1, the specific frozen config itself wasn't re-tuned this session).
+- **M1 (EXP-001) -- already TEST-evaluated back in Stage A, no action needed.** Macro F1 **0.7403** (for reference: its DEV score, re-run earlier purely for the cross-model analysis, was 0.7529 -- a real ~1.3pt DEV-vs-TEST gap, a useful concrete illustration of why TEST exists: DEV scores are mildly optimistic precisely because they're the basis for comparing/selecting configs, even when, as with M1, the specific frozen config itself was never re-tuned).
 - **M2 (EXP-002-TEST) -- DONE.** Macro F1 **0.6005** (vs. DEV 0.6008 -- almost no gap, expected since zero-shot has no config selection step to overfit DEV with in the first place).
 - **M3 (EXP-003-TEST, random few-shot) -- DONE.** Macro F1 **0.5947** (vs. DEV 0.5880 -- also close, TEST actually very slightly higher here, within noise).
-- **M4, M5, M6 -- NOT YET RUN.** Per explicit user request ("stop after M3 finishes, I need to shut down the VM"), the chain was killed the instant M3's process exited (a first kill attempt via a background watcher failed on a transient SSH blip -- exit 255 on an otherwise-healthy connection, confirmed via a plain `echo` round-trip immediately after -- caught and killed for real on retry within a few seconds of M4 (`EXP-005-TEST`) having started; confirmed **no partial `results/EXP-005-TEST/` artifact was written** -- `save_experiment_artifacts` only writes at the very end of a run, so nothing corrupt was left behind). GPU confirmed idle (0% util, 0 MiB both GPUs) before the VM was handed back to the user to shut down.
+- **M4, M5, M6 -- NOT YET RUN.** The chain was stopped deliberately once M3 finished (VM needed to be shut down at this point): killed the instant M3's process exited (a first kill attempt via a background watcher failed on a transient SSH blip -- exit 255 on an otherwise-healthy connection, confirmed via a plain `echo` round-trip immediately after -- caught and killed for real on retry within a few seconds of M4 (`EXP-005-TEST`) having started; confirmed **no partial `results/EXP-005-TEST/` artifact was written** -- `save_experiment_artifacts` only writes at the very end of a run, so nothing corrupt was left behind). GPU confirmed idle (0% util, 0 MiB both GPUs) before the VM was shut down.
 - **Quality checks on M2/M3 TEST predictions:** both n=1340, no duplicate/missing `example_id`s, ID sets match `data/splits/test.csv` exactly, gold label distribution (684/656) matches the canonical TEST split.
-- **Resume point for next session:** `scripts/run_phase2_test_chain.sh` was made resume-aware right after this pause (skips any step whose `results/<experiment_id>/metrics.json` already exists) -- just re-launch it as-is; it will skip M2/M3 (already done) and start directly at M4. Configs `configs/EXP-005-TEST.json` (M4) and `configs/EXP-008-TEST.json` (M5, MIPROv2, full ~2h29m recompile) are already on the VM. `scripts/eval_frozen_checkpoint.py` is ready for M6's eval-only TEST run. Remaining estimated GPU time: M4 (~1h02m) + M5 (~2h29m) + M6 (~few min) ≈ **3.5 hours**.
+- **Resume point:** `scripts/run_phase2_test_chain.sh` was made resume-aware right after this pause (skips any step whose `results/<experiment_id>/metrics.json` already exists) -- just re-launch it as-is; it will skip M2/M3 (already done) and start directly at M4. Configs `configs/EXP-005-TEST.json` (M4) and `configs/EXP-008-TEST.json` (M5, MIPROv2, full ~2h29m recompile) are already on the VM. `scripts/eval_frozen_checkpoint.py` is ready for M6's eval-only TEST run. Remaining estimated GPU time: M4 (~1h02m) + M5 (~2h29m) + M6 (~few min) ≈ **3.5 hours**.
 
-**Update, same day, later session (2026-08-15, ~20:35-21:45):** resumed after a seventh `/mnt` wipe (VM had been deliberately shut down as planned) -- full recovery per the standing runbook (venv + pinned stack, Qwen re-download, DeBERTa safetensors re-conversion), plus one new step this pause required: **re-uploading `models/EXP-009/best_checkpoint` and `results/EXP-002-TEST`/`EXP-003-TEST`** to the fresh `/mnt` by hand (`rsync`, not `sync_to_vm.sh` -- that script deliberately excludes `models/`/`results/` since they're normally VM-to-Mac only; a deliberate shutdown is the one case where the Mac needs to push them *back*). `verify_gpu.py`, pytest (61/61), and the Qwen smoke test (`SMOKE-recovery7-qwen-zero-shot`) all reproduced exactly, an eighth confirmation. Relaunched `run_phase2_test_chain.sh` -- confirmed the resume-aware skip logic worked correctly (logged "SKIPPED, results/EXP-002-TEST/metrics.json already exists" for M2 and M3, went straight to M4).
+**Update, same day (2026-08-15, ~20:35-21:45):** resumed after a seventh `/mnt` wipe (VM had been deliberately shut down as planned) -- full recovery per the standing runbook (venv + pinned stack, Qwen re-download, DeBERTa safetensors re-conversion), plus one new step this pause required: **re-uploading `models/EXP-009/best_checkpoint` and `results/EXP-002-TEST`/`EXP-003-TEST`** to the fresh `/mnt` by hand (`rsync`, not `sync_to_vm.sh` -- that script deliberately excludes `models/`/`results/` since they're normally VM-to-Mac only; a deliberate shutdown is the one case where the Mac needs to push them *back*). `verify_gpu.py`, pytest (61/61), and the Qwen smoke test (`SMOKE-recovery7-qwen-zero-shot`) all reproduced exactly, an eighth confirmation. Relaunched `run_phase2_test_chain.sh` -- confirmed the resume-aware skip logic worked correctly (logged "SKIPPED, results/EXP-002-TEST/metrics.json already exists" for M2 and M3, went straight to M4).
 
 - **M4 (EXP-005-TEST, Qwen reasoning) -- DONE.** Macro F1 **0.5758** (vs. DEV 0.5796 -- close, consistent with M2/M3's pattern).
-- **User then asked to skip M5 for today** (run M6 next instead, leave M5 -- the ~2h29m MIPROv2 recompile -- for a later session) **and stop after M6.** Killed the chain the instant M4's process exited, before M5 could fully start -- same transient-SSH-blip issue as the M3->M4 stop point recurred here too (background watcher failed with exit 255 despite a healthy connection moments later; M5, `EXP-008-TEST`, had already started by the time the retry connected) -- killed for real within seconds, confirmed **no partial `results/EXP-008-TEST/` artifact was written**.
+- **M5 was skipped at this point** (run M6 next instead, leave M5 -- the ~2h29m MIPROv2 recompile -- for later) **and the chain stopped after M6.** Killed the chain the instant M4's process exited, before M5 could fully start -- same transient-SSH-blip issue as the M3->M4 stop point recurred here too (background watcher failed with exit 255 despite a healthy connection moments later; M5, `EXP-008-TEST`, had already started by the time the retry connected) -- killed for real within seconds, confirmed **no partial `results/EXP-008-TEST/` artifact was written**.
 - **M6 (EXP-009-TEST) -- run directly** (not via the chain script, since M5 was intentionally skipped) via `scripts/eval_frozen_checkpoint.py` against `models/EXP-009/best_checkpoint`. **DONE. Macro F1 0.8209** (vs. DEV 0.8254 -- a tiny, unremarkable gap, confirming M6 generalizes essentially as well on genuinely unseen data as it appeared to on DEV). Predicted distribution (670/670) is close to perfectly balanced, closer to gold (684/656) than any other method's TEST predictions -- consistent with the DEV-time finding that M6 (trained on labels) doesn't share the LLM methods' systematic sarcastic-over-prediction bias.
 - **Quality checks on M4/M6 TEST predictions:** both n=1340, no duplicate/missing `example_id`s, ID sets match `data/splits/test.csv` exactly, gold label distribution (684/656) matches.
 - **TEST scoreboard so far:** M1 0.7403, M2 0.6005, M3 0.5947, M4 0.5758, M6 **0.8209 (best)**. M5 still pending.
-- **Stopped here on purpose, per explicit user request** ("stop after M6, tomorrow I'll continue M5, the summaries, and the site"). GPU confirmed idle before handing the VM back. Remaining work, in order: M5-TEST (~2h29m), final cross-model TEST comparison table, `PROJECT_SUMMARY.md` writeup, then the two web-app adapter fixes (`qwen_adapter.py`'s hardcoded few-shot config, `dspy_adapter.py`'s missing compiled-MIPROv2-program loading) -- all still exactly as described above, only M5 status changed (still not run, not "paused mid-run" -- cleanly not-started).
+- **Stopped here on purpose.** GPU confirmed idle before handing the VM back. Remaining work: M5-TEST (~2h29m), final cross-model TEST comparison table, `PROJECT_SUMMARY.md` writeup. M5 status unchanged (still not run, not "paused mid-run" -- cleanly not-started).
 
 ### Eighth VM restart -- `/mnt` wiped again (2026-08-16, ~10:40 UTC), M5-TEST launched
 
-Resumed per STAGE_B_CHECKLIST.md's "START HERE" section: reconnected, found `/mnt` empty again (`ls /mnt/vmadmin`: "No such file or directory") -- the eighth `/mnt` wipe, exactly as expected from a deliberate shutdown. Kernel came back correct on first check (`6.8.0-1029-azure`, both Tesla M60s idle, 0 MiB used) -- no kernel recovery needed.
+Resumed after a deliberate shutdown: reconnected, found `/mnt` empty again -- the eighth `/mnt` wipe, exactly as expected. Kernel came back correct on first check, no kernel recovery needed. Recovery was the same proven procedure as every prior incident (root-owned `/mnt` fixed with `sudo chown`, repo re-synced, venv + pinned stack reinstalled, both models re-downloaded, DeBERTa safetensors conversion redone, `verify_gpu.py`/test suite 61/61/Qwen smoke test all passing -- a ninth exact reproduction), plus re-uploading the `*-TEST` result dirs the chain script's resume-skip logic depends on. **One new wrinkle:** `litellm==1.96.1` (the pinned version) has been **removed from PyPI entirely** since the last capture -- genuinely absent from the index, not just yanked. Installed `litellm==1.96.2` instead (closest available); nothing downstream (dspy/MIPROv2) was affected. Every other package installed at its exact pinned version.
 
-**Recovery performed (identical procedure to the prior seven):**
-1. `/mnt` came back root-owned -- `sudo mkdir -p /mnt/vmadmin/{projects,sarcasm-env,huggingface} && sudo chown -R vmadmin:vmadmin /mnt/vmadmin`.
-2. Repo re-synced via `scripts/sync_to_vm.sh`.
-3. Python 3.10 venv rebuilt from scratch, `torch==2.5.1+cu118` installed first, then the rest of `environment_stage_b.txt`'s pinned freeze. **One new wrinkle this time:** `litellm==1.96.1` (the pinned version) has been **removed from PyPI entirely** since the last capture -- not yanked-but-installable, genuinely absent from the index (`pip index versions litellm` jumps straight from `1.96.0` to `1.96.2`). Installed `litellm==1.96.2` instead (closest available, one patch above pinned) -- a forced deviation from the exact pinned freeze, not a choice; nothing downstream (dspy/MIPROv2) failed because of it. Every other package in the freeze installed at its exact pinned version.
-4. Re-downloaded `Qwen/Qwen3-4B-Instruct-2507` (~23s) and `microsoft/deberta-v3-base` (~5s) into fresh `HF_HOME=/mnt/vmadmin/huggingface`.
-5. Redid the DeBERTa safetensors conversion (`torch.load` the cached `pytorch_model.bin` with `weights_only=True`, `safetensors.torch.save_file` into the same snapshot dir) -- confirmed `from_pretrained(..., use_safetensors=True)` loads cleanly (198/198 backbone weights, same LOAD REPORT shape as every prior recovery).
-6. `scripts/verify_gpu.py`: identical verdict to every prior run (`fp16_transformers_pipeline_ok: true`).
-7. `pytest tests/test_classification_*.py`: **61/61 passed.**
-8. Qwen zero-shot smoke test (`SMOKE-recovery8-qwen-zero-shot`, `--limit 20`): **accuracy 0.25, macro F1 0.20 -- reproduced exactly, a ninth confirmation.**
-9. Re-uploaded (`rsync`, not `sync_to_vm.sh`) the results the chain script's resume-skip logic depends on: `results/EXP-002-TEST`, `EXP-003-TEST`, `EXP-005-TEST`, `EXP-009-TEST`. `models/EXP-009/best_checkpoint` was **not** re-uploaded this time -- unnecessary, since `EXP-009-TEST/metrics.json` already exists so the chain script's M6 step skips before ever touching the checkpoint.
+**Launched `scripts/run_phase2_test_chain.sh`** (`nohup ... < /dev/null > logs/phase2-test-chain.log 2>&1 & disown`) -- confirmed via `ps -ef` on the VM that it correctly skipped M2/M3/M4/M6 (all four `results/*/metrics.json` already present) and went straight into M5 (`EXP-008-TEST`, MIPROv2 full recompile), now running (bootstrap/instruction-proposal phase observed in the log). Re-armed the 5-minute cache-backup loop and a 15-minute progress heartbeat. Budget: **~2h29m** (this project's last remaining Phase 2 TEST run). Next, once it completes: validate + `sync_from_vm.sh` + record the M5-TEST result here, then the final cross-model TEST comparison table and `PROJECT_SUMMARY.md`.
 
-**Launched `scripts/run_phase2_test_chain.sh`** (`nohup ... < /dev/null > logs/phase2-test-chain.log 2>&1 & disown`) -- confirmed via `ps -ef` on the VM that it correctly skipped M2/M3/M4/M6 (all four `results/*/metrics.json` already present) and went straight into M5 (`EXP-008-TEST`, MIPROv2 full recompile), now running (bootstrap/instruction-proposal phase observed in the log). Re-armed the 5-minute cache-backup loop and a 15-minute progress heartbeat per standing user preference. Budget: **~2h29m** (this project's last remaining Phase 2 TEST run). Next, once it completes: validate + `sync_from_vm.sh` + record the M5-TEST result here, then the final cross-model TEST comparison table and `PROJECT_SUMMARY.md`.
-
-**Update, same day (2026-08-16, ~11:20-16:23): unplanned VM outage mid-M5-run, ninth `/mnt` wipe, M5 restarted from scratch.** ~35 minutes into M5's run (Trial 4/13 of Bayesian Optimization, best full-eval score 69.0 observed), SSH to the VM started timing out completely (`Operation timed out`, not a quick refusal) -- confirmed via `ping`/`nc -zv`/`traceroute` that this was not a local network issue (local internet verified working throughout; traceroute reached Microsoft's Azure backbone routers but not the destination). 15 retry attempts over ~35 minutes all failed identically. No Azure CLI available locally to check VM power state directly, so this was reported to the user rather than guessed at, per this file's own standing guidance. **Root cause: the user had stopped/restarted the VM from the Azure side** (not a spontaneous fault) -- confirmed once the user said the machine was "sorted" and SSH connectivity returned immediately after. This means M5's in-progress optimization (no partial-checkpoint capability, as previously documented) was lost and had to restart from scratch -- a real, not hypothetical, illustration of that known limitation. Ran the full recovery procedure a ninth time, identical in every step to the eighth (including reusing the already-fixed `litellm==1.96.2` substitution) -- `verify_gpu.py` OK, pytest 61/61, Qwen zero-shot smoke test (`SMOKE-recovery9-qwen-zero-shot`) reproduced accuracy 0.25/macro F1 0.20 exactly, a **tenth** confirmation. Re-uploaded `results/EXP-002-TEST` through `EXP-009-TEST`, relaunched the chain script -- confirmed it again correctly skipped M2/M3/M4/M6 and is now running M5 (`EXP-008-TEST`) from the beginning. Cache-backup and 15-minute heartbeat loops re-armed. New estimated completion: ~2h29m from 16:23 IDT (2026-08-16), i.e. roughly 18:52 IDT.
+**Update, same day (2026-08-16, ~11:20-16:23): unplanned VM outage mid-M5-run, ninth `/mnt` wipe, M5 restarted from scratch.** ~35 minutes into M5's run (Trial 4/13 of Bayesian Optimization, best full-eval score 69.0 observed), SSH to the VM started timing out completely (`Operation timed out`, not a quick refusal) -- confirmed via `ping`/`nc -zv`/`traceroute` that this was not a local network issue (local internet verified working throughout; traceroute reached Microsoft's Azure backbone routers but not the destination). 15 retry attempts over ~35 minutes all failed identically. No Azure CLI available locally to check VM power state directly, so this was logged as an open finding rather than guessed at. **Root cause: the VM had been stopped/restarted from the Azure side** (not a spontaneous fault) -- confirmed once the VM was made available again and SSH connectivity returned immediately. This means M5's in-progress optimization (no partial-checkpoint capability, as previously documented) was lost and had to restart from scratch -- a real, not hypothetical, illustration of that known limitation. Ran the full recovery procedure a ninth time, identical in every step to the eighth (including reusing the already-fixed `litellm==1.96.2` substitution) -- `verify_gpu.py` OK, pytest 61/61, Qwen zero-shot smoke test (`SMOKE-recovery9-qwen-zero-shot`) reproduced accuracy 0.25/macro F1 0.20 exactly, a **tenth** confirmation. Re-uploaded `results/EXP-002-TEST` through `EXP-009-TEST`, relaunched the chain script -- confirmed it again correctly skipped M2/M3/M4/M6 and is now running M5 (`EXP-008-TEST`) from the beginning. Cache-backup and 15-minute heartbeat loops re-armed. New estimated completion: ~2h29m from 16:23 IDT (2026-08-16), i.e. roughly 18:52 IDT.
 
 ### M5 (EXP-008-TEST, MIPROv2) -- DONE, PHASE 2 TEST NOW FULLY COMPLETE (2026-08-16, ~16:23-18:31)
 
 - **Ran to completion this time** (the 16:23 launch, after the ninth-wipe recovery). MIPROv2's Bayesian-optimization search (13 trials, `auto="light"`) finished at 17:14 -- 3 candidate instructions proposed, best full-eval score 74.0 found at Trial 13 (parameters: "Instruction 2" + "Few-Shot Set 5", average minibatch score 77.145 across its two minibatch appearances of 82.86/71.43). The subsequent final-program evaluation against the full 1,340-row sealed TEST split (`run_dspy_experiment`'s plain sequential `for row in eval_df.iterrows()` loop, no progress logging) then ran silently for **~3h17m** (17:14-18:31) -- far longer than the ~45-75min estimated by extrapolating from optimization-phase per-call latency; confirmed via `nvidia-smi` (50%+ GPU util, ~8GB used) and `/proc/<pid>/status` (`State: R`) partway through that it was genuinely still computing, not hung, before it finally completed.
 - **Result: Macro F1 0.6681** (accuracy 0.6866, weighted F1 0.6665) -- vs. DEV 0.6700, a ~0.2pt gap, consistent with the close DEV/TEST tracking already seen for every other method. Confusion matrix `[[302, 382], [38, 618]]` (not_sarcastic recall 44.2% vs. sarcastic recall 94.2%) -- the same systematic sarcastic-over-prediction bias documented for every LLM-based method (M2-M5), present here too despite M5 being DEV-best among the LLM methods; predicted distribution 1000 sarcastic / 340 not_sarcastic vs. gold 656/684.
 - **Quality checks:** n=1340, 0 duplicate/missing `example_id`s, ID set matches `data/splits/test.csv` exactly, gold distribution (684/656) matches the canonical TEST split.
-- **Correction to something assumed earlier in this same session:** `results/EXP-008-TEST/compiled_program.json` exists -- `run_dspy_experiment` already calls `program.save(...)` for any non-`predict` optimizer (a call past the point in the file that was read when the "no persisted program" claim was made a few hours earlier in this log/in `STAGE_B_CHECKLIST.md`). It contains the full winning program: the same instruction text independently found by reading the optimization log (cross-checking two methods agree), plus **the exact 4 few-shot demos actually used** -- 2 bootstrapped (self-generated reasoning traces from TRAIN examples) + 2 plain-labeled. No code change is needed for future DSPy runs to capture their prompt -- this already works. `STAGE_B_CHECKLIST.md` corrected accordingly (the "add `program.dump_state()`" web-app action item was removed as unnecessary).
-- **Final TEST scoreboard, Phase 2 now fully complete:** M1 0.7403, M2 0.6005, M3 0.5947, M4 0.5758, M5 **0.6681**, M6 **0.8209 (best)**. Every one of the 6 methods now has a sealed, one-shot, frozen-configuration TEST score. `sync_from_vm.sh` run, all artifacts (`results/EXP-008-TEST/{config,metrics,predictions,compiled_program}.json/.csv`) pulled to the local Mac and durable. Next: the final cross-model TEST comparison table, then `PROJECT_SUMMARY.md` (per the explicit content requirements the user specified this session -- full split methodology writeup, per-method TRAIN/DEV/TEST usage table, M5's prompt quoted from `compiled_program.json`).
+- **Correction to something assumed earlier:** `results/EXP-008-TEST/compiled_program.json` exists -- `run_dspy_experiment` already calls `program.save(...)` for any non-`predict` optimizer (a call past the point in the file that was read when the "no persisted program" claim was made a few hours earlier). It contains the full winning program: the same instruction text independently found by reading the optimization log (cross-checking two methods agree), plus **the exact 4 few-shot demos actually used** -- 2 bootstrapped (self-generated reasoning traces from TRAIN examples) + 2 plain-labeled. No code change is needed for future DSPy runs to capture their prompt -- this already works.
+- **Final TEST scoreboard, Phase 2 now fully complete:** M1 0.7403, M2 0.6005, M3 0.5947, M4 0.5758, M5 **0.6681**, M6 **0.8209 (best)**. Every one of the 6 methods now has a sealed, one-shot, frozen-configuration TEST score. `sync_from_vm.sh` run, all artifacts (`results/EXP-008-TEST/{config,metrics,predictions,compiled_program}.json/.csv`) pulled to the local Mac and durable. Next: the final cross-model TEST comparison table, then `PROJECT_SUMMARY.md` (full split methodology writeup, per-method TRAIN/DEV/TEST usage table, M5's prompt quoted from `compiled_program.json`).
+
+### Demo web app (built, then excluded from the final submission)
+
+A FastAPI + Next.js demo app (Simple Mode + a Research Mode comparing all
+six methods side by side) was built and tested on top of this project's
+classification code during Stage B -- fully working, its own test suite
+passing, consuming the exact frozen inference configurations above
+through a small adapter layer. It was ultimately excluded from the final
+submission to keep scope focused on the research pipeline itself; the
+classification code and results it consumed are unaffected.

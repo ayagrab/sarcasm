@@ -4,9 +4,8 @@
 # vmadmin@20.245.56.28 to already work -- see EXPERIMENT_LOG.md BLOCKER-4b
 # if it doesn't yet.
 #
-# The project is NOT pushed to origin (all Stage A/B work is uncommitted
-# on `main` as of this writing -- see `git status`), so this uses rsync
-# rather than a git workflow, per instructions.
+# Uses rsync rather than a git-based deploy so the VM always mirrors the
+# exact local working tree, including anything not committed yet.
 set -euo pipefail
 
 LOCAL_PROJECT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,8 +29,6 @@ rsync -av \
   --exclude 'results' \
   --exclude '.pytest_cache' \
   --exclude 'data/llm_cache' \
-  --exclude 'web/frontend/node_modules' \
-  --exclude 'web/frontend/.next' \
   "$LOCAL_PROJECT_PATH"/ \
   "$REMOTE_HOST:$REMOTE_PATH/"
 

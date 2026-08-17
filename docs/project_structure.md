@@ -2,8 +2,8 @@
 
 A complete, folder-by-folder and file-by-file walkthrough of everything in
 `sarcasm/`: what it is, what it does, and how it's used. For a quicker
-overview and setup instructions, see the main `README.md`. For what was
-decided at each meeting, see `docs/project_history.md`.
+overview and setup instructions, see the main `README.md`. For the full
+results and methodology, see `PROJECT_SUMMARY.md`.
 
 ---
 
@@ -11,24 +11,37 @@ decided at each meeting, see `docs/project_history.md`.
 
 ```text
 sarcasm/
-├── config/         # project-wide settings and model-ID constants
-├── data/           # all datasets and result files (no code)
-├── docs/           # research documentation and meeting slides
-├── prompts/        # every prompt template, as plain .txt files
-├── src/            # all Python code, one subfolder per pipeline stage
-├── .env            # local API keys (not committed to git)
+├── config/          # project-wide settings and model-ID constants
+├── configs/         # one JSON config per Stage B (classification) experiment
+├── data/            # datasets and result files (no code)
+├── docs/            # research documentation
+├── logs/            # raw stdout logs from Stage B experiment runs
+├── models/          # trained checkpoints (gitignored, not in version control)
+├── prompts/         # every prompt template, as plain .txt files
+├── results/         # per-experiment metrics/predictions (Stage B)
+├── scripts/         # GPU-VM workflow: sync, verification, experiment chains
+├── src/             # all Python code, one subfolder per pipeline stage
+├── tests/           # pytest suite (no real API calls, no model/GPU needed)
+├── .env             # local API keys (not committed to git)
 ├── .gitignore
+├── conftest.py      # makes `config`/`src` importable from tests/
 ├── README.md
-└── requirements.txt
+├── PROJECT_SUMMARY.md   # full Stage B results, methodology, conclusions
+├── EXPERIMENT_LOG.md    # detailed, chronological experiment audit trail
+├── requirements.txt
+├── requirements-classification.txt
+└── requirements-dev.txt
 ```
 
 The project has two tracks:
-1. **Interpretation pipeline** (implemented, the bulk of the work so far):
-   clean data → generate interpretations with 3 LLMs → judge them with a 4th
-   LLM → summarize/analyze results.
-2. **Detection fine-tuning** (planned, not yet implemented): fine-tune a BERT
-   classifier to detect whether a sentence is sarcastic at all. See
-   `docs/finetuning_plan.md`.
+1. **Interpretation pipeline**: evaluate how well LLMs rewrite sarcastic
+   text as sincere statements, and whether an LLM judge can replace human
+   annotators for scoring that. Complete.
+2. **Detection ("Stage B")**: given a short English text, predict whether
+   it's sarcastic at all. Six approaches compared (classical ML, LLM
+   zero/few-shot/reasoning prompting, DSPy-optimized prompting, a
+   fine-tuned Transformer encoder), each evaluated once on a sealed TEST
+   split. Complete — see `PROJECT_SUMMARY.md`.
 
 ---
 
@@ -43,17 +56,39 @@ hardcoding paths, keys, or model names.
     the 3 models used to generate interpretations.
   - `JUDGE_MODELS`: `{"openrouter_llm_judge": ..., "nli": ...}` — the LLM
     judge model and the NLI model used for automatic evaluation.
-- **`settings.py`** — defines the `Settings` dataclass (instantiated once as
-  `settings`) with:
-  - Every data folder path (`raw_data_dir`, `processed_data_dir`,
-    `model_outputs_dir`, `manual_scoring_dir`, `summaries_dir`) and
-    `prompts_dir`, all computed from `PROJECT_ROOT` so scripts work
-    regardless of the current working directory.
-  - `openrouter_api_key` / `gemini_api_key` — loaded from `.env` via
-    `python-dotenv`.
-  - `default_openrouter_model`, `default_judge_model`, `default_gemini_model`
-    — pulled from `config/models.py` (not duplicated as separate string
-    literals) so there is exactly one place to change a model ID.
+- **`settings.py`** — the `Settings` dataclass (instantiated once as
+  `settings`) for the **interpretation pipeline**: data folder paths,
+  `prompts_dir`, API keys loaded from `.env`, and default model IDs
+  pulled from `config/models.py`.
+- **`classification_settings.py`** — the equivalent `Settings` dataclass
+  for the **Stage B / classification pipeline**, kept deliberately
+  separate so the two phases never share or accidentally overwrite each
+  other's configuration: canonical dataset paths, `data/splits/` paths,
+  `train_frac`/`dev_frac`/`test_frac` (0.70/0.15/0.15) and the split seed
+  (42), `results_dir`, `models_dir`.
+
+---
+
+## `configs/`
+
+One JSON file per Stage B experiment or method — every model/prompt/
+hyperparameter/optimizer choice lives here, never hardcoded in `src/`, so
+switching configuration never requires touching code. Grouped by method:
+
+| Method | DEV config(s) | Frozen for TEST | TEST config |
+|---|---|---|---|
+| M1 — TF-IDF + LR | `tfidf.json` | ✓ (Stage A) | *(same config, `eval_split=test`)* |
+| M2 — Qwen zero-shot | `llm_zero_shot_qwen_local.json` (+ `llm_zero_shot.json`, OpenRouter variant) | ✓ | `EXP-002-TEST.json` |
+| M3 — Qwen few-shot | `llm_few_shot_random_8_qwen_local.json` (frozen), `llm_few_shot_curated_8_qwen_local.json` (DEV-only comparison) (+ OpenRouter equivalents) | ✓ (random variant) | `EXP-003-TEST.json` |
+| M4 — Qwen structured reasoning | `llm_reasoning_qwen_local.json` (+ `llm_reasoning.json`) | ✓ | `EXP-005-TEST.json` |
+| M5 — DSPy | `dspy_predict.json`, `dspy_bootstrap_few_shot.json`, `dspy_mipro_v2.json` (frozen) | ✓ (MIPROv2) | `EXP-008-TEST.json` |
+| M6 — Fine-tuned DeBERTa | `transformer_deberta_v3_base.json` (+ `_smoke.json` for the crash/NaN smoke test) | ✓ | *(evaluated directly from the checkpoint via `scripts/eval_frozen_checkpoint.py`, no separate TEST config)* |
+| *(not run)* | `transformer_roberta_base.json` | — | — |
+
+Each TEST config's `_note` field records exactly why it exists and that
+it shares every hyperparameter with its DEV counterpart (only
+`eval_split`/`experiment_id` differ) — see `PROJECT_SUMMARY.md` §3.1 for
+the TEST-sealing policy these configs follow.
 
 ---
 
@@ -62,74 +97,77 @@ hardcoding paths, keys, or model names.
 Datasets and result files only — no code belongs here.
 
 ### `data/alt_test/`
-The raw data behind the project's Alt-Test result (see
+The raw data behind the interpretation pipeline's Alt-Test result (see
 `docs/alt_test_reference.md` and `src/postprocessing/run_alt_test.py`).
 - **`humans_annotations.json`** — the 3 human annotators' (aya, anat,
-  yehoraz) scores, keyed by annotator then by instance id
-  (`"<prompt>_<model>_<sarcastic sentence>"`).
+  yehoraz) scores, keyed by annotator then by instance id.
 - **`llm_annotations.json`** — the LLM judge's scores for the same
   instances, keyed by instance id.
 
 ### `data/raw/`
 Original, unmodified input data. Never edit these files by hand.
-- **`original_test_dataset.csv`** — the source sarcastic-tweet test set used
-  throughout the interpretation pipeline (from the original SIGN paper's
+- **`original_test_dataset.csv`** — the source sarcastic-tweet test set
+  used by the interpretation pipeline (from the original SIGN paper's
   repo, header-less, tweet text in the first column).
-- **`sarcasm_corpus_v2/`** — input data staged for the *upcoming* detection
-  fine-tuning phase (not yet used by any script):
-  - `GEN-sarc-notsarc.csv` (6,520 posts), `HYP-sarc-notsarc.csv` (1,164
-    posts), `RQ-sarc-notsarc.csv` (1,702 posts) — General Sarcasm,
-    Hyperbole, and Rhetorical-Question subsets of Sarcasm Corpus V2 (UC
-    Santa Cruz), each with columns `class` (`sarc`/`notsarc`), `id`, `text`.
-    See `docs/finetuning_plan.md`.
+- **`sarcasm_corpus_v2/`** — input data for the detection/classification
+  phase: `GEN-sarc-notsarc.csv` (6,520 posts), `HYP-sarc-notsarc.csv`
+  (1,164 posts), `RQ-sarc-notsarc.csv` (1,702 posts) — General Sarcasm,
+  Hyperbole, and Rhetorical-Question subsets of Sarcasm Corpus V2 (UC
+  Santa Cruz), each with columns `class` (`sarc`/`notsarc`), `id`, `text`.
 
 ### `data/processed/`
-Cleaned data derived from `raw/`, produced by
-`src/preprocessing/clean_dataset.py`.
-- **`clean_sarcastic_sentences.csv`** — one column, `sarcastic_sentence`:
-  deduplicated sarcastic sentences extracted from
-  `raw/original_test_dataset.csv`. This is the input to both generation
-  scripts.
+Cleaned/derived data.
+- **`clean_sarcastic_sentences.csv`** — interpretation pipeline: one
+  column, `sarcastic_sentence`, deduplicated. Produced by
+  `src/preprocessing/clean_dataset.py`.
+- **`sarcasm_v2_canonical.csv`** — classification pipeline: the three
+  `sarcasm_corpus_v2/` files combined into one table with a global
+  `example_id`, `category` (GEN/HYP/RQ), `source_file`, and
+  duplicate/label-conflict flags. Produced by
+  `src/classification/data/build_canonical_dataset.py`; nothing is
+  dropped or deduplicated at this step, only normalized.
+- **`sarcasm_v2_audit_report.json`** — data-quality report (class
+  balance, duplicates, label conflicts, length distribution) for the
+  canonical dataset above. Produced by
+  `src/classification/data/audit_dataset.py`.
+
+### `data/splits/`
+The one canonical train/dev/test split, reused by every classification
+approach. Produced by `src/classification/data/make_splits.py`
+(`StratifiedGroupKFold`, grouped by `dup_group_id` so near-duplicate text
+can never land in both TRAIN and TEST, stratified by label, seed 42) —
+see `PROJECT_SUMMARY.md` §3.1 for the full methodology.
+- **`train.csv`** (6,706 rows), **`dev.csv`** (1,340 rows),
+  **`test.csv`** (1,340 rows) — each a subset of the canonical dataset's
+  columns.
+- **`split_assignments.csv`** — `example_id` -> split name, for anyone
+  who needs to check which split a given example landed in without
+  re-deriving the split.
+
+### `data/llm_cache/`
+Per-example disk cache for LLM calls (keyed by request content), so a
+re-run after a transient failure or crash doesn't re-spend GPU/API
+budget. **Gitignored** — regenerable, not source data.
 
 ### `data/model_outputs/`
-One subfolder per experiment run, each holding one CSV per model.
-- **`experiment_01/` … `experiment_04/`** — `gemini_run_0N.csv`,
-  `nvidia_run_0N.csv`, `liquid_run_0N.csv`. Experiment number corresponds to
-  which generation prompt version was used (e.g. `experiment_04` used
-  `generation_prompt_v4.txt`, the few-shot prompt).
-  - Columns before evaluation: `sarcastic_sentence`, `model_interpretation`.
-  - Column added after evaluation: `classification` (1/2/3, from the LLM
-    judge).
+Interpretation pipeline: one subfolder per experiment run
+(`experiment_01`–`experiment_04`), each holding one CSV per generation
+model (`gemini_run_0N.csv`, `nvidia_run_0N.csv`, `liquid_run_0N.csv`).
+Columns before evaluation: `sarcastic_sentence`, `model_interpretation`;
+`classification` (1/2/3, from the LLM judge) added after evaluation.
 
 ### `data/manual_scoring/`
-Human annotation stage. Apple Numbers files (open in Numbers, Excel, or
-Google Sheets).
-- **`random_70_for_manual_scoring.numbers`** — the master sample: 70 tweets
-  with each model's translations across all 4 prompts, and empty score
-  columns.
-- **`anat.numbers`, `aya.numbers`, `yehoraz.numbers`** — each of the 3 team
-  members' independently completed copy of the master sample, scored 1-3
-  (see `docs/project_history.md`, 2026-07-16 meeting, for how these
-  feed into the Alt-Test and Fleiss' Kappa analysis).
+Interpretation pipeline: human annotation stage (Apple Numbers files).
+- **`random_70_for_manual_scoring.numbers`** — the master sample: 70
+  tweets with each model's translations across all 4 prompts.
+- **`anat.numbers`, `aya.numbers`, `yehoraz.numbers`** — each of the 3
+  team members' independently completed copy, scored 1–3 (feeds the
+  Alt-Test and Fleiss' Kappa analysis).
 
 ### `data/summaries/`
-Aggregated result tables, produced by the `src/postprocessing/` scripts.
-- **`classification_summary.csv`** — one row per experiment/model, with
-  average/median score and counts of each score (1/2/3). Produced by
-  `summarize_classifications.py`.
-- **`text_metrics_nvidia_run_01.csv`** — BLEU/ROUGE/PINC/Combined averages
-  for one model-output file. Produced by `calculate_text_metrics.py` (one
-  file per run; re-run for other models/experiments as needed).
-- **`text_metrics_summary.csv`** — the same metrics for every prompt/model
-  combination at once. Produced by `summarize_text_metrics.py`.
-- **`perfect_agreement_cases.csv`** / **`discrepancy_cases_for_discussion.csv`**
-  — case studies where the human and LLM-judge scores agree / disagree
-  most. Produced by `extract_case_studies.py`.
-- **`figures/`** — every plot produced by the postprocessing scripts
-  (`plot_text_metrics.py`, `correlation_heatmap.py`, `linguistic_analysis.py`,
-  `human_llm_agreement.py`): NLP-metric distributions, the Spearman
-  correlation heatmap, structural/linguistic comparisons, and the
-  human-vs-ChatGPT comparison plots and confusion matrix.
+Interpretation pipeline: aggregated result tables and figures, produced
+by `src/postprocessing/*.py` — see that section below for which script
+produces which file.
 
 ---
 
@@ -137,276 +175,272 @@ Aggregated result tables, produced by the `src/postprocessing/` scripts.
 
 Research documentation — the "why" and "what happened," as opposed to code.
 
-- **`pipeline.md`** — technical, stage-by-stage map of the codebase: what
-  runs, in what order, and which stages need an API key or a model download.
-- **`methodology.md`** — *how* the dataset was prepared, models/prompts
-  selected, evaluation performed (automatic metrics, LLM judge, NLI,
-  human validation), and the Alt-Test / statistical methods used.
-- **`results.md`** — *what was found*: automatic-metric tables, prompt
-  sensitivity, Alt-Test outcome, Fleiss' Kappa, Kruskal-Wallis
-  significance, human-vs-LLM-judge agreement, and case studies.
+- **`pipeline.md`** — technical, stage-by-stage map of the interpretation
+  pipeline: what runs, in what order, and which stages need an API key
+  or a model download.
+- **`methodology.md`** — *how* the interpretation pipeline's dataset,
+  models, prompts, and evaluation were chosen.
+- **`results.md`** — *what was found* in the interpretation pipeline:
+  automatic-metric tables, Alt-Test outcome, Fleiss' Kappa, significance
+  tests, human-vs-LLM-judge agreement, case studies.
 - **`project_history.md`** — the chronological, meeting-by-meeting
-  narrative of how the project's methods and conclusions developed
-  (originally sourced from the 4 supervisor-meeting slide decks, which
-  have since been removed -- their full content is preserved here).
+  narrative of how the project's methods and conclusions developed,
+  including the pivot from interpretation to detection (originally
+  sourced from the 4 supervisor-meeting slide decks, since removed —
+  their full content is preserved here).
 - **`alt_test_reference.md`** — what the Alt-Test is, citation for the
   paper it's from, how epsilon was chosen, and where the
   code/data/script live in this repo.
-- **`finetuning_plan.md`** — the plan for the next phase (BERT-based
-  sarcasm detection fine-tuning). Planning only; not yet implemented.
-- **`validation.md`** — this repository's validation report: what has been
-  executed locally, what was validated with mocks, and what still needs a
-  real API key or model download to confirm.
+- **`finetuning_plan.md`** — the original plan for the detection phase
+  (proposed at the project's 4th supervisor meeting). Superseded by the
+  fuller 6-method Stage B comparison actually implemented; kept as
+  planning history.
+- **`validation.md`** — the interpretation pipeline's validation report:
+  what has been executed locally, what was validated with mocks, and
+  what still needs a real API key or model download to confirm. (Stage
+  B's own test suite plus `PROJECT_SUMMARY.md` cover the classification
+  pipeline's validation.)
+- **`project_structure.md`** — this file.
+
+---
+
+## `logs/`
+
+Raw stdout logs from Stage B experiment runs on the Azure GPU VM, kept
+for reproducibility/audit alongside the structured `results/` artifacts.
+- **`EXP-003/004/005/006/007/008/009-*.log`** — per-experiment run logs.
+- **`m3_m4_chain.log`, `m5_chain.log`, `phase2-test-chain.log`,
+  `phase2-test-chain-resume.log`** — combined logs from the chain scripts
+  under `scripts/` that ran several experiments back-to-back.
+- **`M5-dspy-smoke-test.log`, `hf_download.log`** — one-off verification
+  logs (DSPy adapter smoke test, Hugging Face model download).
+
+---
+
+## `models/`
+
+Trained model checkpoints (currently `EXP-009/best_checkpoint/`, the
+fine-tuned DeBERTa-v3-base weights). **Gitignored** — binary artifacts,
+not source; kept durable via `scripts/sync_from_vm.sh` pulling them to
+local disk independently of the VM's ephemeral storage. Regenerable by
+re-running `configs/transformer_deberta_v3_base.json`.
 
 ---
 
 ## `prompts/`
 
-Every prompt template as a plain `.txt` file, kept out of the Python code so
-prompt engineering doesn't require touching scripts. All generation prompts
-use `{sarcastic_sentence}` as their placeholder (consistent across all four
-versions); evaluation prompts use `{sarcastic_sentence}` /
-`{model_interpretation}` as needed. Loaded via
-`src/common/prompt_loader.load_prompt(path)`, where `path` is relative to
-`prompts/` (e.g. `"generation/generation_prompt_v4.txt"`).
+Every prompt template as a plain `.txt` file, kept out of the Python code
+so prompt engineering doesn't require touching scripts. Loaded via
+`src/common/prompt_loader.load_prompt(path)` (interpretation pipeline) or
+directly by `src/classification/llm/run_llm_classification.py`
+(classification pipeline), where `path` is relative to `prompts/`.
 
-### `prompts/generation/`
-- **`generation_prompt_v1.txt`** — Prompt 1: plain instruction, no examples.
-- **`generation_prompt_v2.txt`** — Prompt 2: "translate the true meaning,"
-  output only the sentence. The most effective prompt with human
-  annotators (see meeting notes).
-- **`generation_prompt_v3.txt`** — Prompt 3: adds formatting/grammar
-  constraints. Consistently the worst-performing prompt.
-- **`generation_prompt_v4.txt`** — Prompt 4: few-shot, with 3 worked
-  examples baked into the prompt. Current default used by both generation
-  scripts.
+### `prompts/generation/` (interpretation pipeline)
+- **`generation_prompt_v1.txt`** — plain instruction, no examples.
+- **`generation_prompt_v2.txt`** — "translate the true meaning," output
+  only the sentence. Most effective prompt with human annotators.
+- **`generation_prompt_v3.txt`** — adds formatting/grammar constraints.
+  Consistently the worst-performing prompt.
+- **`generation_prompt_v4.txt`** — few-shot, with 3 worked examples.
+  Current default used by both generation scripts.
 
-### `prompts/evaluation/`
+### `prompts/evaluation/` (interpretation pipeline)
 - **`llm_judge_prompt.txt`** — the 1/2/3 judge prompt used by
-  `evaluate_with_llm.py` (the main evaluation method).
+  `evaluate_with_llm.py`.
 - **`binary_judge_prompt.txt`** — an older/alternative 0/1 binary judge
   prompt, not currently called from any script; kept for reproducibility
   and comparison.
-- **`nli_premise_template.txt`** / **`nli_hypothesis_template.txt`** — used
-  by `evaluate_with_nli.py`. Both are currently a plain pass-through of
-  their single placeholder (`{sarcastic_sentence}` /
-  `{model_interpretation}`), since the NLI model just needs the raw
-  sentence and interpretation as premise/hypothesis.
+- **`nli_premise_template.txt`** / **`nli_hypothesis_template.txt`** —
+  used by `evaluate_with_nli.py`; plain pass-throughs of their single
+  placeholder.
+
+### `prompts/classification/` (Stage B)
+- **`zero_shot_v1.txt`** — M2's prompt: task definition only, no examples.
+- **`few_shot_v1.txt`** — M3's prompt: task definition + a block of
+  labeled demonstration examples (selected by
+  `src/classification/llm/few_shot_selection.py`).
+- **`reasoning_v1.txt`** — M4's prompt: asks for step-by-step reasoning
+  before committing to a label.
+
+---
+
+## `results/`
+
+One subfolder per Stage B experiment (`EXP-00N` for DEV runs,
+`EXP-00N-TEST` for the corresponding sealed-TEST evaluation), each
+holding exactly:
+- **`config.json`** — the full experiment configuration used (a copy of
+  the `configs/*.json` file plus the resolved `experiment_id`/`eval_split`).
+- **`metrics.json`** — accuracy, macro/weighted F1, per-class
+  precision/recall/F1, confusion matrix — all computed by the single
+  shared implementation in `src/classification/evaluation/metrics.py`.
+- **`predictions.csv`** — one row per example: `example_id`, `gold_label`,
+  `predicted_label`, optional `confidence`.
+- **`compiled_program.json`** *(EXP-008 / EXP-008-TEST only)* — DSPy's
+  saved program state for the MIPROv2-optimized method: the winning
+  instruction text and the exact few-shot demonstrations selected. See
+  `PROJECT_SUMMARY.md` §6.1 for the prompt quoted directly from this file.
+
+Other files:
+- **`EXP-001-dev-ref/`** — M1 (TF-IDF+LR) was frozen back in Stage A and
+  only ever evaluated on TEST. For the cross-model DEV analysis below,
+  the identical frozen config was re-run once with `eval_split=dev` to
+  get a comparable DEV prediction file — not a re-tune, a read-only
+  reference point.
+- **`cross_model_dev_analysis.csv`** / **`cross_model_test_analysis.csv`**
+  — one row per example with every method's prediction, correctness, and
+  `n_models_correct`, joined against the canonical dataset. Built by an
+  ad hoc analysis script; see `PROJECT_SUMMARY.md` §7 for the write-up.
+
+---
+
+## `scripts/`
+
+Operational scripts for the Azure GPU VM workflow (Stage B needs a CUDA
+GPU that this project ran on a rented Azure VM, not locally).
+- **`sync_to_vm.sh`** — pushes the local repo to the VM (rsync, excludes
+  caches/venvs/results — code and config only).
+- **`sync_from_vm.sh`** — pulls `results/`, `logs/`, and `models/` back
+  from the VM to the local Mac, so they survive independently of the
+  VM's ephemeral disk.
+- **`sync_cache_from_vm.sh`** — pulls `data/llm_cache/` back specifically;
+  safe to run continuously (including while an experiment is running).
+- **`verify_kernel.sh`** — startup guard: fails loudly if the VM booted
+  into an unverified kernel or the NVIDIA driver isn't working, before
+  any GPU work is attempted.
+- **`verify_gpu.py`** — records GPU count/model/VRAM/driver/CUDA version
+  and checks the minimum requirement (a CUDA GPU visible to torch) is met.
+- **`smoke_test_dspy.py`** — exercises the DSPy/local-Qwen adapter on a
+  handful of examples before committing to a full-DEV run.
+- **`eval_frozen_checkpoint.py`** — evaluates an already-trained M6
+  checkpoint on a given split without retraining (the standalone
+  eval-only path `finetune.py` doesn't otherwise provide).
+- **`run_m3_m4_chain.sh`, `run_m5_chain.sh`, `run_phase2_test_chain.sh`**
+  — run several experiments back-to-back unattended, each step gated on
+  the previous one exiting cleanly; `run_phase2_test_chain.sh` is
+  resume-aware (skips any step whose result already exists).
 
 ---
 
 ## `src/`
 
 All Python code, organized by pipeline stage. Every subfolder has an
-`__init__.py` (empty, just marks it as a package) and every runnable script
-follows the same pattern: a pure function doing the work, plus a thin
-`main()` with `argparse` so it can be run as
+`__init__.py` (empty, just marks it as a package) and every runnable
+script follows the same pattern: a pure function doing the work, plus a
+thin `main()` with `argparse` so it can be run as
 `python -m src.<subfolder>.<script> [options]`.
 
-### `src/common/`
+### `src/common/` (interpretation pipeline)
 Shared helpers used across multiple pipeline stages.
-- **`file_utils.py`**
-  - `ensure_parent_dir(path)` — creates a file's parent directory if
-    missing.
-  - `read_csv_flexible(path, expected_columns)` — reads a CSV; if the
-    expected columns aren't present as a header, re-reads it headerless and
-    assigns `expected_columns` (handles the original dataset's header-less
-    format).
-  - `save_csv(df, path)` — saves as UTF-8-SIG (so Excel/Numbers open it
-    correctly), creating the parent directory if needed.
-  - `load_all_model_outputs(model_outputs_dir)` — loads every classified CSV
-    under `data/model_outputs/` into one DataFrame, adding `prompt` and
-    `model` columns. Used by the statistical/linguistic analysis scripts
-    below, which need the full labeled dataset rather than one file.
-- **`gemini_client.py`** — `get_gemini_model(model_name=None)`: configures
-  `google.generativeai` with the API key from settings and returns a
-  `GenerativeModel` (defaults to `settings.default_gemini_model`). Raises a
-  clear error if `GEMINI_API_KEY` is missing.
-- **`openrouter_client.py`** — `get_openrouter_client()`: returns an
-  OpenAI-SDK-compatible client pointed at OpenRouter's API. Raises a clear
-  error if `OPENROUTER_API_KEY` is missing.
-- **`json_utils.py`** — `extract_json_array(text)`: pulls the first `[...]`
-  JSON array out of an LLM response, stripping any Markdown code fences
-  first. Used to parse the judge's batch score responses.
-- **`prompt_loader.py`** — `load_prompt(relative_path, prompts_dir=None)`:
-  reads a prompt file from `prompts/` (or a custom directory), raising
-  `FileNotFoundError` with the resolved path if it's missing.
-- **`alt_test.py`** — `alt_test(llm_annotations, humans_annotations,
-  scoring_function="accuracy", epsilon=0.2, ...)`: the reference
-  implementation of the Alt-Test (Calderon, Reichart & Dror, 2025). Leaves
-  out one human annotator at a time and checks whether the LLM or the
-  excluded human better matches the *remaining* annotators; returns
-  `(winning_rate, advantage_prob)`. Also exposes the scoring helpers
-  `accuracy`, `neg_rmse`, `sim`. See `docs/alt_test_reference.md`.
+- **`file_utils.py`** — `ensure_parent_dir`, `read_csv_flexible`,
+  `save_csv`, `load_all_model_outputs`.
+- **`gemini_client.py`** — `get_gemini_model(model_name=None)`.
+- **`openrouter_client.py`** — `get_openrouter_client()`.
+- **`json_utils.py`** — `extract_json_array(text)`: pulls the first
+  `[...]` JSON array out of an LLM response.
+- **`prompt_loader.py`** — `load_prompt(relative_path, prompts_dir=None)`.
+- **`alt_test.py`** — the reference implementation of the Alt-Test
+  (Calderon, Reichart & Dror, 2025). See `docs/alt_test_reference.md`.
+- **`nli_utils.py`** — entailment/contradiction label-mapping logic used
+  by `evaluate_with_nli.py`.
 
 ### `src/preprocessing/`
 - **`clean_dataset.py`** — `clean_sarcastic_sentences(input_path,
-  output_path)`: reads the raw, header-less test dataset, takes the first
-  column, splits off anything after the first comma (defensive against
-  stray extra columns), strips whitespace, deduplicates, and sorts. Saves
-  one column: `sarcastic_sentence`. This is the first step of the
-  interpretation pipeline.
-  ```bash
-  python -m src.preprocessing.clean_dataset --input data/raw/original_test_dataset.csv --output data/processed/clean_sarcastic_sentences.csv
-  ```
+  output_path)`: dedupes and sorts the raw sarcastic-sentence list. First
+  step of the interpretation pipeline.
 
 ### `src/generation/`
-Both scripts share the same structure: read the clean sentences, load a
-prompt, call a model row-by-row, and save after *every* row (so a crash or
-rate limit doesn't lose progress — re-running resumes from unfinished rows).
-- **`generate_with_gemini.py`** — `generate_interpretations(input_path,
-  output_path, prompt_name="generation/generation_prompt_v4.txt",
-  start_row=0, end_row=None, sleep_seconds=2.0)`. Calls Gemini with all 4
-  harm-category safety filters set to `BLOCK_NONE` (sarcastic tweets often
-  contain mild profanity; Gemini blocks them by default instead of
-  translating — see the safety-refusal case study in the meeting notes).
-  This doesn't eliminate every refusal. On any exception, writes `"ERROR"`
-  for that row and continues (re-run to retry failed rows).
-  ```bash
-  python -m src.generation.generate_with_gemini --input data/processed/clean_sarcastic_sentences.csv --output data/model_outputs/experiment_new/gemini.csv --prompt generation/generation_prompt_v2.txt
-  ```
-- **`generate_with_openrouter.py`** — same shape, generalized to any
-  OpenRouter-hosted model (Nvidia, Liquid, or anything else available on
-  OpenRouter) via `--model`.
-  ```bash
-  python -m src.generation.generate_with_openrouter --input data/processed/clean_sarcastic_sentences.csv --output data/model_outputs/experiment_new/nvidia.csv --model nvidia/nemotron-nano-9b-v2:free --prompt generation/generation_prompt_v4.txt
-  ```
-  Both scripts accept `--prompt <path relative to prompts/>` to pick which
-  generation prompt version to use; it defaults to Prompt 4 (few-shot).
+- **`generate_with_gemini.py`**, **`generate_with_openrouter.py`** — call
+  a model row-by-row over the clean sentences, saving after every row so
+  a crash/rate limit doesn't lose progress. See `README.md` for usage.
 
-### `src/evaluation/`
+### `src/evaluation/` (interpretation pipeline)
 - **`evaluate_with_llm.py`** — the main evaluation method: an LLM judge
-  scores every unclassified row 1/2/3.
-  - `build_batch_examples(batch_df)` — formats a batch of rows into the
-    numbered "Example N / Sarcastic sentence / Model interpretation" text
-    block sent to the judge.
-  - `classify_batch(batch_df, model_id, max_retries=5, wait_seconds=15)` —
-    sends one batch to the judge, parses the JSON array of scores back out,
-    validates the count and that every score is in `{1,2,3}`, retrying with
-    a wait on failure (rate limits, malformed JSON, etc.).
-  - `evaluate_file(input_path, output_path=None, model_id=None,
-    batch_size=10)` — finds rows without a `classification` value yet,
-    evaluates them in batches, saving after every batch.
-  - `evaluate_directory(outputs_dir, ...)` — runs `evaluate_file` over every
-    CSV under a directory tree (i.e. all experiments at once).
-  ```bash
-  python -m src.evaluation.evaluate_with_llm --directory data/model_outputs --model openai/gpt-oss-20b:free --batch-size 10
-  ```
-- **`evaluate_with_nli.py`** — an alternative, fully automatic evaluation
-  method using an NLI (natural language inference) model instead of an LLM
-  judge: treats the sarcastic sentence as the *premise* and the model's
-  interpretation as the *hypothesis*, and checks whether the model predicts
-  entailment more strongly than contradiction. Adds an `nli_success` column
-  (1/0). Defaults to `config.models.JUDGE_MODELS["nli"]`
-  (`MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`), overridable via `--model`.
-  Runs on GPU if available, otherwise CPU.
-  ```bash
-  python -m src.evaluation.evaluate_with_nli --input data/model_outputs/experiment_04/nvidia_run_04.csv --output data/model_outputs/experiment_04/nvidia_nli.csv
-  ```
+  scores every row 1/2/3, in retried batches.
+- **`evaluate_with_nli.py`** — an automatic alternative: an NLI model
+  checks whether the interpretation entails the original sarcastic
+  sentence's true meaning more strongly than it contradicts it.
 
-### `src/postprocessing/`
-Everything that runs after generation + evaluation are done.
-- **`summarize_classifications.py`** — `infer_model_name(csv_path)` turns a
-  filename like `nvidia_run_04.csv` into the readable `"nvidia run 04"`.
-  `summarize_outputs(outputs_dir, output_file)` walks every CSV under
-  `data/model_outputs/`, skips files with no `classification` column or no
-  classified rows, and builds one summary row per file: experiment name,
-  model name, average/median score, and counts of each score.
-  ```bash
-  python -m src.postprocessing.summarize_classifications --outputs-dir data/model_outputs --output data/summaries/classification_summary.csv
-  ```
-- **`calculate_text_metrics.py`** — computes BLEU (via `nltk`), ROUGE-1/2
-  (via `rouge-score`, with a manual n-gram-recall fallback if that package
-  isn't installed), PINC (fraction of interpretation words not present in
-  the original — pure Python, no dependency), and the combined score
-  `PINC * sigmoid(BLEU)`, then averages across all rows in one file.
-  ```bash
-  python -m src.postprocessing.calculate_text_metrics --input data/model_outputs/experiment_04/nvidia_run_04.csv --output data/summaries/text_metrics_nvidia_run_01.csv
-  ```
-- **`create_manual_sample.py`** — `find_one_csv(folder, keyword)` locates
-  exactly one CSV matching a model-name keyword inside an experiment
-  folder (raises if zero or more than one match). `create_sample(
-  outputs_dir, output_file, sample_size=70, seed=42)` picks `sample_size`
-  random row indices from the first experiment's Gemini file, then for each
-  index picks a *random experiment* and pulls that experiment's Gemini/
-  Nvidia/Liquid interpretations for that same row index, building one
-  side-by-side comparison table with empty score columns. This is what
-  produced `random_70_for_manual_scoring.numbers` (originally as a `.csv`,
-  then opened and saved in Numbers for annotation).
-  ```bash
-  python -m src.postprocessing.create_manual_sample --outputs-dir data/model_outputs --output data/manual_scoring/random_70_for_manual_scoring.csv --sample-size 70 --seed 42
-  ```
-- **`run_alt_test.py`** — loads `data/alt_test/humans_annotations.json` and
-  `llm_annotations.json`, calls `src.common.alt_test.alt_test(...)`, and
-  prints the Winning Rate and Advantage Probability. Reproduces the
-  project's documented result exactly (Winning Rate 0.67, Advantage
-  Probability 0.77, 3 instances dropped for having fewer than 2 annotators).
-  ```bash
-  python -m src.postprocessing.run_alt_test
-  ```
-- **`summarize_text_metrics.py`** — runs `calculate_text_metrics.calculate_metrics`
-  (reused, not reimplemented) over every file under `data/model_outputs/`,
-  producing one BLEU/ROUGE/PINC row per prompt/model combination.
-  ```bash
-  python -m src.postprocessing.summarize_text_metrics
-  ```
-- **`plot_text_metrics.py`** — boxplots of the above summary, by model and
-  by prompt. Saves to `data/summaries/figures/`.
-  ```bash
-  python -m src.postprocessing.plot_text_metrics
-  ```
-- **`significance_tests.py`** — Kruskal-Wallis tests for whether prompt
-  choice and model choice significantly affect the classification score.
-  Reproduces the documented result exactly (prompt p=9.45e-34, model
-  p=5.13e-72).
-  ```bash
-  python -m src.postprocessing.significance_tests
-  ```
-- **`correlation_heatmap.py`** — computes structural metrics (sentence
-  length difference, lexical overlap ratio) and plots their Spearman
-  correlation with the quality score. Exposes `add_structural_metrics(df)`,
-  reused by `linguistic_analysis.py`.
-  ```bash
-  python -m src.postprocessing.correlation_heatmap
-  ```
-- **`linguistic_analysis.py`** — 3 plots: source vs. translated sentence
-  length per model, lexical overlap across prompts/models, and overlap vs.
-  quality score. Reuses `add_structural_metrics` from `correlation_heatmap.py`.
-  ```bash
-  python -m src.postprocessing.linguistic_analysis
-  ```
-- **`human_llm_agreement.py`** — joins `data/alt_test/humans_annotations.json`
-  and `llm_annotations.json` with the interpretation text in
-  `data/model_outputs/` (no separate copy of this data is stored anywhere).
-  Computes Fleiss' Kappa among the 3 human annotators (reproduces 0.282
-  exactly), and plots model/prompt score comparisons, a human-vs-ChatGPT
-  scatter plot, and a confusion matrix (reproduces the documented 47
-  misclassified score-2 instances and the 67.1%/31.4% agreement rates on
-  Liquid/Nvidia exactly). Exposes `load_human_scores`, `load_llm_scores`,
-  `attach_interpretations`, and `build_comparison_table`, reused by
-  `extract_case_studies.py`.
-  ```bash
-  python -m src.postprocessing.human_llm_agreement
-  ```
-- **`extract_case_studies.py`** — using the same comparison table as
-  `human_llm_agreement.py`, saves every case where the human and ChatGPT
-  scores agree (`perfect_agreement_cases.csv`, reproduces 104/210 = 49.5%
-  exactly) and the top 10 cases where they disagree most
-  (`discrepancy_cases_for_discussion.csv`) for qualitative review.
-  ```bash
-  python -m src.postprocessing.extract_case_studies
-  ```
+### `src/postprocessing/` (interpretation pipeline)
+Everything that runs after generation + evaluation.
+`summarize_classifications.py`, `calculate_text_metrics.py` (BLEU/ROUGE/
+PINC/combined score), `create_manual_sample.py`, `run_alt_test.py`,
+`summarize_text_metrics.py`, `plot_text_metrics.py`,
+`significance_tests.py` (Kruskal-Wallis), `correlation_heatmap.py`,
+`linguistic_analysis.py`, `human_llm_agreement.py` (Fleiss' Kappa),
+`extract_case_studies.py`. See `docs/results.md` for what each produced.
 
 ### `src/tools/`
-Utility scripts that support the pipeline but aren't part of the research
-pipeline itself.
-- **`check_openrouter_limit.py`** — calls OpenRouter's `/api/v1/key`
-  endpoint with the configured API key and pretty-prints the current
-  usage/limit as JSON. Useful before a long generation/evaluation run to
-  confirm there's enough quota left.
-  ```bash
-  python -m src.tools.check_openrouter_limit
-  ```
+- **`check_openrouter_limit.py`** — prints current OpenRouter API
+  usage/quota; useful before a long run.
+
+### `src/classification/` (Stage B — detection)
+
+- **`run_experiment.py`** — single entry point:
+  `python -m src.classification.run_experiment --config configs/<name>.json`.
+  Reads a JSON config, dispatches to the right approach module by its
+  `approach_family` field.
+
+- **`data/`** — dataset construction, reused once by every approach:
+  - `build_canonical_dataset.py` — combines the 3 raw category files into
+    one canonical table.
+  - `audit_dataset.py` — data-quality report (never silently fixes/drops).
+  - `make_splits.py` — the one canonical train/dev/test split (see
+    `data/splits/` above).
+
+- **`classical/`** — M1:
+  - `tfidf_baseline.py` — TF-IDF vectorizer -> Logistic Regression
+    (Linear SVM also supported). Stage A's frozen baseline.
+
+- **`llm/`** — M2/M3/M4 (manual-prompt LLM approaches):
+  - `client.py` — client factory, `provider="openrouter"` or
+    `"local_hf"`.
+  - `local_client.py` — local Hugging Face Transformers inference
+    (`Qwen/Qwen3-4B-Instruct-2507`), built for Tesla M60 GPUs (no
+    bfloat16/FlashAttention2/vLLM support — plain fp16 `transformers`
+    generation).
+  - `few_shot_selection.py` — deterministic demo selection from TRAIN
+    only, given `(variant, n_shots, seed)`.
+  - `run_llm_classification.py` — zero-shot / few-shot / reasoning
+    classification: retried on failure, disk-cached, bounded concurrency.
+  - `schema.py` — structured-output parsing (every LLM response must
+    resolve to exactly one of the two canonical labels).
+
+- **`dspy_pipeline/`** — M5:
+  - `local_lm.py` — a `dspy.BaseLM` adapter that runs DSPy programs
+    against the local Qwen client, so DSPy uses the exact same model as
+    M2–M4 with no external server.
+  - `signatures.py` — the DSPy signature for sarcasm classification.
+  - `run_dspy.py` — `Predict` / `BootstrapFewShot` / `MIPROv2` variants.
+    TRAIN is used for optimization/bootstrapping, DEV is the optimizer's
+    validation metric, TEST is only ever touched once per frozen config.
+
+- **`transformer/`** — M6:
+  - `finetune.py` — fine-tunes a pretrained encoder
+    (`microsoft/deberta-v3-base`) via `transformers.Trainer`, with early
+    stopping on DEV Macro F1.
+
+- **`evaluation/`** — shared by every approach:
+  - `metrics.py` — `compute_metrics`: the single implementation of every
+    metric used for model selection and comparison.
+  - `io.py` — persists/loads one experiment's `results/<experiment_id>/`
+    artifacts.
+  - `error_analysis.py` — cross-model disagreement analysis: merges
+    multiple experiments' `predictions.csv` into one wide table, produces
+    pairwise disagreement subsets (e.g. "TF-IDF right, Qwen wrong").
+
+---
+
+## `tests/`
+
+Pytest suite (`pytest` from the repo root). Covers both pipelines:
+environment-variable validation, prompt loading, CLI `--help` for every
+script, text-metric functions, JSON parsing, the Alt-Test algorithm, NLI
+label-mapping, mocked API request/response handling (Gemini/OpenRouter/
+LLM-judge/quota-check), and the full classification pipeline (dataset
+construction, splitting, few-shot selection, metrics, error analysis, the
+LLM client/schema with a mocked model, and the local-HF client). Never
+calls a real API, never downloads a model, never needs a GPU.
 
 ---
 
@@ -415,14 +449,18 @@ pipeline itself.
 - **`.env`** — local secrets (`OPENROUTER_API_KEY`, `GEMINI_API_KEY`).
   Never committed (see `.gitignore`).
 - **`.gitignore`** — excludes `.env`, Python caches, virtual environments,
-  IDE folders, and `.DS_Store`.
-- **`README.md`** — quick-start overview: project goal, pipeline diagram,
-  folder structure, installation, and the recommended run order.
-- **`requirements.txt`** — pinned/bounded dependency versions. A few
-  ranges are deliberately capped rather than left open-ended, to avoid
-  known breakage (see comments in the file's git history / ask if a version
-  bump seems needed): `numpy<2.0.0` (binary compatibility with the pinned
-  `torch`), `transformers<5.0.0` (the 5.x line requires `torch>=2.4`, which
-  isn't available for every platform this project runs on), and
-  `cryptography` pinned to a known-stable range (a newer release had a
-  broken wheel on at least one team member's machine).
+  IDE folders, `.DS_Store`, `data/llm_cache/`, `models/`.
+- **`README.md`** — quick-start overview and installation.
+- **`PROJECT_SUMMARY.md`** — Stage B's full results, methodology, and
+  conclusions; the main deliverable for the detection phase.
+- **`EXPERIMENT_LOG.md`** — detailed, chronological, experiment-by-
+  experiment audit trail (exact commands, configs, results, and
+  infrastructure incidents) behind `PROJECT_SUMMARY.md`.
+- **`requirements.txt`** — base runtime dependencies (both pipelines).
+- **`requirements-classification.txt`** — additional dependencies needed
+  only for Stage B (`dspy`, `accelerate`, `sentencepiece`).
+- **`requirements-dev.txt`** — + testing dependencies (`pytest`,
+  `pytest-mock`).
+- **`environment_stage_b.txt`** — the exact pinned package versions
+  verified working on the Azure GPU VM (Python/CUDA/driver/`pip freeze`),
+  for reproducing the Stage B environment exactly.

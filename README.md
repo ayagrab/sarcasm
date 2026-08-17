@@ -44,19 +44,9 @@ what's only implemented, and what's blocked (currently: no
 `OPENROUTER_API_KEY`, `dspy` not installed, no GPU/model checkpoint
 downloaded yet).
 
-- No virtual-machine or GPU deployment scripts for either pipeline.
 - See `docs/project_history.md` for the full narrative of how the project
   arrived at this plan.
-
-### Web demo — `web/`
-
-A FastAPI + Next.js web app for the detection phase above: a Simple Mode
-(enter a sentence, get Sarcastic / Not Sarcastic) and a Research Mode
-(compare every implemented method side by side). It consumes the exact
-frozen inference configurations Stage B selects -- it never tunes a
-prompt/config against sentences typed into the UI. See `web/README.md`
-for architecture, setup, and how the production model is switched once
-Stage B freezes a final configuration.
+- Full results, methodology, and conclusions: see `PROJECT_SUMMARY.md`.
 
 ---
 
@@ -66,17 +56,25 @@ Stage B freezes a final configuration.
 sarcasm/
 |
 ├── config/          # project-wide settings and model-ID constants
+├── configs/         # one JSON config per Stage B experiment/method
 ├── data/            # datasets and result files (see docs/project_structure.md)
 ├── docs/            # documentation (see "Documentation" section below)
+├── logs/            # raw stdout logs from Stage B experiment runs
+├── models/          # trained checkpoints (gitignored -- not in version control)
 ├── prompts/         # every prompt template, as plain .txt files
+├── results/         # per-experiment metrics/predictions (Stage B)
+├── scripts/         # GPU-VM workflow: sync, verification, experiment chains
 ├── src/             # all Python code, one subfolder per pipeline stage (see src/README.md)
 ├── tests/           # pytest suite (no real API calls, no model downloads)
 ├── conftest.py      # makes `config`/`src` importable from tests/
 ├── .env.example     # template for your local .env (copy, then fill in)
 ├── .gitignore
-├── README.md        # this file
-├── requirements.txt        # runtime dependencies
-└── requirements-dev.txt    # + testing dependencies
+├── README.md               # this file
+├── PROJECT_SUMMARY.md      # full Stage B results, methodology, and conclusions
+├── EXPERIMENT_LOG.md       # detailed experiment-by-experiment audit trail
+├── requirements.txt              # runtime dependencies
+├── requirements-classification.txt  # + Stage B (classification) dependencies
+└── requirements-dev.txt          # + testing dependencies
 ```
 
 For a detailed, file-by-file explanation of every folder, see
@@ -86,15 +84,17 @@ For a detailed, file-by-file explanation of every folder, see
 
 | Document | What it covers |
 |---|---|
-| [`docs/pipeline.md`](docs/pipeline.md) | Technical, stage-by-stage map of the codebase and which stages need an API key or model download |
-| [`docs/methodology.md`](docs/methodology.md) | *How* the dataset, models, prompts, and evaluation methods were chosen |
-| [`docs/results.md`](docs/results.md) | *What was found*: metrics, Alt-Test outcome, significance tests, case studies |
-| [`docs/project_history.md`](docs/project_history.md) | Chronological, meeting-by-meeting narrative of the project's decisions |
+| [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | Stage B (sarcasm detection) full results, methodology, and conclusions -- the main deliverable |
+| [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) | Detailed, chronological experiment-by-experiment audit trail for Stage B |
+| [`docs/pipeline.md`](docs/pipeline.md) | Technical, stage-by-stage map of the interpretation pipeline and which stages need an API key or model download |
+| [`docs/methodology.md`](docs/methodology.md) | *How* the interpretation pipeline's dataset, models, prompts, and evaluation methods were chosen |
+| [`docs/results.md`](docs/results.md) | *What was found* in the interpretation pipeline: metrics, Alt-Test outcome, significance tests, case studies |
+| [`docs/project_history.md`](docs/project_history.md) | Chronological, meeting-by-meeting narrative of the project's decisions, including the pivot to sarcasm detection |
 | [`docs/alt_test_reference.md`](docs/alt_test_reference.md) | What the Alt-Test is, its source paper, and how it's used here |
-| [`docs/finetuning_plan.md`](docs/finetuning_plan.md) | The (not-yet-implemented) next phase: sarcasm-detection fine-tuning |
-| [`docs/project_structure.md`](docs/project_structure.md) | Every folder and file, explained |
+| [`docs/finetuning_plan.md`](docs/finetuning_plan.md) | The original sarcasm-detection fine-tuning plan -- superseded by the fuller Stage B comparison, kept for planning history |
+| [`docs/project_structure.md`](docs/project_structure.md) | Every folder and file in the repository, explained |
 | [`src/README.md`](src/README.md) | Same level of detail as `project_structure.md`, but scoped to the code in `src/` only |
-| [`docs/validation.md`](docs/validation.md) | What has been executed, mocked, or still needs real credentials/models |
+| [`docs/validation.md`](docs/validation.md) | What has been executed, mocked, or still needs real credentials/models (interpretation pipeline) |
 
 A note on presentations: the project's four supervisor-meeting slide decks
 (`.pptx` files) have been removed from the repository. Every piece of
@@ -352,10 +352,12 @@ this environment, and why (no real keys, no model download performed here).
 
 ## Future work
 
-- Sarcasm-detection phase (`src/classification/`, see `EXPERIMENT_LOG.md`):
-  infrastructure is built and the classical baseline is evaluated; the
-  LLM/DSPy/Transformer approaches are implemented but not yet executed
-  (see that file's "Blockers" and "Stage A Readiness Report").
-- Virtual-machine / GPU deployment for the above.
+The sarcasm-detection phase (`src/classification/`) is complete -- all six
+methods have sealed, one-shot TEST results, see `PROJECT_SUMMARY.md`. What
+remains open:
+
+- Multi-seed variance estimate for the winning fine-tuned model (M6).
+- Manual qualitative characterization of the examples every method gets
+  wrong (see `PROJECT_SUMMARY.md`, "Future work" for the full list).
 - Migrating off the deprecated `google-generativeai` package.
 - Additional test coverage (e.g. more end-to-end fixture pipelines).

@@ -33,8 +33,7 @@ rsync -av \
 # Trained checkpoints (M6/DeBERTa: models/<experiment_id>/best_checkpoint/)
 # -- gitignored (models/ is a binary artifact, not source), but still
 # pulled to the local Mac disk so it survives independently of /mnt even
-# without being committed. See web/README.md, "Where frozen artifacts are
-# expected" -- the web app's DeBERTa adapter reads from this same path.
+# without being committed.
 rsync -av \
   -e "ssh -i $SSH_KEY" \
   "$REMOTE_HOST:$REMOTE_PATH/models/" \

@@ -1,10 +1,10 @@
 """DSPy signature(s) for sarcasm classification.
 
-Requires the `dspy` package (see `requirements-classification.txt`) --
-**not installed in this environment** (see EXPERIMENT_LOG.md, Environment
-Audit). This module is importable either way; only `build_signature()`
+Requires the `dspy` package (see `requirements-classification.txt`).
+This module is importable either way; only `build_signature()`
 requires the real dependency, so the rest of `src/classification/` can be
-imported/tested without `dspy` present.
+imported/tested without `dspy` present (e.g. on a machine without the
+Stage B GPU environment installed).
 
 No `from __future__ import annotations` here deliberately: `SarcasmClassification`
 is defined inside `build_signature()`, a local scope, so its `Literal[...]`

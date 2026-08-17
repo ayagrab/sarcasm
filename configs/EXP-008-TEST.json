@@ -10,5 +10,5 @@
     "auto": "light"
   },
   "seed": 42,
-  "_note": "Phase 2 sealed-TEST evaluation of the frozen configs/dspy_mipro_v2.json config, once, per STAGE_B_CHECKLIST.md Phase 2. build_program() always recompiles from scratch -- there is no load-compiled-program path in the current code -- so this necessarily re-runs the full MIPROv2 optimization (using TRAIN + this eval_split as valset) rather than loading EXP-008 compiled_program.json directly. Same hyperparameters as the frozen DEV config."
+  "_note": "Phase 2 sealed-TEST evaluation of the frozen configs/dspy_mipro_v2.json config, once, per the project's Phase 2 TEST-sealing policy (see PROJECT_SUMMARY.md §3.1). build_program() always recompiles from scratch -- there is no load-compiled-program path in the current code -- so this necessarily re-runs the full MIPROv2 optimization (using TRAIN + this eval_split as valset) rather than loading EXP-008 compiled_program.json directly. Same hyperparameters as the frozen DEV config."
 }

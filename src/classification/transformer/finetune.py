@@ -5,12 +5,9 @@ learning rate, epochs, warmup, weight decay, seed, device, mixed
 precision. Uses `transformers.Trainer` with early stopping on dev Macro F1
 (the same primary metric used everywhere else in this project).
 
-**Not executed in Stage A**: no model checkpoint has been downloaded in
-this environment (empty Hugging Face cache, ~11 GiB free disk, no CUDA
-GPU -- see EXPERIMENT_LOG.md, Environment Audit). Implemented and
-structurally reviewed only; unit-tested with a mocked tokenizer/model
-(`tests/test_transformer_finetune_mocked.py`). Requires `accelerate`,
-not yet installed -- see `requirements-classification.txt`.
+Used for M6's full DEV training run (EXP-009, `microsoft/deberta-v3-base`)
+and its sealed-TEST evaluation (see `EXPERIMENT_LOG.md`). Requires
+`accelerate` and `sentencepiece` -- see `requirements-classification.txt`.
 """
 from __future__ import annotations
 

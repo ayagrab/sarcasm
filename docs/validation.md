@@ -1,8 +1,11 @@
 # Validation Report
 
-What has actually been run, mocked, or only statically reviewed in this
-repository cleanup pass -- described honestly, per component. This
-complements `README.md`'s quick-start instructions.
+What has actually been run, mocked, or only statically reviewed for the
+**interpretation pipeline** -- described honestly, per component. This
+complements `README.md`'s quick-start instructions. For the
+classification (Stage B) pipeline's validation, see its own test suite
+(`tests/test_classification_*.py`) and `PROJECT_SUMMARY.md`, which
+documents every method's real, executed results end to end.
 
 ## Verification levels used below
 
@@ -18,11 +21,11 @@ complements `README.md`'s quick-start instructions.
 | Component | Command(s) run | Verification level | Notes / remaining limitation |
 |---|---|---|---|
 | `src.preprocessing.clean_dataset` | `python -m src.preprocessing.clean_dataset` | Executed successfully | Ran against the real `data/raw/original_test_dataset.csv`; produces 265 unique sentences. |
-| `src.generation.generate_with_gemini` | `--help`; `generate_interpretations()` called directly with a mocked model against the real default input file | Executed with fixtures + CLI validated | Never called the real Gemini API in this session (no key available). Request construction and response/error handling verified via `tests/test_generation_mocked.py`. |
-| `src.generation.generate_with_openrouter` | same pattern as above | Executed with fixtures + CLI validated | Never called the real OpenRouter API in this session. |
-| `src.evaluation.evaluate_with_llm` | `--help`; `classify_batch`/`evaluate_file` exercised with a mocked OpenRouter client (success, markdown-fenced JSON, malformed JSON, wrong score count, out-of-range score, retry-then-succeed) | Validated with mocks | Never called the real judge model in this session. See `tests/test_evaluate_with_llm_mocked.py`. |
+| `src.generation.generate_with_gemini` | `--help`; `generate_interpretations()` called directly with a mocked model against the real default input file | Executed with fixtures + CLI validated | Never called the real Gemini API in this validation pass (no key available). Request construction and response/error handling verified via `tests/test_generation_mocked.py`. |
+| `src.generation.generate_with_openrouter` | same pattern as above | Executed with fixtures + CLI validated | Never called the real OpenRouter API in this validation pass. |
+| `src.evaluation.evaluate_with_llm` | `--help`; `classify_batch`/`evaluate_file` exercised with a mocked OpenRouter client (success, markdown-fenced JSON, malformed JSON, wrong score count, out-of-range score, retry-then-succeed) | Validated with mocks | Never called the real judge model in this validation pass. See `tests/test_evaluate_with_llm_mocked.py`. |
 | `src.evaluation.evaluate_with_nli` | `--help`; import check; entailment/contradiction label-mapping logic tested in isolation (`tests/test_nli_utils.py`) with mocked `id2label`/probabilities, including case-insensitive labels, reordered labels, generic `LABEL_0`-style placeholders (documented fallback), and unresolvable labels (raises a clear error) | CLI and import validated; label-mapping validated with mocks | The NLI model (`MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`) was **not downloaded or run** in this environment -- see "Real NLI validation" in `README.md` for how to do that yourself. |
-| `src.tools.check_openrouter_limit` | import check; `main()` exercised with a mocked `requests.get` (success and 401 auth failure) | Validated with mocks | Never called the real OpenRouter API in this session. |
+| `src.tools.check_openrouter_limit` | import check; `main()` exercised with a mocked `requests.get` (success and 401 auth failure) | Validated with mocks | Never called the real OpenRouter API in this validation pass. |
 | `src.postprocessing.summarize_classifications` | `python -m src.postprocessing.summarize_classifications` | Executed successfully | Ran against real `data/model_outputs/`; output inspected. |
 | `src.postprocessing.calculate_text_metrics` | run against a real experiment file; unit-tested on a tiny fixture | Executed successfully | |
 | `src.postprocessing.summarize_text_metrics` / `plot_text_metrics` | run against real `data/model_outputs/` | Executed successfully | Reproduces the same BLEU/ROUGE/PINC values (within floating-point noise) as the project's own prior analysis. |
@@ -36,7 +39,7 @@ complements `README.md`'s quick-start instructions.
 | `src.common.prompt_loader` | unit-tested against the real prompt files (read-only) | Executed successfully | No prompt content was modified while testing. |
 | `src.common.json_utils` | unit-tested | Executed successfully | Pure, deterministic function. |
 | `src.common.nli_utils` | unit-tested with mocked probabilities/labels | Executed successfully | See `evaluate_with_nli` row above -- this is the extracted, testable piece of that script's logic. |
-| `src.common.gemini_client` / `openrouter_client` | unit-tested for the missing-key error path | Validated with mocks | Never constructed a real client with a real key in this session. |
+| `src.common.gemini_client` / `openrouter_client` | unit-tested for the missing-key error path | Validated with mocks | Never constructed a real client with a real key in this validation pass. |
 | Full test suite | `pytest` | Executed successfully | 89 tests, all passing, no real API calls or model downloads. |
 
 ## What still requires real credentials

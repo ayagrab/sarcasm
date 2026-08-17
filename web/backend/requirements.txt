@@ -1,9 +1,0 @@
-# Web backend only. The adapters import the main project's classification
-# code directly (see app/__init__.py), so this project's own venv must
-# also have pandas/scikit-learn/transformers/torch installed (requirements.txt
-# + requirements-classification.txt at the repo root) -- this file adds
-# only what's specific to serving the API.
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-httpx>=0.27.0
-pytest>=7.4.0

@@ -24,15 +24,6 @@ with the recovery procedure becoming a proven, repeatable runbook (see
 survived because results/configs are committed to git immediately after
 each experiment finishes, never held only on the VM's ephemeral disk.
 
-**Web demo (`web/`):** a FastAPI + Next.js app (Simple Mode +
-Research/comparison Mode) that consumes this project's classification code
-through inference adapters — built and tested (backend: 17/17 tests
-passing, TF-IDF path exercised for real; frontend: builds cleanly, all
-three pages verified live against the backend). `results/frozen_configs.json`
-now exists, so all 6 methods report FROZEN to the app — two adapter code
-gaps (documented in `STAGE_B_CHECKLIST.md`) are the remaining work before
-the app serves every method's *actual* frozen configuration correctly.
-
 ## 1. Problem Definition
 
 Given a short English text (a forum post / tweet-length message), predict
@@ -163,9 +154,9 @@ tried** (see `EXPERIMENT_LOG.md`'s "PHASE 2 — Config freeze" entry for the
 full reasoning per method, e.g. M3's random-vs-curated comparison, M5's
 Predict-vs-BootstrapFewShot-vs-MIPROv2 comparison), then evaluated once on
 TEST — accuracy/cost tradeoffs (e.g. M5's ~2h29m TEST-run cost for
-MIPROv2 vs. a much cheaper `Predict` baseline) were explicitly not taken;
-the user chose to keep the DEV-best result for every method regardless of
-evaluation cost.
+MIPROv2 vs. a much cheaper `Predict` baseline) were explicitly not taken:
+the DEV-best result is kept for every method regardless of evaluation
+cost.
 
 ## 5. Evaluation Metrics
 
@@ -374,8 +365,7 @@ faster to run than any prompted-LLM approach (minutes vs. hours per full
 evaluation pass, no per-call API/GPU-generation cost at inference time
 beyond a single small-encoder forward pass), and the most balanced
 predictor (least sarcastic-over-prediction bias of any method, M1
-included). This is already reflected as `production_model = "deberta"` in
-`results/frozen_configs.json`, consumed by the web app's Simple Mode.
+included).
 
 If inference-time compute/latency budget is more constrained than
 accuracy requirements (e.g. no GPU available at all, CPU-only
@@ -395,8 +385,8 @@ prompted-LLM approach tried in this project.
   a lucky draw, though the margin over other methods makes this a
   low-priority confirmation rather than an open question.
 - **Confidence-based human-review routing** using M1/M6's calibrated
-  confidence scores (Section 8) — flag low-confidence predictions in the
-  web app rather than presenting every prediction with equal certainty.
+  confidence scores (Section 8) — flag low-confidence predictions for
+  human review rather than treating every prediction with equal certainty.
 - **Test whether the LLM-prompting findings generalize** to a different
   base model and/or modern GPU hardware (flash-attention, bfloat16) — the
   current LLM results are all specific to Qwen3-4B-Instruct-2507 on Tesla
@@ -406,9 +396,6 @@ prompted-LLM approach tried in this project.
 - **Category-specific (GEN/HYP/RQ) modeling** if HYP's persistently
   lower score (Section 7) across every method motivates a dedicated
   approach for hyperbole specifically.
-- **Wire up the web app's remaining two adapter gaps** (documented in
-  `STAGE_B_CHECKLIST.md`) so Research Mode serves every method's true
-  frozen configuration, not a placeholder/simplified variant.
 
 ## 13. Reproducing the Experiments
 

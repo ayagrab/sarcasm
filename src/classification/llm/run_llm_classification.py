@@ -6,16 +6,16 @@ disk (keyed by the exact request content, so a re-run after a transient
 failure doesn't re-spend API budget), and runs with bounded thread
 concurrency.
 
-**Not executed for real in this environment**: `OPENROUTER_API_KEY` is
-empty (see EXPERIMENT_LOG.md, BLOCKER-1). This module is implemented and
-unit-tested with a mocked client
-(`tests/test_llm_classification_mocked.py`), matching this repository's
+Used with `provider="local_hf"` for M2/M3/M4's real DEV/TEST runs (see
+`EXPERIMENT_LOG.md`); `provider="openrouter"` remains available as an
+optional secondary comparison. Unit-tested with a mocked client
+(`tests/test_classification_llm_mocked.py`), matching this repository's
 existing convention for API-backed code (see `tests/test_evaluate_with_llm_mocked.py`).
 
-Usage (once a real API key is set):
+Usage:
     python -m src.classification.llm.run_llm_classification \\
         --experiment-id EXP-002 --mode zero_shot --eval-split dev \\
-        --model openai/gpt-oss-20b:free --limit 20   # smoke test first
+        --model Qwen/Qwen3-4B-Instruct-2507 --provider local_hf --limit 20   # smoke test first
 """
 from __future__ import annotations
 

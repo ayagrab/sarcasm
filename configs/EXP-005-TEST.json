@@ -7,5 +7,5 @@
   "provider": "local_hf",
   "temperature": 0.0,
   "seed": 42,
-  "_note": "Phase 2 sealed-TEST evaluation of the frozen configs/llm_reasoning_qwen_local.json config, once, per STAGE_B_CHECKLIST.md Phase 2. Identical hyperparameters to the frozen DEV config, only eval_split and experiment_id differ."
+  "_note": "Phase 2 sealed-TEST evaluation of the frozen configs/llm_reasoning_qwen_local.json config, once, per the project's Phase 2 TEST-sealing policy (see PROJECT_SUMMARY.md §3.1). Identical hyperparameters to the frozen DEV config, only eval_split and experiment_id differ."
 }

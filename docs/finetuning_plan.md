@@ -1,5 +1,12 @@
 # Sarcasm Detection Fine-Tuning — Plan
 
+**Status: superseded.** This document is the original plan, first
+proposed at the project's fourth supervisor meeting (2026-07-16). It was
+superseded by a broader six-approach comparison (classical ML, LLM
+prompting, DSPy optimization, and fine-tuned Transformers) than the
+single BERT fine-tune scoped here -- see `PROJECT_SUMMARY.md` for what
+was actually built and its results. Kept as planning history.
+
 This document summarizes the next phase of the project, first proposed at
 the project's fourth supervisor meeting (2026-07-16) -- see
 `docs/project_history.md` for the full meeting-by-meeting record.
