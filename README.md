@@ -85,7 +85,7 @@ For a detailed, file-by-file explanation of every folder, see
 | Document | What it covers |
 |---|---|
 | [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | Stage B (sarcasm detection) full results, methodology, and conclusions -- the main deliverable |
-| [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) | Detailed, chronological experiment-by-experiment audit trail for Stage B |
+| [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) | Detailed technical record for Stage B, organized by method (M1-M6) |
 | [`docs/pipeline.md`](docs/pipeline.md) | Technical, stage-by-stage map of the interpretation pipeline and which stages need an API key or model download |
 | [`docs/methodology.md`](docs/methodology.md) | *How* the interpretation pipeline's dataset, models, prompts, and evaluation methods were chosen |
 | [`docs/results.md`](docs/results.md) | *What was found* in the interpretation pipeline: metrics, Alt-Test outcome, significance tests, case studies |

@@ -1,11 +1,10 @@
 # Sarcasm Detection — Project Summary
 
-Clean, cumulative, high-level document. For the operational/chronological
-detail (exact commands run, blockers, environment audit) see
-`EXPERIMENT_LOG.md`. This document is updated when meaningful conclusions
-are available; unmeasured results are marked `TBD`, never guessed.
+Clean, cumulative, high-level document. For the detailed technical record
+(exact commands run, environment audit, per-method debugging) see
+`EXPERIMENT_LOG.md`.
 
-**Status (2026-08-16, ~18:31 local VM time): Stage B is complete.** All 6
+**Status: Stage B is complete.** All 6
 approaches (M1–M6) have been developed on DEV, frozen to a single final
 configuration each, and evaluated exactly once on the sealed TEST split
 (1,340 examples, never touched before freezing). **Fine-tuned
@@ -37,8 +36,7 @@ repository's existing (and already-implemented) work, which is a *sarcasm
 interpretation/neutralization* benchmark (rewriting a known-sarcastic tweet
 into a sincere sentence, then judging the rewrite — see the repo's root
 `README.md`). That existing pipeline does not classify sarcasm; this phase
-does. See `EXPERIMENT_LOG.md` → "Relationship to the existing repository"
-for the full detail.
+does. See `EXPERIMENT_LOG.md`'s "Overview" section for the full detail.
 
 The goal here is not just to train one classifier, but to run a fair,
 reproducible comparison across fundamentally different approaches, and
@@ -66,7 +64,7 @@ and flagged rather than dropped (2 of the 8 rows land in TEST — see
 Section 8). No author/conversation/timestamp metadata exists in the raw
 files, so the only leakage vector identified is duplicate/near-duplicate
 text — handled via grouped splitting (below). Full detail:
-`EXPERIMENT_LOG.md` → "Dataset Information".
+`EXPERIMENT_LOG.md`'s "Dataset" section.
 
 ## 3. Experimental Methodology
 
@@ -150,8 +148,8 @@ All LLM approaches (M2–M5) use the same underlying base LLM
 M60s), to isolate the effect of prompting/optimization technique rather
 than measuring base-model differences. Every method's config above was
 selected as the **DEV-best candidate among the alternatives actually
-tried** (see `EXPERIMENT_LOG.md`'s "PHASE 2 — Config freeze" entry for the
-full reasoning per method, e.g. M3's random-vs-curated comparison, M5's
+tried** (see each method's section in `EXPERIMENT_LOG.md` for the
+full reasoning, e.g. M3's random-vs-curated comparison, M5's
 Predict-vs-BootstrapFewShot-vs-MIPROv2 comparison), then evaluated once on
 TEST — accuracy/cost tradeoffs (e.g. M5's ~2h29m TEST-run cost for
 MIPROv2 vs. a much cheaper `Predict` baseline) were explicitly not taken:
@@ -237,7 +235,7 @@ matters more than *demo count* for this task on this model.
 Full pairwise cross-model analysis on TEST predictions (all 6 frozen
 configs, `results/cross_model_test_analysis.csv`), mirroring the same
 analysis already done on DEV during development (see
-`EXPERIMENT_LOG.md`'s "Cross-model DEV analysis" entry) — every finding
+`EXPERIMENT_LOG.md`'s "Cross-Model Analysis" section) — every finding
 from DEV holds on TEST too, which is itself a finding (no DEV-only
 artifact):
 
@@ -290,7 +288,7 @@ artifact):
   per-example confidence score — LLM chat completions have none to
   report honestly):** both were reasonably well-calibrated on DEV
   (accuracy rises monotonically with predicted confidence; see
-  `EXPERIMENT_LOG.md`'s cross-model DEV analysis for the exact bins), with
+  `EXPERIMENT_LOG.md`'s Cross-Model Analysis section for the exact bins), with
   M6's confidence distribution far more concentrated at the top end. This
   is a directly usable signal for a future "flag low-confidence
   predictions for human review" feature (Section 12).
@@ -399,9 +397,9 @@ prompted-LLM approach tried in this project.
 
 ## 13. Reproducing the Experiments
 
-See `EXPERIMENT_LOG.md`'s Experiment Registry for the exact,
-currently-valid per-experiment commands and full audit trail. General
-shape:
+See `EXPERIMENT_LOG.md`'s per-method sections (M1 through M6) for the
+exact command and configuration used for every result in this document.
+General shape:
 
 ```bash
 # 0. Install dependencies (base + this phase's extras)
@@ -437,7 +435,7 @@ remains available as an alternative for a machine with no local GPU, but
 was not the path used to produce any result in this document. Transformer
 fine-tuning downloads `microsoft/deberta-v3-base` from Hugging Face on
 first run (needs a one-time `safetensors` conversion on this pinned
-`torch` version — see `EXPERIMENT_LOG.md`'s recovery entries for the exact
+`torch` version — see `EXPERIMENT_LOG.md`'s M6 section for the exact
 snippet if `use_safetensors=True` fails to load).
 
 Run the test suite (never calls a real API or downloads a model):

@@ -27,7 +27,7 @@ sarcasm/
 ├── conftest.py      # makes `config`/`src` importable from tests/
 ├── README.md
 ├── PROJECT_SUMMARY.md   # full Stage B results, methodology, conclusions
-├── EXPERIMENT_LOG.md    # detailed, chronological experiment audit trail
+├── EXPERIMENT_LOG.md    # detailed technical record, organized by method
 ├── requirements.txt
 ├── requirements-classification.txt
 └── requirements-dev.txt
@@ -453,9 +453,9 @@ calls a real API, never downloads a model, never needs a GPU.
 - **`README.md`** — quick-start overview and installation.
 - **`PROJECT_SUMMARY.md`** — Stage B's full results, methodology, and
   conclusions; the main deliverable for the detection phase.
-- **`EXPERIMENT_LOG.md`** — detailed, chronological, experiment-by-
-  experiment audit trail (exact commands, configs, results, and
-  infrastructure incidents) behind `PROJECT_SUMMARY.md`.
+- **`EXPERIMENT_LOG.md`** — detailed technical record behind
+  `PROJECT_SUMMARY.md`, organized by topic and method (M1-M6): exact
+  commands, configs, results, and infrastructure notes.
 - **`requirements.txt`** — base runtime dependencies (both pipelines).
 - **`requirements-classification.txt`** — additional dependencies needed
   only for Stage B (`dspy`, `accelerate`, `sentencepiece`).
