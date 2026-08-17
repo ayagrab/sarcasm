@@ -39,10 +39,8 @@ already-staged `data/raw/sarcasm_corpus_v2/`. This supersedes the
 BERT-only plan in `docs/finetuning_plan.md` with a broader comparison. It
 is deliberately kept separate from the interpretation pipeline above (own
 config, own prompts, own tests) — see `EXPERIMENT_LOG.md` and
-`PROJECT_SUMMARY.md` at the repo root for full detail: what's been run,
-what's only implemented, and what's blocked (currently: no
-`OPENROUTER_API_KEY`, `dspy` not installed, no GPU/model checkpoint
-downloaded yet).
+`PROJECT_SUMMARY.md` at the repo root for full detail. All six approaches
+have been run to completion and evaluated on a sealed test split.
 
 - See `docs/project_history.md` for the full narrative of how the project
   arrived at this plan.
@@ -70,7 +68,7 @@ sarcasm/
 ├── .env.example     # template for your local .env (copy, then fill in)
 ├── .gitignore
 ├── README.md               # this file
-├── PROJECT_SUMMARY.md      # full Stage B results, methodology, and conclusions
+├── PROJECT_SUMMARY.md      # full project results, methodology, and conclusions (both phases)
 ├── EXPERIMENT_LOG.md       # detailed experiment-by-experiment audit trail
 ├── requirements.txt              # runtime dependencies
 ├── requirements-classification.txt  # + Stage B (classification) dependencies
@@ -84,7 +82,7 @@ For a detailed, file-by-file explanation of every folder, see
 
 | Document | What it covers |
 |---|---|
-| [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | Stage B (sarcasm detection) full results, methodology, and conclusions -- the main deliverable |
+| [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | Full project results, methodology, and conclusions for *both* phases (interpretation and detection) -- the main deliverable |
 | [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) | Detailed technical record for Stage B, organized by method (M1-M6) |
 | [`docs/pipeline.md`](docs/pipeline.md) | Technical, stage-by-stage map of the interpretation pipeline and which stages need an API key or model download |
 | [`docs/methodology.md`](docs/methodology.md) | *How* the interpretation pipeline's dataset, models, prompts, and evaluation methods were chosen |

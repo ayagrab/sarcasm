@@ -26,7 +26,7 @@ sarcasm/
 ├── .gitignore
 ├── conftest.py      # makes `config`/`src` importable from tests/
 ├── README.md
-├── PROJECT_SUMMARY.md   # full Stage B results, methodology, conclusions
+├── PROJECT_SUMMARY.md   # full project results, methodology, conclusions (both phases)
 ├── EXPERIMENT_LOG.md    # detailed technical record, organized by method
 ├── requirements.txt
 ├── requirements-classification.txt
@@ -451,8 +451,9 @@ calls a real API, never downloads a model, never needs a GPU.
 - **`.gitignore`** — excludes `.env`, Python caches, virtual environments,
   IDE folders, `.DS_Store`, `data/llm_cache/`, `models/`.
 - **`README.md`** — quick-start overview and installation.
-- **`PROJECT_SUMMARY.md`** — Stage B's full results, methodology, and
-  conclusions; the main deliverable for the detection phase.
+- **`PROJECT_SUMMARY.md`** — the project's full results, methodology, and
+  conclusions for both phases (interpretation and detection); the main
+  deliverable.
 - **`EXPERIMENT_LOG.md`** — detailed technical record behind
   `PROJECT_SUMMARY.md`, organized by topic and method (M1-M6): exact
   commands, configs, results, and infrastructure notes.

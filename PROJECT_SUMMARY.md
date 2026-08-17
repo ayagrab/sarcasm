@@ -1,29 +1,176 @@
-# Sarcasm Detection — Project Summary
+# Sarcasm Project — Summary
 
-Clean, cumulative, high-level document. For the detailed technical record
-(exact commands run, environment audit, per-method debugging) see
-`EXPERIMENT_LOG.md`.
+Clean, cumulative, high-level document covering the **whole project**, in
+two parts:
 
-**Status: Stage B is complete.** All 6
-approaches (M1–M6) have been developed on DEV, frozen to a single final
-configuration each, and evaluated exactly once on the sealed TEST split
-(1,340 examples, never touched before freezing). **Fine-tuned
-`microsoft/deberta-v3-base` (M6) is the best approach by a wide margin —
-TEST Macro F1 0.8209** — outperforming every prompted-LLM approach (M2–M5,
-all in the 0.57–0.67 range) and the classical TF-IDF+LR baseline (M1,
-0.7403). Full results, methodology, and analysis below.
+- **Part I — Sarcasm Interpretation Benchmark:** given a sarcastic tweet,
+  have an LLM rewrite it as a sincere, non-sarcastic sentence, and
+  evaluate the rewrite automatically, by an LLM judge, and by human
+  annotators. The project's original scope, based on the SIGN paper.
+- **Part II — Sarcasm Detection:** given a short English text, predict
+  whether it is sarcastic at all. A new research direction started after
+  Part I repeatedly found that models often can't tell a sentence is
+  sarcastic in the first place, which no amount of rewriting-prompt
+  refinement can fix (see Part I's conclusions below).
 
-The VM was restarted **nine times** in total across this project's
-runtime (a mix of deliberate and unannounced/cause-unknown restarts),
-wiping the ephemeral `/mnt` disk every time — recovered fully every time,
-with the recovery procedure becoming a proven, repeatable runbook (see
-`EXPERIMENT_LOG.md`). The most costly incident was an unplanned outage
-~35 minutes into M5's final TEST run, which cost a full restart of that
-~2h+ optimization (no partial-checkpoint capability) — everything else
-survived because results/configs are committed to git immediately after
-each experiment finishes, never held only on the VM's ephemeral disk.
+Both parts are complete. For the detailed technical record behind Part
+II (exact commands run, environment audit, per-method debugging) see
+`EXPERIMENT_LOG.md`; behind Part I, see `docs/methodology.md`,
+`docs/results.md`, and `docs/project_history.md`.
 
-## 1. Problem Definition
+---
+
+## Part I — Sarcasm Interpretation Benchmark
+
+### Problem and approach
+
+Given a sarcastic tweet, generate a sincere rewrite that preserves its
+intended (non-sarcastic) meaning, then determine how well that rewrite
+actually captures the meaning — automatically, by an LLM judge, and by
+human annotators — and whether an LLM judge can validly substitute for
+human annotators on this task.
+
+### Dataset
+
+The project starts from the SIGN paper's original test data: sarcastic
+tweets only (the reference/result column is removed), deduplicated to
+`data/processed/clean_sarcastic_sentences.csv`
+(`python -m src.preprocessing.clean_dataset`).
+
+### Methodology
+
+- **Model selection.** Five candidate generator models were surveyed
+  first (Gemini 2.5 Flash Lite, Baidu Qianfan OCR FastFree, Liquid LFM
+  2.5-1.2B Thinking, Nvidia Nemotron Nano 9B v2, OpenAI GPT-OSS 20B); the
+  project settled on three for the main pipeline — **Gemini 2.5 Flash
+  Lite**, **Nvidia Nemotron Nano 9B v2**, and **Liquid LFM 2.5-1.2B
+  Thinking** (the other two were survey-only).
+- **Generation prompts.** Each model receives the same sarcastic tweet
+  under 4 prompt versions (`prompts/generation/`): plain instruction (1),
+  "translate the true meaning" (2), added formatting/grammar constraints
+  (3), and few-shot with 3 worked examples (4) — run via
+  `src.generation.generate_with_gemini` / `generate_with_openrouter`.
+- **Evaluation methods, three independent ones:**
+  - *Automatic text-overlap metrics* — BLEU, ROUGE-1/2, PINC (novelty:
+    fraction of interpretation words not in the source), and a combined
+    score `PINC * sigmoid(BLEU)` (`src.postprocessing.calculate_text_metrics`).
+  - *LLM judge* (primary) — an independent judge model (OpenAI GPT-OSS
+    20B via OpenRouter) scores each interpretation 1 (incorrect), 2
+    (partially correct), or 3 (correct) (`src.evaluation.evaluate_with_llm`).
+  - *NLI evaluation* (experimental alternative) — treats the sarcastic
+    sentence as premise and the interpretation as hypothesis, checking
+    whether an NLI model predicts entailment more strongly than
+    contradiction (`src.evaluation.evaluate_with_nli`).
+- **Human validation.** Three team members independently scored a random
+  sample of 70 tweets across all 4 prompts and all 3 models, using the
+  same 1-3 scale as the LLM judge, to compare human judgment against the
+  automated judge directly.
+- **Alt-Test** (Calderon, Reichart & Dror, 2025 — `docs/alt_test_reference.md`):
+  a statistical procedure for justifying the use of an LLM annotator in
+  place of human annotators, via a leave-one-out comparison against the
+  remaining human annotators. Reports a **Winning Rate** (fraction of
+  human annotators the LLM out-performs, passes if ≥ 0.5) and an
+  **Advantage Probability** (estimated probability the LLM is at least as
+  good as a random human annotator), at a chosen cost-benefit tolerance
+  **epsilon** (this project used 0.2, appropriate for expert-level human
+  annotators).
+- **Further statistical analysis:** Fleiss' Kappa (inter-rater agreement
+  among the 3 human annotators), Kruskal-Wallis (whether prompt/model
+  choice significantly affects the LLM-judge score), Spearman correlation
+  (whether structural features like length/overlap predict quality), and
+  qualitative case studies of the clearest agreement/disagreement cases.
+
+### Results
+
+**Automatic metrics (initial 5-model survey):**
+
+| Model | BLEU | ROUGE-1 | ROUGE-2 | PINC | Combined |
+|---|---:|---:|---:|---:|---:|
+| Gemini 2.5 Flash Lite | 4.25 | 29.20 | 11.17 | 74.62 | 38.10 |
+| Baidu Qianfan OCR FastFree | 6.14 | 37.65 | 17.14 | 73.76 | 38.01 |
+| Liquid LFM 2.5-1.2B Thinking | 1.14 | 10.57 | 2.40 | 89.08 | 44.79 |
+| Nvidia Nemotron Nano 9B v2 | 5.47 | 34.52 | 14.11 | 72.94 | 37.47 |
+| OpenAI GPT-OSS 20B | 6.64 | 38.88 | 17.20 | 67.02 | 34.62 |
+
+Liquid showed the highest novelty (PINC) but the weakest meaning
+preservation; GPT-OSS preserved source structure best but was the least
+creative. Automatic metrics alone were not considered sufficient,
+motivating the LLM-judge evaluation.
+
+**Prompt sensitivity** (LLM-judge scores, 1-3 scale, 265 tweets/model/prompt):
+Prompt 2 ("translate the true meaning") was the most effective for human
+annotators; Prompt 3 (added formatting constraints) was consistently the
+worst. Nvidia led human-rated quality (~2.25 average with Prompt 4),
+Gemini a close second, Liquid a distant last (~1.3). Both prompt and
+model choice have a statistically decisive effect on quality
+(Kruskal-Wallis: prompt statistic=156.699, p=9.4496e-34; model
+statistic=328.303, p=5.1281e-72).
+
+**Per-model rewriting strategies:** Gemini does "explanatory expansion"
+(lengthens the sentence, spells out the sarcasm explicitly); Nvidia does
+"stable precision" (keeps length close to the source, most consistent);
+Liquid does "unstable reduction" (drastically shortens sentences with
+high variance, near-zero lexical overlap with the source) — which
+explains its low human quality scores. High-quality translations tend to
+keep moderate-to-high word overlap with the source; structural features
+overall correlate only weakly with quality score (Spearman, mostly
+r < 0.5) — sarcasm interpretation quality is not explainable by simple
+structural rules.
+
+**Alt-Test: can the LLM judge replace human annotators?**
+**Winning Rate 0.67, Advantage Probability 0.77 at epsilon=0.2 — PASSED**
+(3 instances dropped for having fewer than 2 human annotators).
+
+**Human vs. LLM-judge agreement:**
+
+- **Fleiss' Kappa among the 3 human annotators: 0.282** ("fair
+  agreement") — sarcasm-translation quality is genuinely subjective even
+  for human experts, motivating the Alt-Test's epsilon tolerance above.
+- **Agreement rate (rounded human score == LLM-judge score) by model:**
+  Liquid 67.1%, Gemini 50.0%, Nvidia 31.4% — easier to agree on an
+  outright failure (Liquid) than on nuanced, high-quality output (Nvidia):
+  as quality goes up, the automated judge's reliability goes down.
+- The LLM judge correctly identifies 61/77 score-1 instances but
+  misclassifies 47 instances humans scored 2 (partially correct) as a
+  complete failure, almost never using the middle score itself. It
+  matches the rounded human score in only 104/210 (49.5%) of cases
+  overall — showing both *semantic rigidity* (creative, high-quality
+  paraphrases scored 1.0 by the LLM but 3.0 by humans, for not matching a
+  rigid expected template) and a *fluency bias* (Liquid's fluent-sounding
+  but semantically wrong translations sometimes fooled the LLM into a 3.0
+  while humans scored them 1.0).
+
+**Qualitative case studies:** a safety-filter failure (Gemini refused to
+translate a tweet containing mild profanity outright; Nvidia successfully
+rephrased the same tweet and was rated well by humans); a
+political-correctness bias (both Gemini and Nvidia "lectured" the reader
+instead of neutrally translating a sarcastic tweet about racism, and were
+penalized by human scorers); and a world-knowledge bottleneck (a tweet
+referencing a real-world event was misread literally by all 3 models,
+since none had the cultural context — human annotators themselves split
+on how to score it).
+
+### Conclusions and the pivot to detection
+
+The Alt-Test result (Winning Rate 0.67, Advantage Probability 0.77)
+validates using an LLM judge in place of human annotators for this task,
+at the chosen tolerance — a methodologically load-bearing result, since
+every downstream prompt/model comparison in this part of the project
+relies on the LLM judge's scores. But across the case studies and error
+analysis, one failure mode recurred more than any other: **models often
+couldn't tell a sentence was sarcastic in the first place, even when told
+explicitly** — refining the rewriting prompt further doesn't fix a
+misread of the input. This "detection is a prerequisite for
+interpretation" finding directly motivated the project's second phase:
+**shift focus from neutralization to detection**, treating sarcasm
+detection as a dedicated pre-processing filter to build and evaluate in
+its own right, rather than assuming it away. See Part II below.
+
+---
+
+## Part II — Sarcasm Detection (6-Method Comparison)
+
+### 1. Problem Definition
 
 Given a short English text (a forum post / tweet-length message), predict
 whether it is:
@@ -444,3 +591,41 @@ Run the test suite (never calls a real API or downloads a model):
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
+
+Reproducing Part I: see `README.md`'s "Running the pipeline" section and
+`docs/validation.md` for exactly what has been executed and what still
+needs real credentials or a model download to confirm.
+
+---
+
+## Overall Project Conclusions
+
+Read together, the two parts tell one coherent story: Part I established
+that an LLM judge can validly stand in for human annotators on a subtle,
+subjective NLP task (Alt-Test, Winning Rate 0.67) — but also surfaced,
+repeatedly, that the bottleneck in sarcastic-text processing isn't
+generating a good rewrite, it's recognizing sarcasm in the first place.
+Part II answered that question directly: a small model *trained* on
+labeled examples (fine-tuned DeBERTa-v3-base, 0.82 Macro F1) detects
+sarcasm far more reliably than *prompting* a much larger general-purpose
+LLM (0.58–0.67 Macro F1), which — across every prompting strategy tried —
+shares a systematic bias toward over-predicting "sarcastic." Both
+findings point the same direction: for this task, a model specifically
+adapted to labeled, in-domain data outperforms a general-purpose model
+used zero/few-shot, whether the task is judging quality (Part I) or
+detecting sarcasm itself (Part II).
+
+## Documentation Map
+
+| Document | Covers |
+|---|---|
+| `README.md` | Quick-start overview, installation, and how to run Part I |
+| `docs/methodology.md` | Part I: how the dataset, models, prompts, and evaluation were chosen |
+| `docs/results.md` | Part I: full results — metrics, Alt-Test, significance tests, case studies |
+| `docs/alt_test_reference.md` | The Alt-Test method itself, its source paper, and how it's used here |
+| `docs/validation.md` | Part I: what has been executed, mocked, or statically reviewed |
+| `docs/project_history.md` | The project's full meeting-by-meeting narrative, including the Part I → Part II pivot |
+| `docs/finetuning_plan.md` | The original Part II plan (superseded by the broader 6-method comparison actually built) |
+| `docs/project_structure.md` | Every file and folder in the repository, explained |
+| `EXPERIMENT_LOG.md` | Part II: the detailed technical record behind this document |
+| `docs/pipeline.md` | Part I: technical, stage-by-stage map of the codebase |
