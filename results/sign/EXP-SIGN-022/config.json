@@ -1,0 +1,8 @@
+{
+  "experiment_id": "EXP-SIGN-022",
+  "approach": "M1_tfidf_logreg_domain_adaptation_condition_C",
+  "condition": "C: SIGN Train primary only",
+  "train_data": "SIGN Train primary only (n=4584, original+interp#1, Phase 7) -- Dataset A never seen during fit",
+  "eval_data": "SIGN Test (all roles) + Dataset A TEST (forgetting check)",
+  "seed": 42
+}

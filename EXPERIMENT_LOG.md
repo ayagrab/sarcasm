@@ -1233,6 +1233,26 @@ scripts to apply, not pre-applied here. 8 new tests
 is next — the first phase that actually trains on SIGN data.** M6's two
 conditions (Dataset A + SIGN Train; SIGN Train only) need the VM.
 
+**Phase 8, M1 leg (2026-08-20, COMPLETE, local).** Condition B (Dataset A
+TRAIN + SIGN Train primary, combined fit) beats condition C (SIGN Train
+primary only) on SIGN Test Macro F1 (0.5861 vs. 0.5829, essentially tied)
+while completely avoiding C's catastrophic forgetting of Dataset A
+(Dataset A TEST Macro F1: B 0.7477 vs. C 0.4527, vs. 0.7403
+zero-transfer baseline) — **condition B is the clear winning M1 adapted
+model**. Post-adaptation error diff (A→B, not just the Macro F1 delta):
+13 originals fixed, 41 still missed, **26 newly broken** (net -13, Task A
+detection 79.6%→74.7%) vs. 563 interpretation false positives fixed, 31
+newly broken (Task B's dominant gain). **Real trade-off, invisible in the
+headline Macro F1**: adaptation trades a bit of raw sarcasm recall for a
+much less trigger-happy interpretation classifier.
+
+Artifacts: `results/sign/EXP-SIGN-021/` (B), `EXP-SIGN-022/` (C),
+`results/sign/error_analysis/post_adaptation_diff_M1.json`. 4 new tests,
+221/221 project tests passing.
+
+**M6's leg of Phase 8 needs the VM — waiting for confirmation it's on
+before running conditions B/C.**
+
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
 treated as each family's primary/best human reference**, not
