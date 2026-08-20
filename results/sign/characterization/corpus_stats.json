@@ -1,0 +1,650 @@
+{
+  "class_structure": {
+    "Dataset A": {
+      "not_sarcastic": 4693,
+      "sarcastic": 4693
+    },
+    "SIGN originals": {
+      "sarcastic": 2827
+    },
+    "SIGN interpretations": {
+      "not_sarcastic": 14970
+    },
+    "note": "SIGN originals are ALL sarcastic by construction (n=2827); SIGN interpretations are ALL not_sarcastic by construction (n=14970). SIGN is never a 15,000-example balanced/independent sarcastic set -- see SIGN_GENERALIZATION_PLAN.md section 1."
+  },
+  "corpus_stats": {
+    "Dataset A": {
+      "n_examples": 9386,
+      "char_length": {
+        "mean": 276.7728531855956,
+        "median": 219.0,
+        "std": 195.1674973494034,
+        "min": 38,
+        "max": 1312
+      },
+      "word_length": {
+        "mean": 48.68538248455146,
+        "median": 38.0,
+        "std": 34.10872011529852,
+        "min": 10,
+        "max": 150
+      },
+      "vocabulary": {
+        "vocab_size": 23899,
+        "total_word_tokens": 466726,
+        "type_token_ratio_sampled": 0.08797934713712233,
+        "ttr_sample_size": 3000
+      },
+      "top_unigrams": [
+        [
+          "n't",
+          4741
+        ],
+        [
+          "'s",
+          3333
+        ],
+        [
+          "about",
+          1798
+        ],
+        [
+          "people",
+          1654
+        ],
+        [
+          "one",
+          1608
+        ],
+        [
+          "from",
+          1479
+        ],
+        [
+          "think",
+          1335
+        ],
+        [
+          "like",
+          1290
+        ],
+        [
+          "me",
+          1279
+        ],
+        [
+          "know",
+          1272
+        ],
+        [
+          "more",
+          1187
+        ],
+        [
+          "because",
+          1173
+        ],
+        [
+          "then",
+          1133
+        ],
+        [
+          "them",
+          1066
+        ],
+        [
+          "'m",
+          1052
+        ],
+        [
+          "god",
+          1010
+        ],
+        [
+          "out",
+          1003
+        ],
+        [
+          "right",
+          983
+        ],
+        [
+          "any",
+          965
+        ],
+        [
+          "some",
+          940
+        ]
+      ],
+      "top_bigrams": [
+        [
+          "ca n't",
+          514
+        ],
+        [
+          "n't know",
+          253
+        ],
+        [
+          "'m surprised",
+          185
+        ],
+        [
+          "talking about",
+          182
+        ],
+        [
+          "more than",
+          171
+        ],
+        [
+          "n't think",
+          169
+        ],
+        [
+          "n't even",
+          128
+        ],
+        [
+          "wo n't",
+          126
+        ],
+        [
+          "'m sure",
+          119
+        ],
+        [
+          "let 's",
+          117
+        ],
+        [
+          "n't get",
+          105
+        ],
+        [
+          "n't want",
+          104
+        ],
+        [
+          "tell me",
+          102
+        ],
+        [
+          "n't make",
+          101
+        ],
+        [
+          "oh yeah",
+          101
+        ],
+        [
+          "gun control",
+          97
+        ],
+        [
+          "n't mean",
+          95
+        ],
+        [
+          "gay marriage",
+          92
+        ],
+        [
+          "n't see",
+          91
+        ],
+        [
+          "rather than",
+          87
+        ]
+      ],
+      "punctuation_and_case": {
+        "question_mark_rate": 0.4889196675900277,
+        "exclamation_mark_rate": 0.1214574898785425,
+        "any_punctuation_rate": 0.9960579586618368,
+        "ellipsis_rate": 0.14457702961858088,
+        "quote_rate": 0.13754528020455997,
+        "any_uppercase_char_rate": 0.7558065203494566,
+        "any_fully_uppercase_word_rate": 0.1810142765821436,
+        "mean_uppercase_char_fraction": 0.022670630830901532
+      },
+      "duplicates": {
+        "n_total": 9386,
+        "n_unique_exact": 9218,
+        "exact_duplicate_rate": 0.017898998508416808,
+        "n_unique_normalized": 9087,
+        "near_duplicate_rate": 0.03185595567867039
+      },
+      "sentiment": {
+        "compound_mean": 0.0168633,
+        "compound_std": 0.5958805305146604,
+        "frac_positive_gt_0.3": 0.3725,
+        "frac_negative_lt_neg0.3": 0.344,
+        "sample_size": 2000
+      }
+    },
+    "SIGN originals": {
+      "n_examples": 2827,
+      "char_length": {
+        "mean": 71.10788822072868,
+        "median": 67.0,
+        "std": 33.655482019352306,
+        "min": 4,
+        "max": 135
+      },
+      "word_length": {
+        "mean": 13.892111779271312,
+        "median": 13.0,
+        "std": 6.632025020416906,
+        "min": 1,
+        "max": 31
+      },
+      "vocabulary": {
+        "vocab_size": 6518,
+        "total_word_tokens": 39522,
+        "type_token_ratio_sampled": 0.16492080360305653,
+        "ttr_sample_size": 2827
+      },
+      "top_unigrams": [
+        [
+          "'s",
+          399
+        ],
+        [
+          "n't",
+          381
+        ],
+        [
+          "love",
+          304
+        ],
+        [
+          "me",
+          301
+        ],
+        [
+          "'m",
+          221
+        ],
+        [
+          "like",
+          193
+        ],
+        [
+          "great",
+          182
+        ],
+        [
+          "people",
+          174
+        ],
+        [
+          "up",
+          160
+        ],
+        [
+          "day",
+          149
+        ],
+        [
+          "out",
+          136
+        ],
+        [
+          "get",
+          131
+        ],
+        [
+          "good",
+          129
+        ],
+        [
+          "today",
+          125
+        ],
+        [
+          "about",
+          120
+        ],
+        [
+          "really",
+          116
+        ],
+        [
+          "oh",
+          106
+        ],
+        [
+          "know",
+          105
+        ],
+        [
+          "time",
+          103
+        ],
+        [
+          "work",
+          101
+        ]
+      ],
+      "top_bigrams": [
+        [
+          "ca n't",
+          96
+        ],
+        [
+          "n't wait",
+          46
+        ],
+        [
+          "gon na",
+          28
+        ],
+        [
+          "got ta",
+          26
+        ],
+        [
+          "love people",
+          23
+        ],
+        [
+          "'m glad",
+          23
+        ],
+        [
+          "right now",
+          20
+        ],
+        [
+          "much fun",
+          20
+        ],
+        [
+          "me feel",
+          18
+        ],
+        [
+          "n't know",
+          17
+        ],
+        [
+          "n't get",
+          17
+        ],
+        [
+          "makes me",
+          17
+        ],
+        [
+          "great day",
+          17
+        ],
+        [
+          "great way",
+          16
+        ],
+        [
+          "getting better",
+          15
+        ],
+        [
+          "good thing",
+          15
+        ],
+        [
+          "'s great",
+          14
+        ],
+        [
+          "wan na",
+          14
+        ],
+        [
+          "wake up",
+          13
+        ],
+        [
+          "better than",
+          13
+        ]
+      ],
+      "punctuation_and_case": {
+        "question_mark_rate": 0.11956137247966042,
+        "exclamation_mark_rate": 0.00035373187124159886,
+        "any_punctuation_rate": 0.11991510435090201,
+        "ellipsis_rate": 0.0,
+        "quote_rate": 0.0,
+        "any_uppercase_char_rate": 0.002476123098691192,
+        "any_fully_uppercase_word_rate": 0.0,
+        "mean_uppercase_char_fraction": 4.9264325356323387e-05
+      },
+      "duplicates": {
+        "n_total": 2827,
+        "n_unique_exact": 2825,
+        "exact_duplicate_rate": 0.0007074637424832053,
+        "n_unique_normalized": 2825,
+        "near_duplicate_rate": 0.0007074637424832053
+      },
+      "sentiment": {
+        "compound_mean": 0.27062425,
+        "compound_std": 0.44695462316047224,
+        "frac_positive_gt_0.3": 0.571,
+        "frac_negative_lt_neg0.3": 0.138,
+        "sample_size": 2000
+      }
+    },
+    "SIGN interpretations": {
+      "n_examples": 14970,
+      "char_length": {
+        "mean": 58.9251169004676,
+        "median": 51.0,
+        "std": 32.219401858284805,
+        "min": 4,
+        "max": 231
+      },
+      "word_length": {
+        "mean": 11.577621910487641,
+        "median": 10.0,
+        "std": 6.328886169221486,
+        "min": 1,
+        "max": 46
+      },
+      "vocabulary": {
+        "vocab_size": 8399,
+        "total_word_tokens": 175394,
+        "type_token_ratio_sampled": 0.144390243902439,
+        "ttr_sample_size": 3000
+      },
+      "top_unigrams": [
+        [
+          "n't",
+          2058
+        ],
+        [
+          "hate",
+          1595
+        ],
+        [
+          "'s",
+          1509
+        ],
+        [
+          "me",
+          1274
+        ],
+        [
+          "people",
+          1039
+        ],
+        [
+          "'m",
+          1008
+        ],
+        [
+          "like",
+          855
+        ],
+        [
+          "bad",
+          807
+        ],
+        [
+          "day",
+          696
+        ],
+        [
+          "up",
+          669
+        ],
+        [
+          "about",
+          644
+        ],
+        [
+          "out",
+          553
+        ],
+        [
+          "get",
+          551
+        ],
+        [
+          "today",
+          533
+        ],
+        [
+          "going",
+          491
+        ],
+        [
+          "work",
+          467
+        ],
+        [
+          "time",
+          454
+        ],
+        [
+          "t",
+          442
+        ],
+        [
+          "from",
+          432
+        ],
+        [
+          "more",
+          391
+        ]
+      ],
+      "top_bigrams": [
+        [
+          "don t",
+          216
+        ],
+        [
+          "ca n't",
+          214
+        ],
+        [
+          "n't like",
+          198
+        ],
+        [
+          "n't want",
+          128
+        ],
+        [
+          "hate people",
+          126
+        ],
+        [
+          "n't care",
+          102
+        ],
+        [
+          "looking forward",
+          97
+        ],
+        [
+          "gon na",
+          92
+        ],
+        [
+          "right now",
+          78
+        ],
+        [
+          "me feel",
+          78
+        ],
+        [
+          "wo n't",
+          73
+        ],
+        [
+          "n't know",
+          72
+        ],
+        [
+          "people n't",
+          72
+        ],
+        [
+          "makes me",
+          71
+        ],
+        [
+          "bad day",
+          69
+        ],
+        [
+          "care about",
+          67
+        ],
+        [
+          "n't get",
+          66
+        ],
+        [
+          "wake up",
+          65
+        ],
+        [
+          "social media",
+          62
+        ],
+        [
+          "didn t",
+          59
+        ]
+      ],
+      "punctuation_and_case": {
+        "question_mark_rate": 0.06432865731462926,
+        "exclamation_mark_rate": 0.0001336005344021376,
+        "any_punctuation_rate": 0.0644622578490314,
+        "ellipsis_rate": 0.0,
+        "quote_rate": 0.0,
+        "any_uppercase_char_rate": 0.0010688042752171009,
+        "any_fully_uppercase_word_rate": 0.0,
+        "mean_uppercase_char_fraction": 1.983898532461431e-05
+      },
+      "duplicates": {
+        "n_total": 14970,
+        "n_unique_exact": 12388,
+        "exact_duplicate_rate": 0.1724782899131596,
+        "n_unique_normalized": 12388,
+        "near_duplicate_rate": 0.1724782899131596
+      },
+      "sentiment": {
+        "compound_mean": -0.17036590000000001,
+        "compound_std": 0.4252767288428061,
+        "frac_positive_gt_0.3": 0.168,
+        "frac_negative_lt_neg0.3": 0.454,
+        "sample_size": 2000
+      }
+    }
+  }
+}

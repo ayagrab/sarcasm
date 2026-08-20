@@ -1,0 +1,14 @@
+{
+  "experiment_id": "EXP-SIGN-001",
+  "approach": "dataset_origin_diagnostic",
+  "normalize_text": false,
+  "seed": 42,
+  "n_train": 20998,
+  "n_test": 3075,
+  "n_train_dataset_a": 6706,
+  "n_train_sign": 14292,
+  "n_test_dataset_a": 1340,
+  "n_test_sign": 1735,
+  "vectorizer": "tfidf word(1,2) + char_wb(3,5), matches M1/EXP-001",
+  "classifier": "LogisticRegression(class_weight='balanced')"
+}

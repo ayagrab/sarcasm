@@ -615,6 +615,30 @@ adapted to labeled, in-domain data outperforms a general-purpose model
 used zero/few-shot, whether the task is judging quality (Part I) or
 detecting sarcasm itself (Part II).
 
+---
+
+## Part III — SIGN Generalization (new phase, in progress)
+
+A third, additive phase — **not yet started as of 2026-08-20, currently
+in planning** — investigates how well Part II's six frozen classifiers
+generalize beyond Dataset A to the structurally different **SIGN**
+dataset (3,000 sarcastic tweets, each with 5 independent human
+non-sarcastic interpretations — the same corpus Part I drew its
+sarcastic-only source sentences from, here used in full for the first
+time, including the interpretations). It asks: how different are the two
+datasets; do Dataset-A classifiers transfer zero-shot; how much SIGN
+training data (respecting tweet-family structure, never leaking a
+family across train/eval) is needed to adapt; and whether more human
+interpretations per tweet help. Full roadmap, current status, phase-by-
+phase checklist, and (as they're produced) results:
+**[`SIGN_GENERALIZATION_PLAN.md`](SIGN_GENERALIZATION_PLAN.md)**.
+
+This phase is strictly additive: Part II's frozen configs, predictions,
+metrics, and the `EXP-00#` experiment IDs are read-only inputs here,
+never modified. New experiments use a distinct `EXP-SIGN-###` ID
+namespace and a separate `results/sign/` artifact tree, so the two
+studies never collide in this repository's history.
+
 ## Documentation Map
 
 | Document | Covers |
@@ -627,5 +651,6 @@ detecting sarcasm itself (Part II).
 | `docs/project_history.md` | The project's full meeting-by-meeting narrative, including the Part I → Part II pivot |
 | `docs/finetuning_plan.md` | The original Part II plan (superseded by the broader 6-method comparison actually built) |
 | `docs/project_structure.md` | Every file and folder in the repository, explained |
-| `EXPERIMENT_LOG.md` | Part II: the detailed technical record behind this document |
+| `EXPERIMENT_LOG.md` | Part II (+ Part III as it proceeds): the detailed technical record behind this document |
 | `docs/pipeline.md` | Part I: technical, stage-by-stage map of the codebase |
+| `SIGN_GENERALIZATION_PLAN.md` | Part III: master roadmap, live status, phase-by-phase results for the SIGN generalization phase |

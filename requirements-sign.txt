@@ -1,0 +1,16 @@
+# Extra dependencies for Part III (SIGN generalization phase,
+# src/sign/), on top of requirements.txt + requirements-classification.txt
+# (already has pandas, scikit-learn, transformers, torch, nltk, etc. --
+# reused as-is). Kept as its own file, not merged into
+# requirements-classification.txt, so Part II's dependency set stays
+# exactly what it was when Part II was frozen.
+# Install alongside the base + classification requirements:
+#   pip install -r requirements.txt -r requirements-classification.txt -r requirements-sign.txt
+
+# Sentence embeddings for Phase 2 dataset characterization
+# (src/sign/characterization/embeddings.py).
+sentence-transformers>=3.0.0
+
+# UMAP projection alongside PCA in Phase 2 (optional -- embeddings.py
+# falls back to PCA-only if this import fails).
+umap-learn>=0.5.0

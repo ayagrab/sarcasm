@@ -1023,3 +1023,77 @@ consuming the exact frozen inference configurations above through a
 small adapter layer. It was ultimately excluded from the final submission
 to keep scope focused on the research pipeline itself; the classification
 code and results it consumed are unaffected.
+
+---
+
+## Part III — SIGN Generalization (new phase)
+
+**Status (2026-08-20): Phase 0 (audit/planning) and Phase 1 (foundation)
+complete.** Master roadmap, phase-by-phase status, and (as they land)
+results: **[`SIGN_GENERALIZATION_PLAN.md`](SIGN_GENERALIZATION_PLAN.md)**.
+
+**Phase 1 summary** (full detail in the plan doc's Phase 1 entry): built
+a family-aware SIGN loader (`src/sign/data/load_sign.py` +
+`family_utils.py`) on top of SIGN's official train/dev/test files, which
+were already present in this repo at
+`data/raw/original_{train,dev,test}_dataset.csv` (no new download
+needed). Verified real counts: train 12,000 pairs / 2,292 unique-text
+families (2,185 with exactly 5 interpretations); dev 1,500 pairs / 270
+families (240 clean); test **1,470** pairs (30 short of the official
+1,500) / 265 families (237 clean) — the test-count shortfall is a
+property of the raw file itself (independently corroborated by Part I's
+`data/processed/clean_sarcastic_sentences.csv`, which dedups the same
+file to the same 265), not a bug in this phase's parsing. Added a
+deterministic, family-leakage-safe sampling module and a family-aware
+metrics module (`src/sign/family_eval/metrics.py`: original detection
+rate, interpretation non-sarcasm rate, pairwise contrastive accuracy,
+strict/soft family accuracy) ahead of schedule, since both are pure
+computation with no model dependency. 37 new tests added
+(`tests/test_sign_*.py`), 187/187 passing repo-wide, zero regressions to
+the Part II suite.
+
+This is a new, additive phase — it reuses M1–M6's frozen configs/
+predictions/checkpoints above as **read-only inputs** and does not modify
+anything recorded earlier in this file. Every experiment in this phase
+gets a distinct `EXP-SIGN-###` ID (never `EXP-0##`, which is reserved for
+the Part II record above) and writes to `results/sign/`, never
+`results/EXP-0##/`. Detailed per-experiment entries (ID, research
+question, exact data usage, config, seed, metrics, runtime, artifacts,
+conclusion — per this file's established format) will be appended below
+as each experiment in `SIGN_GENERALIZATION_PLAN.md`'s phase list actually
+runs.
+
+**Phase 2 — Dataset characterization (2026-08-20).** Compared Dataset A
+(9,386) vs. SIGN originals (2,827) vs. SIGN interpretations (14,970),
+always kept separate. Headline findings (full detail:
+`SIGN_GENERALIZATION_PLAN.md` §6, artifacts:
+`results/sign/characterization/`): Dataset A is forum-post-length
+(48.7 words/example avg) vs. SIGN's tweet-length (~12–14 words); SIGN's
+raw text is essentially all-lowercase and punctuation-free (~0.1–0.25%
+have any uppercase char) vs. Dataset A (75.6% do) — flagged as a
+methodological risk for Phase 3; VADER sentiment shows a clean,
+theoretically-expected split (SIGN originals mean +0.27, sincere
+interpretations mean −0.17 — the sarcastic-tweet-is-surface-positive /
+interpretation-reveals-negative-truth structure showing up in an
+off-the-shelf tool); PCA/UMAP of `all-MiniLM-L6-v2` embeddings shows
+Dataset A visually separated from SIGN, while SIGN originals and
+interpretations overlap heavily with *each other* — a first hint that
+telling SIGN originals from their own interpretations may be harder than
+telling SIGN from Dataset A at all.
+
+**Phase 3 — Dataset-origin classification (2026-08-20).**
+`EXP-SIGN-001`/`EXP-SIGN-002`: TF-IDF (word 1-2gram + char_wb 3-5gram,
+matching M1/EXP-001's winning vectorizer) + `LogisticRegression(class_weight="balanced")`,
+train on {Dataset A train (6,706) + SIGN train, all roles (14,292)}, eval
+on {Dataset A test (1,340) + SIGN test, all roles (1,735)}. Raw text:
+**accuracy 0.9561, macro F1 0.9555**. Case+punctuation-normalized text
+(both corpora, isolating content signal from the Phase 2 formatting
+confound): **accuracy 0.9242, macro F1 0.9235** — only a 3.2-point drop,
+meaning the separability is mostly genuine topical/lexical/length
+difference, not the formatting artifact alone. Strong, direct evidence
+of domain shift between the two corpora, going into Phase 4 as the
+hypothesis to test against real sarcasm-detection performance.
+Artifacts: `results/sign/EXP-SIGN-001/`, `results/sign/EXP-SIGN-002/`.
+
+**Next: Phase 4 (zero-transfer to SIGN) — blocked on the Azure VM for
+the M2–M5 legs.** Not yet started.
