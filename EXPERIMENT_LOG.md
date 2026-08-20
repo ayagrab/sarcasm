@@ -1146,6 +1146,38 @@ checked for completeness — caught immediately by verifying all 6
 `metrics.json` files present before declaring the phase done, re-synced,
 resolved with zero rework lost.
 
+**Phase 5 — SIGN contrastive/family-aware evaluation (2026-08-20, COMPLETE,
+local, no VM, ~30min actual).** `src.sign.family_eval.run_family_eval`
+computed Task A/Task B/Primary-Reference/per-interpretation-rank blocks
+plus View 1 (primary-reference family) and View 2 (full-family, all +
+clean-only) metrics for all 6 methods from Phase 4's persisted
+predictions — no new model inference. Recomputed Task A/B numbers exactly
+match Phase 4's, a useful consistency check. Three findings:
+
+1. **Primary-Reference Macro F1 (0.52-0.59) is well above full Task B
+   Macro F1 (0.34-0.47) for every method** — interpretation #1 genuinely
+   is an easier contrastive case, confirming the primary-reference design
+   assumption. Pair success rate (original + interp #1 both correct) is
+   still only 13.6-26.8%, though.
+2. **Strict family accuracy (all 5 interpretations + original correct)
+   is near zero for every method (0-3.8%)**, vs. soft family score
+   ~0.18-0.37 — getting one interpretation right per family is plausible,
+   all five simultaneously is not.
+3. **Per-interpretation-rank recall does not show a clean "#1 is
+   easiest" pattern** (tested, not assumed) — e.g. M6's recall by rank is
+   49.8/54.7/39.6/60.4/53.2% (non-monotonic, rank 4 highest). Interpretation
+   #1's "primary reference" status is a provenance/annotation-order
+   decision, not evidence it's linguistically easiest for a model.
+
+Artifacts: `results/sign/family_eval/<EXP-ID>/metrics.json` (per method),
+`results/sign/family_eval/m1_m6_comparison.csv` (consolidated). 8 new
+tests (`tests/test_sign_family_eval_run.py`), 202/202 project tests
+passing.
+
+**Next: Phase 6 (mandatory complete false-negative/false-positive error
+analysis, local, no VM), then the pre-Phase-7 checkpoint gate closes and
+SIGN Train prep can begin.**
+
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
 treated as each family's primary/best human reference**, not

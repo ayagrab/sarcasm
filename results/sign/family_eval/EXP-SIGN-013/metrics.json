@@ -1,0 +1,144 @@
+{
+  "method": "M3_qwen_few_shot",
+  "experiment_id": "EXP-SIGN-013",
+  "task_a": {
+    "n_originals": 265,
+    "n_correctly_predicted_sarcastic": 237,
+    "sarcasm_detection_rate": 0.8943396226415095,
+    "false_negative_rate": 0.10566037735849054
+  },
+  "task_b": {
+    "n_examples": 1735,
+    "accuracy": 0.4132564841498559,
+    "macro_f1": 0.4015165479795173,
+    "weighted_f1": 0.45973310388592886,
+    "per_class": {
+      "not_sarcastic": {
+        "precision": 0.9448818897637795,
+        "recall": 0.32653061224489793,
+        "f1": 0.48533872598584427,
+        "support": 1470
+      },
+      "sarcastic": {
+        "precision": 0.19315403422982885,
+        "recall": 0.8943396226415095,
+        "f1": 0.31769436997319034,
+        "support": 265
+      }
+    },
+    "positive_label": "sarcastic",
+    "sarcastic_precision": 0.19315403422982885,
+    "sarcastic_recall": 0.8943396226415095,
+    "sarcastic_f1": 0.31769436997319034,
+    "confusion_matrix": {
+      "labels": [
+        "not_sarcastic",
+        "sarcastic"
+      ],
+      "matrix": [
+        [
+          480,
+          990
+        ],
+        [
+          28,
+          237
+        ]
+      ]
+    }
+  },
+  "primary_reference": {
+    "n_examples": 530,
+    "accuracy": 0.620754716981132,
+    "macro_f1": 0.5900721500721501,
+    "weighted_f1": 0.5900721500721501,
+    "per_class": {
+      "not_sarcastic": {
+        "precision": 0.7666666666666667,
+        "recall": 0.3471698113207547,
+        "f1": 0.4779220779220779,
+        "support": 265
+      },
+      "sarcastic": {
+        "precision": 0.5780487804878048,
+        "recall": 0.8943396226415095,
+        "f1": 0.7022222222222222,
+        "support": 265
+      }
+    },
+    "positive_label": "sarcastic",
+    "sarcastic_precision": 0.5780487804878048,
+    "sarcastic_recall": 0.8943396226415095,
+    "sarcastic_f1": 0.7022222222222222,
+    "confusion_matrix": {
+      "labels": [
+        "not_sarcastic",
+        "sarcastic"
+      ],
+      "matrix": [
+        [
+          92,
+          173
+        ],
+        [
+          28,
+          237
+        ]
+      ]
+    },
+    "pair_success_rate": 0.2679245283018868,
+    "n_pairs": 265
+  },
+  "per_interpretation_rank": {
+    "rank_1": {
+      "n": 265,
+      "not_sarcastic_recall": 0.3471698113207547
+    },
+    "rank_2": {
+      "n": 265,
+      "not_sarcastic_recall": 0.41132075471698115
+    },
+    "rank_3": {
+      "n": 265,
+      "not_sarcastic_recall": 0.1660377358490566
+    },
+    "rank_4": {
+      "n": 265,
+      "not_sarcastic_recall": 0.4490566037735849
+    },
+    "rank_5": {
+      "n": 265,
+      "not_sarcastic_recall": 0.25660377358490566
+    }
+  },
+  "view1_primary_reference_family": {
+    "original_sarcasm_detection_rate": 0.8943396226415095,
+    "interpretation_non_sarcasm_rate": 0.3471698113207547,
+    "pairwise_contrastive_accuracy": 0.2679245283018868,
+    "strict_family_accuracy": 0.2679245283018868,
+    "soft_family_score": {
+      "mean_score": 0.29957805907172996,
+      "n_families": 237
+    }
+  },
+  "view2_full_family_all": {
+    "original_sarcasm_detection_rate": 0.8943396226415095,
+    "interpretation_non_sarcasm_rate": 0.32653061224489793,
+    "pairwise_contrastive_accuracy": 0.25170068027210885,
+    "strict_family_accuracy": 0.018867924528301886,
+    "soft_family_score": {
+      "mean_score": 0.2818565400843882,
+      "n_families": 237
+    }
+  },
+  "view2_full_family_clean_only": {
+    "original_sarcasm_detection_rate": 0.8945147679324894,
+    "interpretation_non_sarcasm_rate": 0.3240506329113924,
+    "pairwise_contrastive_accuracy": 0.2514767932489452,
+    "strict_family_accuracy": 0.02109704641350211,
+    "soft_family_score": {
+      "mean_score": 0.2811320754716981,
+      "n_families": 212
+    }
+  }
+}

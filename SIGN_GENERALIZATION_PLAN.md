@@ -631,8 +631,12 @@ inputs.
 - **Compute:** trivial (re-aggregating existing predictions).
 - **VM required:** NO.
 - **Estimated time:** ~2h.
-- **Status:** NOT STARTED. **Depends on:** Phase 4 (in progress — see
-  Phase 4 entry above for exact per-method state).
+- **Status:** **COMPLETE (2026-08-20)**, actual time ~30min (well under
+  estimate — the metric functions were already built and tested in Phase
+  1, this phase was mostly assembly). `src/sign/family_eval/run_family_eval.py`,
+  8 new tests (`tests/test_sign_family_eval_run.py`), 202/202 project
+  tests passing. Results: §7's Phase 5 subsection above; artifacts
+  `results/sign/family_eval/`. **Depends on:** Phase 4 (done).
 
 ### Phase 6 — Error analysis on SIGN (MANDATORY: complete, not representative-sample)
 
@@ -1092,6 +1096,58 @@ only) and per-rank (#1–#5) not_sarcastic-recall breakdowns are not yet
 computed for any method — that's Phase 5's job, run once against all of
 M1–M6's persisted predictions rather than piecemeal per method here.
 
+### Phase 5 results — family-aware / contrastive evaluation (2026-08-20, COMPLETE)
+
+Computed by `src.sign.family_eval.run_family_eval` over all 6 methods'
+persisted `predictions.csv`, no new inference. Outputs:
+`results/sign/family_eval/<EXP-ID>/metrics.json` (full per-method detail)
+and `results/sign/family_eval/m1_m6_comparison.csv` (the consolidated
+table). Consistency check passed: recomputed Task A/B numbers match §7's
+Phase-4 numbers exactly (e.g. M1 Task A 0.7962, M2 Task B Macro F1
+0.3397) — confirms no drift between the two computations.
+
+| Method | Primary-Ref Macro F1 | Primary-Ref pair success | View1 strict family acc. | View2(all) strict family acc. | View2(all) soft family score |
+|---|---:|---:|---:|---:|---:|
+| M1 TF-IDF+LR | 0.5172 | 13.6% | 13.6% | 0.0% | 0.178 |
+| M2 Qwen zero-shot | 0.5408 | 20.8% | 20.8% | 1.1% | 0.212 |
+| M3 Qwen few-shot | 0.5901 | 26.8% | 26.8% | 1.9% | 0.282 |
+| M4 Qwen reasoning | 0.5645 | 23.0% | 23.0% | 0.8% | 0.236 |
+| M5 DSPy frozen | 0.5650 | 24.2% | 24.2% | 2.3% | 0.218 |
+| M6 DeBERTa | 0.5658 | 21.5% | 21.5% | 3.8% | 0.370 |
+
+**Finding 1 — the Primary-Reference view confirms interpretation #1 is
+genuinely an easier contrastive case, for every method.** Primary-Ref
+Macro F1 (0.52–0.59) is well above the corresponding full Task B Macro F1
+(0.34–0.47, §7) across the board — e.g. M1 jumps from 0.356 to 0.517, M6
+from 0.472 to 0.566. This validates treating interpretation #1 as the
+"clean, minimal-noise" reference the primary-reference decision (§1)
+assumed it would be — but pair success rate (both original and
+interpretation #1 correct, same family) is still only 13.6–26.8%, so even
+the easiest single-pair case is hard in absolute terms.
+
+**Finding 2 — strict family accuracy (all 5 interpretations + original
+correct) is near zero for every method (0–3.8%), while soft family score
+(mean fraction of a correctly-detected family's interpretations also
+correct) sits around 0.18–0.37.** The gap between View 1's per-pair
+success and View 2's all-or-nothing strict accuracy is the clearest
+illustration yet of Task B's difficulty: getting *one* interpretation
+right per family is plausible, getting *all five* simultaneously right is
+not, for any method tested.
+
+**Finding 3 — per-interpretation-rank recall does *not* show a clean
+"rank #1 is easiest" pattern — tested, not assumed, per §1's explicit
+instruction not to assume an ordering effect.** Full per-rank table in
+`m1_m6_comparison.csv`; e.g. M6's not_sarcastic recall by rank is
+49.8% / 54.7% / 39.6% / 60.4% / 53.2% (#1→#5) — non-monotonic, rank #4
+highest, rank #3 lowest, not a decaying-with-rank curve. M1 shows a
+mild, mostly-monotonic decline (29.8% → 25.3%) while M3/M4/M5 all peak
+at rank #4, not #1. **Conclusion: interpretation #1 being the "primary
+reference" (§1) is a provenance/quality decision (first-listed = best
+annotation), not evidence that it is linguistically the easiest
+interpretation for a model to recognize as sincere** — those are
+different claims, and only the first is actually established by this
+data.
+
 ## 8. Domain adaptation results
 
 *(Populated after Phase 8 runs.)*
@@ -1118,7 +1174,7 @@ M1–M6's persisted predictions rather than piecemeal per method here.
 - [x] Phase 3 — Dataset-origin classification
 - [x] Phase 4 — Zero-transfer to SIGN (M1–M6) — **COMPLETE, all 6 methods
       persisted and committed**
-- [ ] Phase 5 — SIGN contrastive/family evaluation
+- [x] Phase 5 — SIGN contrastive/family evaluation — **COMPLETE**
 - [ ] Phase 6 — Error analysis
 - [ ] Phase 7 — Prepare SIGN Train variants
 - [ ] Phase 8 — Domain adaptation (M1 + M6)
@@ -1205,11 +1261,12 @@ existing on the local Mac) — not inferred from what was scheduled to run.
 
 ### CURRENT STATUS
 
-**Phase 4 (Zero-transfer to SIGN) COMPLETE.** All 6 methods (M1, M2, M3,
-M4, M5, M6) evaluated, persisted locally, and git-committed. At the
-explicit pre-Phase-7 checkpoint gate now (§1/§Phase 4-5): backup verified
-→ next is Phase 5's consolidated M1-M6 comparison table → Phase 6 error
-analysis → only then Phase 7 (first SIGN Train touch).
+**Phase 4 (Zero-transfer to SIGN) COMPLETE. Phase 5 (family-aware/contrastive
+evaluation) COMPLETE.** All 6 methods' Task A/B/Primary-Reference/per-rank/
+family-view metrics computed and persisted (`results/sign/family_eval/`).
+At the checkpoint gate (§1/§Phase 4-5): backup verified, comparison table
+done → Phase 6 (mandatory complete error analysis) is next → only then
+Phase 7 (first SIGN Train touch).
 
 ### LAST SAFE CHECKPOINT
 
@@ -1264,13 +1321,13 @@ before declaring Phase 4 done, re-synced, now resolved.)
 
 ### NEXT ACTION
 
-Phase 5 (SIGN contrastive/family-aware evaluation, local, no VM): compute
-Task A/Task B/Primary-Reference/per-rank blocks plus View 1/View 2 family
-metrics for all 6 methods from their persisted `predictions.csv` files,
-produce `results/sign/family_eval/m1_m6_comparison.csv`. No SIGN Train
-exposure. VM can be turned off for this and Phase 6 (next VM need is
-Phase 8's M6 domain adaptation) — ask the user before actually powering
-it down.
+Phase 6 (mandatory complete error analysis, local, no VM): build the
+exhaustive false-negative/false-positive CSVs (every SIGN original missed
+by at least one method, every interpretation flagged sarcastic), the
+quantitative missed-vs-detected contrast, and the cross-model overlap
+analysis, per the phase's updated entry above. No SIGN Train exposure.
+VM can stay off for this and Phase 7 (next VM need is Phase 8's M6
+domain adaptation) — ask the user before actually powering it down.
 
 ### Full artifact/environment state
 
