@@ -1,0 +1,18 @@
+{
+  "variant": "k3",
+  "n_families": 2292,
+  "n_originals": 2292,
+  "n_interpretations": 6876,
+  "n_total_rows": 9168,
+  "interp_ranks_included": [
+    1,
+    2,
+    3
+  ],
+  "class_balance": {
+    "sarcastic": 2292,
+    "not_sarcastic": 6876
+  },
+  "imbalance_handling_policy": "{\"M1_tfidf_logreg\": \"class_weight=\\\"balanced\\\" in LogisticRegression (documented, applied at training time by Phase 8/10, not here)\", \"M6_deberta\": \"duplicate the sarcastic original k times so the training set stays 1:1 (documented, applied at training time by Phase 8/10, not here)\"}",
+  "duplicate_interpretation1_limitation": "~25% of Train families have interpretation #1 byte-identical to their own original (SIGN_GENERALIZATION_PLAN.md §1, discovered in Phase 6). Kept as-is per explicit 2026-08-20 user decision -- not filtered, not fixed. Every variant below (including k>1) inherits this property for whichever ranks it includes."
+}

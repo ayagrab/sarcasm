@@ -791,7 +791,20 @@ inputs.
 - **Compute:** trivial (sampling ~2,292 families).
 - **VM required:** NO.
 - **Estimated time:** ~1–2h.
-- **Status:** NOT STARTED. **Depends on:** Phase 4 (persisted) + Phase 1.
+- **Status:** **COMPLETE (2026-08-20)**, actual time ~20min. **The
+  duplicate-interpretation-#1 question (§1, Phase 6) was resolved by
+  explicit user decision before this phase started: keep the natural
+  primary condition as-is, document the ~25% overlap as a disclosed
+  limitation** — not filtered, not fixed. `data/sign/train_variants/`:
+  `primary.csv` (2,292 sarcastic + 2,292 not_sarcastic, rank #1 only),
+  `k2.csv` (2,292 + 4,584), `k3.csv` (2,292 + 6,876), `k5.csv` (2,292 +
+  11,460) — all nested by rank, all cross-split leakage-checked against
+  Dev/Test. Imbalance-handling policy for k>1 recorded in each variant's
+  `.meta.json` sidecar (documented, not yet applied — Phase 8/10's
+  training scripts apply it). `src/sign/train_prep/build_train_variants.py`,
+  8 new tests (`tests/test_sign_train_variants.py`), 217/217 project
+  tests passing. **Depends on:** Phase 4 (done), Phase 6 (done, informed
+  this phase's one open decision).
 
 ### Phase 8 — Domain adaptation (M1 + M6 only, see §3)
 
@@ -1297,8 +1310,8 @@ Phase 6's time budget, and is not required to unblock Phase 7.
 - [x] Phase 6 — Error analysis — **COMPLETE** (found: ~20-25% of
       interpretations are duplicate-of-original, a real data-quality
       ceiling)
-- [ ] Phase 7 — Prepare SIGN Train variants
-- [ ] Phase 8 — Domain adaptation (M1 + M6)
+- [x] Phase 7 — Prepare SIGN Train variants — **COMPLETE**
+- [ ] Phase 8 — Domain adaptation (M1 + M6) — **next; VM needed for M6**
 - [ ] Phase 9 — Learning curve (M1 + M6)
 - [ ] Phase 10 — Interpretation-count ablation (M1 + M6)
 - [ ] Phase 11 — Final synthesis
@@ -1382,18 +1395,17 @@ existing on the local Mac) — not inferred from what was scheduled to run.
 
 ### CURRENT STATUS
 
-**Phase 4 (Zero-transfer), Phase 5 (family-aware/contrastive evaluation),
-and Phase 6 (complete error analysis) all COMPLETE.** The pre-Phase-7
-checkpoint gate (§1/§Phase 4-5) is now fully satisfied: backup verified,
-comparison table done, error analysis done — including a significant new
-finding (§1: ~20-25% of SIGN interpretations are byte-identical to their
-own original, a real label-contradiction/data-quality ceiling, not a
-modeling gap). **Phase 7 (SIGN Train prep) is next**, but its primary balanced condition
-design now depends on a real methodological choice raised by the
-duplicate-interpretation finding (how to handle the ~25% of families
-where interpretation #1 equals the original) — flagged to the user before
-Phase 7 starts rather than decided unilaterally, since it changes what
-"the primary training condition" actually means going forward.
+**Phase 4, 5, 6, and 7 all COMPLETE.** SIGN Train variants
+(`data/sign/train_variants/{primary,k2,k3,k5}.csv`) are built and
+leakage-checked. The duplicate-interpretation-#1 question (§1/Phase 6)
+was resolved by explicit user decision before Phase 7 started: keep the
+natural primary condition as-is, document the ~25% overlap as a
+disclosed limitation. **Phase 8 (domain adaptation, M1 + M6) is next —
+this is the first phase that actually trains on SIGN data**, and needs
+the VM for M6's two fine-tuning runs (condition B: Dataset A + SIGN
+Train; condition C: SIGN Train only). Ask the user to confirm the VM is
+on before starting M6's runs; M1's runs are local/instant and don't need
+it.
 
 ### LAST SAFE CHECKPOINT
 
@@ -1448,13 +1460,15 @@ before declaring Phase 4 done, re-synced, now resolved.)
 
 ### NEXT ACTION
 
-Phase 6 (mandatory complete error analysis, local, no VM): build the
-exhaustive false-negative/false-positive CSVs (every SIGN original missed
-by at least one method, every interpretation flagged sarcastic), the
-quantitative missed-vs-detected contrast, and the cross-model overlap
-analysis, per the phase's updated entry above. No SIGN Train exposure.
-VM can stay off for this and Phase 7 (next VM need is Phase 8's M6
-domain adaptation) — ask the user before actually powering it down.
+Phase 8 (domain adaptation, M1 + M6): M1 conditions B/C (Dataset A +
+SIGN Train primary; SIGN Train primary only) are local/instant. M6
+conditions B/C need the VM (two fine-tuning runs, ~15-30min each per
+Part II's measured rate) — **confirm the VM is on before starting these**,
+per the standing VM start/stop protocol. Both models' condition A is
+Phase 4's already-frozen zero-transfer result, reused not rerun. After
+each condition, Phase 6's exhaustive error-analysis artifacts get
+regenerated for the winning adapted model with an explicit before/after
+diff, per Phase 8's entry above.
 
 ### Full artifact/environment state
 

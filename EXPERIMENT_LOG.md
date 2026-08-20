@@ -1212,7 +1212,26 @@ satisfied.** Before starting Phase 7 (first SIGN Train touch), the
 duplicate-interpretation finding needs a decision on how the primary
 balanced training condition (original + interpretation #1) should handle
 the ~25% of families where interpretation #1 equals the original —
-flagged to the user rather than decided unilaterally.
+flagged to the user rather than decided unilaterally. **User decision
+(2026-08-20): keep the natural condition as-is, document as a disclosed
+limitation** — not filtered, not fixed.
+
+**Phase 7 — Prepare SIGN Train variants (2026-08-20, COMPLETE, local, no
+VM, ~20min actual; data prep only, no training).** `src.sign.train_prep.build_train_variants`
+built `data/sign/train_variants/{primary,k2,k3,k5}.csv`: primary = 2,292
+sarcastic + 2,292 not_sarcastic (interpretation #1 only, rank-based never
+random); k2/k3/k5 = 2,292 sarcastic + 4,584/6,876/11,460 not_sarcastic
+(interpretations #1..k, nested by construction). Every variant's
+family_ids checked disjoint from Dev/Test via `assert_no_family_leakage`.
+Imbalance-handling policy for k>1 (M1: `class_weight="balanced"`; M6:
+duplicate the sarcastic original k times) recorded in each variant's
+`.meta.json` sidecar as a documented policy for Phase 8/10's training
+scripts to apply, not pre-applied here. 8 new tests
+(`tests/test_sign_train_variants.py`), 217/217 project tests passing.
+
+**Phase 4/5/6/7 are now all COMPLETE. Phase 8 (domain adaptation, M1 + M6)
+is next — the first phase that actually trains on SIGN data.** M6's two
+conditions (Dataset A + SIGN Train; SIGN Train only) need the VM.
 
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
