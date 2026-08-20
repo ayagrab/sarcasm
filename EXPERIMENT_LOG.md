@@ -1276,8 +1276,37 @@ Artifacts: `results/sign/EXP-SIGN-023/` (B), `EXP-SIGN-024/` (C), both
 with `sign_test/`+`dataset_a_test/` subdirs;
 `results/sign/error_analysis/post_adaptation_diff_M6.json`.
 
-**Phase 8 is now fully COMPLETE (M1 + M6). Phase 9 (learning curve) is
-next, VM needed again for M6.**
+**Phase 8 is now fully COMPLETE (M1 + M6).**
+
+**Phase 9 — Learning curve (2026-08-20). M1 leg COMPLETE (6/6 points,
+local).** Recipe: Dataset A TRAIN (fixed) + SIGN Train fraction (primary
+condition), same as Phase 8's condition B; 0%/100% reused from Phase
+4/8. Task B Macro F1: 0.356 (0%) → 0.448 (10%) → 0.524 (25%) → 0.558
+(50%) → 0.579 (75%) → 0.586 (100%) — clear diminishing returns, most of
+the gain from the first 10%. Task A detection rate drops from 79.6% (0%)
+to 71-75% at every nonzero fraction and never recovers — SIGN exposure
+costs some raw sarcasm recall at every fraction tested, not just at
+100%. **M6 leg PARTIAL (2/6, only the reused endpoints)** — VM session
+was time-boxed to ~40min by the user; the 10% run was mid-training
+(~57-82%) when the session had to end and was stopped deliberately
+(not killed by VM shutdown, nothing lost, just not yet run).
+
+**Phase 10 — Interpretation-count ablation (2026-08-20). M1 leg COMPLETE
+(4/4 points, local).** k=1 reused from Phase 8; k=2/3/5 use Phase 7's
+variants + Dataset A TRAIN, `class_weight="balanced"`. Task B Macro F1
+climbs with k (0.586 → 0.629 → 0.648 → 0.664) while Task A detection
+rate falls sharply (74.7% → 61.1% → 57.7% → 55.9%) -- opposite
+directions, a real trade-off curve where k=1 is not dominated by higher
+k. **M6 leg NOT STARTED** (only k=1, reused) -- its VM chain was stopped
+before launching, same time-box reason.
+
+Artifacts: `results/sign/learning_curve/{summary.csv,learning_curve.png}`,
+`results/sign/interp_count_ablation/summary.csv`. 8 new tests
+(`test_sign_learning_curve.py`, `test_sign_interp_ablation.py`), 229/229
+project tests passing.
+
+**Next VM session: finish M6's learning curve (4 fractions, ~1h15-1h20)
+then M6's k-ablation (~2h30-2h45), then Phase 11.**
 
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now

@@ -1377,11 +1377,74 @@ Artifacts: `results/sign/EXP-SIGN-023/` (condition B),
 
 ## 9. Learning curve results
 
-*(Populated after Phase 9 runs.)*
+*(M1 leg COMPLETE (6/6 points). M6 leg PARTIAL (2/6: 0% and 100%, both
+reused from Phase 4/8) — the VM session was cut short (user needed to
+close it, ~40min window) before the 10/25/50/75% runs could finish;
+resumes next VM session. Recipe throughout: Dataset A TRAIN (fixed) +
+SIGN Train fraction (primary condition), same as Phase 8's condition B.
+0%/100% are Phase 4/8's results, reused not rerun.)*
+
+| Model | SIGN Train % | Task B Macro F1 | Task A detection rate |
+|---|---:|---:|---:|
+| M1 | 0% | 0.3563 | 79.6% |
+| M1 | 10% | 0.4483 | 71.3% |
+| M1 | 25% | 0.5244 | 72.8% |
+| M1 | 50% | 0.5581 | 72.8% |
+| M1 | 75% | 0.5785 | 72.5% |
+| M1 | 100% | 0.5861 | 74.7% |
+| M6 | 0% | 0.4724 | 63.8% |
+| M6 | 100% | 0.6870 | 78.5% |
+
+**M1 finding: clear diminishing returns, most of the gain from the first
+10%.** Task B Macro F1 jumps from 0.356 (0%) to 0.448 (10%, +0.092) then
+climbs much more slowly to 0.586 by 100% (+0.038 over the remaining 90%
+of the data) — a classic learning-curve shape. Task A detection rate
+actually *drops* from 79.6% (0%) to ~71-75% at every nonzero fraction and
+never recovers to the zero-transfer level, plateauing rather than
+improving — SIGN exposure trades some raw sarcasm recall for the Task B
+gain at every fraction tested, not just at 100% (consistent with Phase
+8's condition-B diff finding for M1).
+
+Artifacts: `results/sign/EXP-SIGN-0{25..28}/` (10/25/50/75%),
+`results/sign/learning_curve/summary.csv` + `learning_curve.png`. Code:
+`src/sign/learning_curve/{run_m1_learning_curve,run_m6_learning_curve,build_learning_curve_summary}.py`,
+4 new tests. **M6's 10/25/50/75% points remain to run next VM session**
+— `run_m6_learning_curve.py` is ready, just needs launching again.
 
 ## 10. Interpretation-count ablation results
 
-*(Populated after Phase 10 runs.)*
+*(M1 leg COMPLETE (4/4 points). M6 leg NOT STARTED (only k=1, reused from
+Phase 8) — VM time ran out before this phase could start; the chained
+auto-launch was stopped deliberately rather than left to be killed
+mid-run by VM shutdown, so no wasted/lost GPU time. `run_m6_interp_ablation.py`
+is ready to launch next session, right after Phase 9's M6 leg finishes.)*
+
+| Model | k (interpretations) | Task B Macro F1 | Task A detection rate |
+|---|---:|---:|---:|
+| M1 | 1 (primary) | 0.5861 | 74.7% |
+| M1 | 2 | 0.6288 | 61.1% |
+| M1 | 3 | 0.6480 | 57.7% |
+| M1 | 5 | 0.6644 | 55.9% |
+| M6 | 1 (primary) | 0.6870 | 78.5% |
+
+**M1 finding: more interpretation diversity helps Task B but costs Task A
+increasingly.** Task B Macro F1 climbs steadily with k (0.586 → 0.629 →
+0.648 → 0.664), but Task A detection rate falls sharply and monotonically
+(74.7% → 61.1% → 57.7% → 55.9%) — the opposite direction from Task B.
+Plausible mechanism: `class_weight="balanced"` reweights the
+(comparatively few) sarcastic-original rows more heavily as k grows the
+non-sarcastic side, pushing the decision boundary toward being more
+conservative about the sarcastic label overall — helps reject more
+sincere interpretations, costs catching real sarcastic originals. This is
+the clearest trade-off curve in the whole project so far: **k=1 is not
+obviously dominated by higher k** — the "best" k depends on whether Task
+A or Task B matters more for the downstream use case, echoing Phase 8's
+M1 before/after diff finding.
+
+Artifacts: `results/sign/EXP-SIGN-03{3,4,5}/` (k=2/3/5),
+`results/sign/interp_count_ablation/summary.csv`. Code:
+`src/sign/interp_ablation/{run_m1_interp_ablation,run_m6_interp_ablation,build_ablation_summary}.py`,
+4 new tests.
 
 ## 11. Final synthesis
 
@@ -1404,9 +1467,11 @@ Artifacts: `results/sign/EXP-SIGN-023/` (condition B),
 - [x] Phase 7 — Prepare SIGN Train variants — **COMPLETE**
 - [x] Phase 8 — Domain adaptation — **COMPLETE** (M1 + M6, condition B
       wins for both, zero/negligible forgetting on Dataset A)
-- [ ] Phase 9 — Learning curve (M1 + M6)
-- [ ] Phase 10 — Interpretation-count ablation (M1 + M6)
-- [ ] Phase 11 — Final synthesis
+- [~] Phase 9 — Learning curve — M1 **COMPLETE** (6/6); M6 **PARTIAL**
+      (2/6: endpoints only, VM session cut short)
+- [~] Phase 10 — Interp-count ablation — M1 **COMPLETE** (4/4); M6 **NOT
+      STARTED** (only k=1, reused)
+- [ ] Phase 11 — Final synthesis — blocked on M6 legs of Phase 9/10
 
 Status legend: NOT STARTED / IN PROGRESS / COMPLETED / BLOCKED / WAITING
 FOR VM / FAILED / SKIPPED.
@@ -1487,17 +1552,22 @@ existing on the local Mac) — not inferred from what was scheduled to run.
 
 ### CURRENT STATUS
 
-**Phase 4-8 all COMPLETE.** M1's condition B: SIGN Test Macro F1 0.5861
-(vs. 0.3563 zero-transfer), Dataset A TEST 0.7477 (vs. 0.7403 — no
-forgetting). M6's condition B: SIGN Test Macro F1 0.6870 (vs. 0.4724),
-Dataset A TEST 0.8209 = 0.8209 (identical to the frozen baseline). Both
-models: condition B ≈ C on SIGN, condition B ≫ C on Dataset A (C
-collapses to 0.4527/0.4034 respectively) — a robust, cross-model
-conclusion. Post-adaptation diffs done for both (M1: real Task A/Task B
-trade-off; M6: clean win on both tasks, no trade-off). VM environment was
-rebuilt this session after an ephemeral-disk wipe (lean install, no
-LLM-stack packages needed for M6 fine-tuning). **Next: Phase 9 (learning
-curve) — also needs the VM for M6.**
+**Phase 4-8 all COMPLETE. Phase 9/10's M1 legs COMPLETE, M6 legs
+PARTIAL/NOT-STARTED (VM session cut short at the user's ~40min window,
+2026-08-20).** M1's full learning curve (6/6 points) shows diminishing
+returns on Task B and a Task A cost at every nonzero fraction. M1's full
+k-ablation (4/4 points) shows Task B improving and Task A declining
+monotonically with k — a real trade-off curve, not a dominated choice.
+M6's learning curve has only its two reused endpoints (0%, 100%); the
+10/25/50/75% runs were mid-flight (the 10% point ~57% done) when the
+session had to end — **stopped deliberately, not killed by VM shutdown**,
+so nothing was lost, just not yet run. M6's k-ablation (k=2/3/5) never
+started — its VM chain was stopped before launching to avoid wasting GPU
+time on a run that couldn't finish in the window. **Next VM session:
+launch `run_m6_learning_curve.py` (re-runs all 4 missing fractions --
+current code doesn't skip already-attempted-but-incomplete ones, cheap
+to just rerun cleanly), then `run_m6_interp_ablation.py`, then rebuild
+both summary artifacts, then Phase 11.**
 
 ### LAST SAFE CHECKPOINT
 
@@ -1552,12 +1622,16 @@ before declaring Phase 4 done, re-synced, now resolved.)
 
 ### NEXT ACTION
 
-Phase 8 is fully complete (both M1 and M6 legs, including post-adaptation
-diffs). **Phase 9 (learning curve: 0/10/25/50/75/100% of SIGN Train
-primary condition, M1 + M6) is next.** M6 needs the VM again (currently
-on and warmed up with the environment already rebuilt this session) —
-confirm with the user before starting if a new session/significant time
-gap has passed since Phase 8.
+Phase 8 is fully complete. Phase 9/10's M1 legs are fully complete. **When
+the VM is next available: (1) `python -m src.sign.learning_curve.run_m6_learning_curve`
+(4 fractions, ~1h15-1h20 based on the partial run's measured rate), (2)
+`python -m src.sign.interp_ablation.run_m6_interp_ablation` (k=2/3/5,
+~2h30-2h45 -- can chain automatically after (1), same pattern as this
+session), (3) rebuild both summary artifacts
+(`build_learning_curve_summary.py`, `build_ablation_summary.py`), (4)
+Phase 11 (final synthesis) becomes unblocked.** Total remaining VM time
+≈ 4h — confirm with the user how much time is available before launching,
+given this session's window (40min) wasn't enough.
 
 ### Full artifact/environment state
 

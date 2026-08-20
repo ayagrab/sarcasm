@@ -1,0 +1,9 @@
+{
+  "experiment_id": "EXP-SIGN-026",
+  "approach": "M1_tfidf_logreg_learning_curve",
+  "sign_train_fraction": 0.25,
+  "n_sign_families_sampled": 573,
+  "train_data": "Dataset A TRAIN (n=6706) + SIGN Train primary fraction=0.25 (n=1146 rows, seed=42)",
+  "eval_data": "SIGN Test (all roles) + Dataset A TEST (forgetting check)",
+  "seed": 42
+}
