@@ -1329,10 +1329,51 @@ Artifacts: `results/sign/EXP-SIGN-021/` (condition B),
 `src/sign/domain_adaptation/{run_m1_domain_adaptation,run_m1_post_adaptation_diff,error_diff,io}.py`,
 4 new tests, 221/221 project tests passing.
 
-### M6 — DeBERTa-v3-base
+### M6 — DeBERTa-v3-base (2026-08-20, COMPLETE, VM)
 
-*(Not started — needs the VM for conditions B/C's fine-tuning runs. VM
-was off as of this update.)*
+*(VM environment fully rebuilt after an ephemeral-disk wipe on this
+session's restart — see §13 log. Lean install this time: only
+torch/transformers/accelerate/datasets/scikit-learn/sentencepiece/protobuf,
+no LLM-stack packages, since M6 fine-tuning doesn't need them. Smoke-tested
+before the real run, per the project's standing practice.)*
+
+| Condition | SIGN Test Macro F1 | SIGN Test Accuracy | Dataset A TEST Macro F1 | Dataset A TEST Accuracy |
+|---|---:|---:|---:|---:|
+| A — Dataset A only (zero-transfer, frozen EXP-009) | 0.4724 | 0.5326 | 0.8209 (frozen) | 0.8209 |
+| B — Dataset A + SIGN Train primary | **0.6870** | 0.7775 | **0.8209** | 0.8209 |
+| C — SIGN Train primary only | 0.6806 | 0.7637 | 0.4034 | 0.4978 |
+
+**Finding: the exact same pattern as M1, even cleaner.** Condition B
+matches C on SIGN Test (0.6870 vs. 0.6806 — B actually slightly ahead)
+while producing **Dataset A TEST performance identical to four decimal
+places with the untouched frozen model** (0.8209 = 0.8209) — not just "no
+meaningful forgetting," literally unchanged. Condition C collapses
+Dataset A TEST from 0.8209 to 0.4034 (51% relative drop, worse than M1's
+C). **Condition B is the clear winning M6 adapted model**, and the
+cross-model consistency (M1 and M6 both: B ≈ C on SIGN, B ≫ C on Dataset
+A) makes this a robust conclusion for RQ2/RQ3, not a one-model fluke.
+
+**Mandatory post-adaptation error diff (condition A → B):**
+`results/sign/error_analysis/post_adaptation_diff_M6.json`.
+- **Originals (Task A):** 61 fixed, 35 still missed, 22 newly broken (of
+  265) — net **+39** originals correctly detected (169 → 208, 63.8% →
+  78.5% detection rate). **Unlike M1, M6's adaptation improves Task A
+  too** — no trade-off here, a clean win on both tasks.
+- **Interpretations (Task B):** 458 fixed, 257 still wrong, 72 newly
+  broken (of 1,470) — large net improvement (not_sarcastic recall:
+  51.4% → 77.6%, i.e. 755 → 1,141 correctly-rejected interpretations).
+- **M1 vs. M6 adaptation contrast worth noting for Phase 11's synthesis**:
+  M1's adaptation traded a little Task A recall for a lot of Task B gain;
+  M6's adaptation improved both simultaneously. A plausible reading: M6's
+  larger capacity lets it fit the combined distribution without the
+  linear model's trade-off — a hypothesis, not yet tested further.
+
+Artifacts: `results/sign/EXP-SIGN-023/` (condition B),
+`results/sign/EXP-SIGN-024/` (condition C), each with `sign_test/` and
+`dataset_a_test/` subdirectories. Code:
+`src/sign/domain_adaptation/{run_m6_domain_adaptation,run_m6_post_adaptation_diff}.py`.
+
+**Phase 8 is now fully COMPLETE (M1 + M6, both legs).**
 
 ## 9. Learning curve results
 
@@ -1361,8 +1402,8 @@ was off as of this update.)*
       interpretations are duplicate-of-original, a real data-quality
       ceiling)
 - [x] Phase 7 — Prepare SIGN Train variants — **COMPLETE**
-- [~] Phase 8 — Domain adaptation — M1 **COMPLETE** (condition B wins,
-      no forgetting); M6 **PENDING VM** (was off as of last check)
+- [x] Phase 8 — Domain adaptation — **COMPLETE** (M1 + M6, condition B
+      wins for both, zero/negligible forgetting on Dataset A)
 - [ ] Phase 9 — Learning curve (M1 + M6)
 - [ ] Phase 10 — Interpretation-count ablation (M1 + M6)
 - [ ] Phase 11 — Final synthesis
@@ -1446,14 +1487,17 @@ existing on the local Mac) — not inferred from what was scheduled to run.
 
 ### CURRENT STATUS
 
-**Phase 4-7 all COMPLETE. Phase 8's M1 leg COMPLETE, M6 leg PENDING (VM
-was off as of the last check, user asked to be told when it's on).** M1's
-condition B (Dataset A + SIGN Train primary) wins clearly: SIGN Test
-Macro F1 0.5861 (vs. 0.3563 zero-transfer), Dataset A TEST Macro F1 0.7477
-(vs. 0.7403 — no forgetting, slightly better). Post-adaptation error diff
-done: 563 interpretation false positives fixed but 26 originals newly
-missed — a real Task A/Task B trade-off invisible in the Macro F1 alone.
-**Next: confirm VM is on, then run M6's conditions B/C (two fine-tunes).**
+**Phase 4-8 all COMPLETE.** M1's condition B: SIGN Test Macro F1 0.5861
+(vs. 0.3563 zero-transfer), Dataset A TEST 0.7477 (vs. 0.7403 — no
+forgetting). M6's condition B: SIGN Test Macro F1 0.6870 (vs. 0.4724),
+Dataset A TEST 0.8209 = 0.8209 (identical to the frozen baseline). Both
+models: condition B ≈ C on SIGN, condition B ≫ C on Dataset A (C
+collapses to 0.4527/0.4034 respectively) — a robust, cross-model
+conclusion. Post-adaptation diffs done for both (M1: real Task A/Task B
+trade-off; M6: clean win on both tasks, no trade-off). VM environment was
+rebuilt this session after an ephemeral-disk wipe (lean install, no
+LLM-stack packages needed for M6 fine-tuning). **Next: Phase 9 (learning
+curve) — also needs the VM for M6.**
 
 ### LAST SAFE CHECKPOINT
 
@@ -1508,15 +1552,12 @@ before declaring Phase 4 done, re-synced, now resolved.)
 
 ### NEXT ACTION
 
-M1's leg of Phase 8 is done (see §8 results). **Waiting on the user to
-confirm the VM is on** before starting M6's conditions B/C (two
-fine-tuning runs, ~15-30min each per Part II's measured rate). M6's
-condition A is Phase 4's already-frozen zero-transfer result (`EXP-SIGN-016`),
-reused not rerun. Once B/C finish, regenerate Phase 6's exhaustive
-error-analysis artifacts for M6's winning condition with an explicit
-before/after diff (same pattern as M1's `run_m1_post_adaptation_diff.py`),
-then Phase 8 is fully COMPLETE and Phase 9 (learning curve, also
-VM-dependent for M6) is next.
+Phase 8 is fully complete (both M1 and M6 legs, including post-adaptation
+diffs). **Phase 9 (learning curve: 0/10/25/50/75/100% of SIGN Train
+primary condition, M1 + M6) is next.** M6 needs the VM again (currently
+on and warmed up with the environment already rebuilt this session) —
+confirm with the user before starting if a new session/significant time
+gap has passed since Phase 8.
 
 ### Full artifact/environment state
 

@@ -1250,8 +1250,34 @@ Artifacts: `results/sign/EXP-SIGN-021/` (B), `EXP-SIGN-022/` (C),
 `results/sign/error_analysis/post_adaptation_diff_M1.json`. 4 new tests,
 221/221 project tests passing.
 
-**M6's leg of Phase 8 needs the VM — waiting for confirmation it's on
-before running conditions B/C.**
+**Phase 8, M6 leg (2026-08-20, COMPLETE, VM).** VM environment fully
+rebuilt this session (ephemeral `/mnt` wiped on restart, as expected) --
+lean install this time (torch/transformers/accelerate/datasets/
+scikit-learn/sentencepiece/protobuf only, no LLM-stack packages, since M6
+fine-tuning doesn't need them), smoke-tested before the real run.
+Condition B (Dataset A TRAIN + SIGN Train primary): SIGN Test Macro F1
+**0.6870** (vs. 0.4724 zero-transfer), Dataset A TEST Macro F1 **0.8209**
+-- identical to four decimal places with the untouched frozen EXP-009
+checkpoint. Condition C (SIGN Train primary only): SIGN Test 0.6806
+(essentially tied with B), Dataset A TEST 0.4034 (51% relative collapse
+from 0.8209). **Exact same pattern as M1** (B ≈ C on SIGN, B ≫ C on
+Dataset A), now confirmed across both trained models -- a robust
+conclusion for RQ2/RQ3, not a one-model fluke. **Condition B is the
+winning M6 adapted model.**
+
+Post-adaptation error diff (A→B): 61 originals fixed, 35 still missed, 22
+newly broken (net **+39**, 63.8%→78.5% Task A detection) vs. 458
+interpretation false positives fixed, 72 newly broken (not_sarcastic
+recall 51.4%→77.6%). **Unlike M1 (which traded Task A recall for Task B
+gain), M6's adaptation improves both simultaneously** -- a genuine
+model-size/capacity contrast worth carrying into Phase 11's synthesis.
+
+Artifacts: `results/sign/EXP-SIGN-023/` (B), `EXP-SIGN-024/` (C), both
+with `sign_test/`+`dataset_a_test/` subdirs;
+`results/sign/error_analysis/post_adaptation_diff_M6.json`.
+
+**Phase 8 is now fully COMPLETE (M1 + M6). Phase 9 (learning curve) is
+next, VM needed again for M6.**
 
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
