@@ -1013,8 +1013,8 @@ and poorly on the other — see M2/M3 below.
 | M6 DeBERTa-v3-base | EXP-SIGN-016 | done | 0.5326 | 0.4724 | 0.6377 (169/265) | 0.3623 | `[[755,715],[96,169]]` |
 | M2 Qwen zero-shot | EXP-SIGN-012 | **done** | 0.3418 | 0.3397 | **0.9358 (248/265)** | 0.0642 | `[[345,1125],[17,248]]` |
 | M3 Qwen few-shot | EXP-SIGN-013 | **done** | 0.4133 | 0.4015 | 0.8943 (237/265) | 0.1057 | `[[480,990],[28,237]]` |
-| M4 Qwen reasoning | EXP-SIGN-014 | running on VM | — | — | — | — | — |
-| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | queued after M4 | — | — | — | — | — |
+| M4 Qwen reasoning | EXP-SIGN-014 | **done** | 0.3782 | 0.3658 | 0.9132 (242/265) | 0.0868 | see `results/sign/EXP-SIGN-014/metrics.json` |
+| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | running on VM | — | — | — | — | — |
 
 **M1/M6 interpretation — a striking reversal of Part II's headline
 finding.** On Dataset A, M1 and M6 (the two "trained on labels" methods)

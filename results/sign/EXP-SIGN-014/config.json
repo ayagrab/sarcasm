@@ -1,0 +1,12 @@
+{
+  "experiment_id": "EXP-SIGN-014",
+  "approach": "reasoning_zero_transfer",
+  "frozen_config_reused": "configs/*_qwen_local.json (EXP-005)",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "prompt_file": "classification/reasoning_v1.txt",
+  "train_data": "NONE (Dataset A TRAIN only used for few-shot demo selection, not fitting)",
+  "eval_data": "SIGN Test, all roles (data/sign/family_table_test.csv, n=1735)",
+  "seed": 42
+}

@@ -1129,9 +1129,12 @@ other.)*
   but better than M2's 76.5%). Trade-off read explicitly: few-shot makes
   M3 less trigger-happy overall — better Task B, slightly worse Task A —
   neither number is reported as the single verdict.
-- M4 (EXP-SIGN-014, reasoning) running on VM; M5 (EXP-SIGN-015, frozen
-  MIPROv2 program, inference-only via `dspy.Predict.load(...)` — **not**
-  a recompile) queued separately after.
+- **M4 (EXP-SIGN-014, reasoning, done):** Task A detection rate 91.3%
+  (242/265), between M2's 93.6% and M3's 89.4%. Task B accuracy 0.3782,
+  Macro F1 0.3658 — better than M2's 0.3397, worse than M3's 0.4015.
+- M5 (EXP-SIGN-015, frozen MIPROv2 program, inference-only via
+  `dspy.Predict.load(...)` — **not** a recompile) launched on VM after
+  the M2-M4 process exited cleanly; running.
 
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
