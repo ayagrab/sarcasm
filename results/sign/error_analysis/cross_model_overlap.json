@@ -1,0 +1,114 @@
+{
+  "n_total_originals": 265,
+  "miss_count_histogram": {
+    "0": 117,
+    "1": 78,
+    "2": 40,
+    "3": 12,
+    "4": 8,
+    "5": 8,
+    "6": 2
+  },
+  "n_missed_by_all_6": 2,
+  "n_never_missed": 117,
+  "per_method_miss_count": {
+    "M1": 54,
+    "M2": 17,
+    "M3": 28,
+    "M4": 23,
+    "M5": 60,
+    "M6": 96
+  },
+  "pairwise_overlap": {
+    "M1_vs_M2": {
+      "overlap_count": 3,
+      "jaccard": 0.04411764705882353,
+      "M1_only": 51,
+      "M2_only": 14
+    },
+    "M1_vs_M3": {
+      "overlap_count": 5,
+      "jaccard": 0.06493506493506493,
+      "M1_only": 49,
+      "M3_only": 23
+    },
+    "M1_vs_M4": {
+      "overlap_count": 5,
+      "jaccard": 0.06944444444444445,
+      "M1_only": 49,
+      "M4_only": 18
+    },
+    "M1_vs_M5": {
+      "overlap_count": 9,
+      "jaccard": 0.08571428571428572,
+      "M1_only": 45,
+      "M5_only": 51
+    },
+    "M1_vs_M6": {
+      "overlap_count": 27,
+      "jaccard": 0.21951219512195122,
+      "M1_only": 27,
+      "M6_only": 69
+    },
+    "M2_vs_M3": {
+      "overlap_count": 15,
+      "jaccard": 0.5,
+      "M2_only": 2,
+      "M3_only": 13
+    },
+    "M2_vs_M4": {
+      "overlap_count": 16,
+      "jaccard": 0.6666666666666666,
+      "M2_only": 1,
+      "M4_only": 7
+    },
+    "M2_vs_M5": {
+      "overlap_count": 16,
+      "jaccard": 0.26229508196721313,
+      "M2_only": 1,
+      "M5_only": 44
+    },
+    "M2_vs_M6": {
+      "overlap_count": 10,
+      "jaccard": 0.0970873786407767,
+      "M2_only": 7,
+      "M6_only": 86
+    },
+    "M3_vs_M4": {
+      "overlap_count": 20,
+      "jaccard": 0.6451612903225806,
+      "M3_only": 8,
+      "M4_only": 3
+    },
+    "M3_vs_M5": {
+      "overlap_count": 26,
+      "jaccard": 0.41935483870967744,
+      "M3_only": 2,
+      "M5_only": 34
+    },
+    "M3_vs_M6": {
+      "overlap_count": 16,
+      "jaccard": 0.14814814814814814,
+      "M3_only": 12,
+      "M6_only": 80
+    },
+    "M4_vs_M5": {
+      "overlap_count": 19,
+      "jaccard": 0.296875,
+      "M4_only": 4,
+      "M5_only": 41
+    },
+    "M4_vs_M6": {
+      "overlap_count": 13,
+      "jaccard": 0.12264150943396226,
+      "M4_only": 10,
+      "M6_only": 83
+    },
+    "M5_vs_M6": {
+      "overlap_count": 34,
+      "jaccard": 0.2786885245901639,
+      "M5_only": 26,
+      "M6_only": 62
+    }
+  }
+}

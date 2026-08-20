@@ -1178,6 +1178,42 @@ passing.
 analysis, local, no VM), then the pre-Phase-7 checkpoint gate closes and
 SIGN Train prep can begin.**
 
+**Phase 6 — Complete SIGN error analysis (2026-08-20, COMPLETE, local, no
+VM, ~1h actual).** `src.sign.error_analysis.run_error_analysis` built the
+exhaustive false-negative (148 originals missed by ≥1 of 6 methods, out
+of 265) and false-positive (1,400 interpretations flagged sarcastic by
+≥1 method, out of 1,470) tables, plus a quantitative missed-vs-detected
+feature contrast and full cross-model overlap. Headline finding: **a
+meaningful fraction of SIGN interpretations are byte-identical to their
+own original tweet** — test split 295/1,470 rows (20.1%), 102/265
+families (38.5%); specifically at rank #1 (the "primary reference"),
+66/265 families (24.9%). This is an irreducible label contradiction in
+the source data, discovered (not assumed) during this analysis: both
+SIGN-test originals missed by all 6 methods have this property, and 120
+of the 427 interpretations flagged sarcastic by every method (28.1%) are
+exact duplicates of their original. **A real share of Task B's difficulty
+is therefore a data-quality ceiling, not purely a modeling gap.**
+Secondary findings: the 3 Qwen-prompted methods (M2/M3/M4) share heavily
+overlapping failure sets (pairwise Jaccard 0.50-0.67) while M1/M6 fail
+more distinctly; of the tested text features only length shows even a
+modest missed-vs-detected contrast, question marks and sentiment show
+none, and exclamation/caps features are uninformative because SIGN's
+released originals are themselves lowercased/depunctuated. Qualitatively,
+universally-easy cases cluster around classic polarity-reversal verbal
+irony; universally-hard non-duplicate cases lean on external
+world-knowledge the text alone doesn't supply.
+
+Artifacts: `results/sign/error_analysis/{false_negatives,false_positives}.csv`,
+`{quantitative_contrast,cross_model_overlap}.json`. 7 new tests
+(`tests/test_sign_error_analysis.py`), 209/209 project tests passing.
+
+**Phase 4/5/6 are now all COMPLETE — the pre-Phase-7 checkpoint gate is
+satisfied.** Before starting Phase 7 (first SIGN Train touch), the
+duplicate-interpretation finding needs a decision on how the primary
+balanced training condition (original + interpretation #1) should handle
+the ~25% of families where interpretation #1 equals the original —
+flagged to the user rather than decided unilaterally.
+
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
 treated as each family's primary/best human reference**, not

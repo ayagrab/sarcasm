@@ -159,6 +159,34 @@ the record, not still "open questions"):**
   family (different human annotators independently wrote the same
   rewrite, or a data artifact). Not a blocker for classification (labels
   are still correct).
+- **A distinct, more consequential finding, discovered during Phase 6's
+  complete error analysis (2026-08-20): a meaningful fraction of
+  interpretation rows are byte-identical to their own family's original
+  sarcastic tweet** — i.e. some annotators submitted the sarcastic
+  original unchanged as their "sincere interpretation." Test split: 295
+  of 1,470 interpretation rows (20.1%), affecting 102 of 265 families
+  (38.5%); train split: 1,779 of 12,000 (14.8%), 990 of 2,292 families
+  (43.2%). **Critically, this hits rank #1 specifically** — the row
+  treated as the primary/best human reference (§ below) — in 66 of 265
+  test families (24.9%). **This is a real, irreducible label
+  contradiction in the source data, not a bug in this project's loader**:
+  the identical string is labeled `sarcastic` (as the original) and
+  `not_sarcastic` (as that interpretation) within the same family, so no
+  classifier — however good — can be expected to resolve it correctly.
+  **Consequences, quantified in Phase 6:** both of the two SIGN test
+  originals missed by all 6 zero-transfer methods have this property
+  (interpretation #1 identical to the original); of the 427
+  interpretations flagged sarcastic by *every* method, 120 (28.1%) are
+  byte-identical to their own original — meaning a substantial share of
+  Task B's apparent difficulty is a data-quality ceiling, not purely a
+  modeling gap. **Directly affects Phase 5's Primary-Reference metric**
+  (interpretation #1 vs. original) and **must be an explicit
+  consideration when Phase 7 prepares SIGN Train's primary balanced
+  condition** (original + interpretation #1) — training on ~25% of pairs
+  where the two inputs are identical but labeled oppositely is
+  unavoidably noisy; Phase 7 needs to decide (and document, not silently
+  handle) whether to keep, flag, or exclude these pairs. Full detail:
+  `results/sign/error_analysis/` (Phase 6).
 - Every sarcastic original in SIGN is, by construction, `sarcastic`; every
   interpretation is `not_sarcastic`. SIGN is **never** to be described as
   "15,000 independent sarcastic examples" anywhere in this phase's
@@ -707,7 +735,16 @@ inputs.
   "complete, not sampled" + cross-model overlap + quantitative-contrast
   requirements — qualitative tagging of up to ~265 originals × up to 6
   methods, plus building the overlap/contrast artifacts, is real work).
-- **Status:** NOT STARTED. **Depends on:** Phase 5.
+- **Status:** **COMPLETE (2026-08-20)**, actual time ~1h (well under the
+  4-6h estimate — full manual tagging of all 1,548 flagged rows was
+  judged lower-value than pursuing the data-quality finding it surfaced;
+  see the phase's results subsection above for the explicit scope note).
+  `src/sign/error_analysis/run_error_analysis.py`, 7 new tests
+  (`tests/test_sign_error_analysis.py`), 209/209 project tests passing.
+  **Headline result: discovered that a meaningful fraction of SIGN
+  interpretations are byte-identical to their own original** (§1),
+  directly explaining both universal false negatives and a meaningful
+  share of universal false positives. **Depends on:** Phase 5 (done).
 
 ### Phase 7 — Prepare SIGN Train variants (data prep only, no training yet)
 
@@ -1148,6 +1185,88 @@ interpretation for a model to recognize as sincere** — those are
 different claims, and only the first is actually established by this
 data.
 
+### Phase 6 results — complete error analysis (2026-08-20, COMPLETE)
+
+Computed by `src.sign.error_analysis.run_error_analysis` over all 6
+methods' predictions — **every** false negative/positive, not a sample
+(148 originals missed by ≥1 method out of 265; 1,400 interpretations
+flagged sarcastic by ≥1 method out of 1,470). Artifacts:
+`results/sign/error_analysis/false_negatives.csv`,
+`false_positives.csv`, `quantitative_contrast.json`,
+`cross_model_overlap.json`.
+
+**Finding 1 (the headline finding — see §1's new data-quality entry
+above for full detail): a real fraction of SIGN's "sincere
+interpretations" are byte-identical to their own sarcastic original**,
+an irreducible label contradiction discovered by this analysis, not
+assumed going in. Both of the 2 test originals missed by all 6 methods
+have this property; 28.1% of the 427 interpretations flagged sarcastic
+by every method are exact duplicates of their original. **This means a
+real share of Task B's apparent difficulty (§7) is a data-quality
+ceiling that no model can cross, not purely a linguistic/modeling gap** —
+an important caveat for how §7/§8's Task B numbers should be read.
+
+**Finding 2 — cross-model overlap shows two distinct failure clusters,
+not one shared "hard subset."** The three Qwen-prompted methods (M2/M3/M4,
+same base model, different prompting) miss heavily overlapping sets of
+originals (pairwise Jaccard 0.50–0.67); M1 (TF-IDF) and M6 (DeBERTa,
+trained on labels) have their own largely distinct failure patterns, both
+from the LLM cluster and from each other (M1–M6 Jaccard 0.22, M1–M2
+0.04). M5 (DSPy) partially aligns with the LLM cluster (Jaccard 0.26–0.42)
+but not fully — its optimized prompt changes *some* of what it misses.
+**Practical read: ensembling within the LLM-prompted family buys little
+(they fail together); M1/M6 fail differently enough from the LLM group
+and each other that they're the more complementary pairing** — a
+candidate direction, not yet tested.
+
+**Finding 3 — of the measurable text properties tested (word/char length,
+question marks, exclamation marks, all-caps words, uppercase fraction,
+VADER sentiment), only length shows even a modest missed-vs-detected
+contrast, and several hypothesized signals show none.** Ever-missed
+originals average 13.4 words vs. 14.8 for always-detected (shorter is
+mildly harder) — real but small. **Question marks are *more* common among
+always-detected originals (17.1%) than ever-missed ones (13.5%)** —
+contradicts a naive "rhetorical questions are harder" hypothesis; if
+anything "?" may function as a learned sarcasm cue models pick up on.
+VADER compound sentiment is nearly identical between groups (0.237 vs.
+0.223) — surface sentiment polarity alone does not predict which
+originals get missed. **Exclamation marks, all-caps words, and uppercase
+fraction are zero for every SIGN original in both groups** — not because
+these signals are absent from sarcasm, but because SIGN's originals are
+themselves lowercased/depunctuated in the released corpus (consistent
+with Phase 2's characterization findings) — a corpus property, not a
+finding about sarcasm.
+
+**Finding 4 — qualitative read of the universally-easy cases (117/265
+originals correctly detected by all 6 methods) vs. the universally-hard
+non-duplicate cases.** Always-detected examples cluster heavily around
+classic **polarity-reversal verbal irony**: strongly positive words
+applied to clearly negative topics ("dry heaves from cancer are
+awesome"), rhetorical "don't you just love..." constructions, and
+self-undercutting exaggeration ("i'm so smart" following an obviously
+dumb action) — recognizable, almost idiomatic sarcasm markers that likely
+transfer well from Dataset A. The non-duplicate hard cases (missed by
+5/6, excluding the 2 pure data artifacts) tend toward flatter, more
+factual-sounding statements with no explicit sentiment reversal cues
+("2 chests pieces 5 special weapons and 14 gauntlets seems like some
+balanced drops to me", "david villa with a worldclass penaltykick") —
+sarcasm here depends on outside knowledge (is that actually a good drop
+rate? was that penalty kick actually bad?) that isn't recoverable from
+the text alone. This matches the classic "context/world-knowledge
+dependence" hypothesis from the phase brief, and is consistent with
+Phase 1's "positive_surface_wording" tag firing on several of these.
+
+**Not yet done:** manual/LLM-judged qualitative tagging of the full
+148-row false-negative and 1,400-row false-positive sets (the CSVs carry
+rule-based *candidate* tags derived from the same measurable features
+above, explicitly not a substitute for human/careful reading — documented
+in the module's docstring). The findings above come from directly reading
+the highest-value subsets (universally missed, universally flagged,
+universally detected), which is where the highest-confidence signal is
+concentrated; a full pass over all 1,548 flagged rows was judged lower
+value than the quantitative/overlap/data-quality findings above, given
+Phase 6's time budget, and is not required to unblock Phase 7.
+
 ## 8. Domain adaptation results
 
 *(Populated after Phase 8 runs.)*
@@ -1175,7 +1294,9 @@ data.
 - [x] Phase 4 — Zero-transfer to SIGN (M1–M6) — **COMPLETE, all 6 methods
       persisted and committed**
 - [x] Phase 5 — SIGN contrastive/family evaluation — **COMPLETE**
-- [ ] Phase 6 — Error analysis
+- [x] Phase 6 — Error analysis — **COMPLETE** (found: ~20-25% of
+      interpretations are duplicate-of-original, a real data-quality
+      ceiling)
 - [ ] Phase 7 — Prepare SIGN Train variants
 - [ ] Phase 8 — Domain adaptation (M1 + M6)
 - [ ] Phase 9 — Learning curve (M1 + M6)
@@ -1261,12 +1382,18 @@ existing on the local Mac) — not inferred from what was scheduled to run.
 
 ### CURRENT STATUS
 
-**Phase 4 (Zero-transfer to SIGN) COMPLETE. Phase 5 (family-aware/contrastive
-evaluation) COMPLETE.** All 6 methods' Task A/B/Primary-Reference/per-rank/
-family-view metrics computed and persisted (`results/sign/family_eval/`).
-At the checkpoint gate (§1/§Phase 4-5): backup verified, comparison table
-done → Phase 6 (mandatory complete error analysis) is next → only then
-Phase 7 (first SIGN Train touch).
+**Phase 4 (Zero-transfer), Phase 5 (family-aware/contrastive evaluation),
+and Phase 6 (complete error analysis) all COMPLETE.** The pre-Phase-7
+checkpoint gate (§1/§Phase 4-5) is now fully satisfied: backup verified,
+comparison table done, error analysis done — including a significant new
+finding (§1: ~20-25% of SIGN interpretations are byte-identical to their
+own original, a real label-contradiction/data-quality ceiling, not a
+modeling gap). **Phase 7 (SIGN Train prep) is next**, but its primary balanced condition
+design now depends on a real methodological choice raised by the
+duplicate-interpretation finding (how to handle the ~25% of families
+where interpretation #1 equals the original) — flagged to the user before
+Phase 7 starts rather than decided unilaterally, since it changes what
+"the primary training condition" actually means going forward.
 
 ### LAST SAFE CHECKPOINT
 

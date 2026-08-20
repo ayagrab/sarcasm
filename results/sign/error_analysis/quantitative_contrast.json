@@ -1,0 +1,34 @@
+{
+  "n_ever_missed": 148,
+  "n_always_detected": 117,
+  "features": {
+    "word_length": {
+      "ever_missed_mean": 13.445945945945946,
+      "always_detected_mean": 14.76923076923077
+    },
+    "char_length": {
+      "ever_missed_mean": 69.91891891891892,
+      "always_detected_mean": 76.08547008547009
+    },
+    "has_question_mark": {
+      "ever_missed_mean": 0.13513513513513514,
+      "always_detected_mean": 0.17094017094017094
+    },
+    "has_exclamation_mark": {
+      "ever_missed_mean": 0.0,
+      "always_detected_mean": 0.0
+    },
+    "has_all_caps_word": {
+      "ever_missed_mean": 0.0,
+      "always_detected_mean": 0.0
+    },
+    "uppercase_char_fraction": {
+      "ever_missed_mean": 0.0,
+      "always_detected_mean": 0.0
+    },
+    "vader_compound": {
+      "ever_missed_mean": 0.23725810810810813,
+      "always_detected_mean": 0.22284786324786326
+    }
+  }
+}
