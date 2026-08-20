@@ -1,0 +1,8 @@
+{
+  "experiment_id": "EXP-SIGN-011",
+  "approach": "M1_tfidf_logreg_zero_transfer",
+  "frozen_config_reused": "configs/tfidf.json (EXP-001)",
+  "train_data": "Dataset A TRAIN only (data/splits/train.csv, n=6706) -- SIGN never seen during fit",
+  "eval_data": "SIGN Test, all roles (data/sign/family_table_test.csv, n=1735)",
+  "seed": 42
+}

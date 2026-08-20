@@ -100,14 +100,39 @@ top of it (Phase/Stage 1 below) rather than re-deriving it.
 | Dev | 1,500 | 1,500 ✅ | 270 | 300 | 240 |
 | Test | **1,470** | 1,500 ⚠️ | 265 | 300 | 237 |
 
-**Known data-quality findings (must be documented, not silently
-worked around):**
+**UPDATE (2026-08-20, later same day): verified against the official
+upstream source, investigation closed.** Fetched
+`train.csv`/`dev.csv`/`test.csv` directly from the SIGN paper's own
+GitHub release (Peled & Reichart, ACL 2017,
+[github.com/Lotemp/SarcasmSIGN](https://github.com/Lotemp/SarcasmSIGN),
+`corpus/` folder) and diffed byte-for-byte against this repo's
+`data/raw/original_{train,dev,test}_dataset.csv`:
 
-- **Test has 1,470 pairs, not the official 1,500** (30 short). This is in
-  the raw file as committed, not something this audit introduced — it's
-  the same file Part I already built on (see next point). Treated as a
-  known limitation of the locally-available SIGN copy; not blocking, but
-  disclosed everywhere Test counts are reported.
+| Split | Official file | Local file | MD5 match? |
+|---|---|---|---|
+| Train | `corpus/train.csv`, 12,000 lines | `original_train_dataset.csv` | ✅ identical (`b232d49c...`) |
+| Dev | `corpus/dev.csv`, 1,500 lines | `original_dev_dataset.csv` | ✅ identical (`dd45cdc1...`) |
+| Test | `corpus/test.csv`, **1,470 lines** | `original_test_dataset.csv` | ✅ identical (`2c17f440...`) |
+
+**All three are byte-identical to the official release — this repo's
+copy is exactly correct, not corrupted, truncated, or edited.** Critically,
+**the official `test.csv` file itself has only 1,470 lines**, not the
+1,500 the paper's summary text (300 tweets × 5) describes — the 30-row
+shortfall is a property of the dataset as actually published, present in
+the source repository, not an artifact of anything in this project. The
+paper's README describes the *design* (300 tweets/split, 5
+interpretations each); the released Test file doesn't fully match that
+description. **No further action needed**: not a bug to fix, nothing to
+"restore" — this project's copy is the correct, complete, unmodified
+official file, and every zero-transfer/family-structure result in this
+document already accounts for the true 1,470/265 count rather than
+assuming the paper's nominal 1,500/300.
+
+**Original findings below, now understood in light of the above (kept for
+the record, not still "open questions"):**
+
+- **Test has 1,470 pairs, not the official 1,500** (30 short) — confirmed
+  above to be inherent to the officially published file itself.
 - **Family grouping only has text as a key — no tweet ID column exists in
   this file.** Grouping by exact stripped original text gives fewer
   unique families than the official spec (2,292 vs 2,400 train; 270 vs
@@ -133,13 +158,48 @@ worked around):**
   least one pair of byte-identical interpretation texts within the same
   family (different human annotators independently wrote the same
   rewrite, or a data artifact). Not a blocker for classification (labels
-  are still correct) but noted for Phase 7's "1 interpretation per
-  original" sampling, which should not be surprised by duplicate rows.
+  are still correct).
 - Every sarcastic original in SIGN is, by construction, `sarcastic`; every
   interpretation is `not_sarcastic`. SIGN is **never** to be described as
   "15,000 independent sarcastic examples" anywhere in this phase's
   documentation — it is 3,000 originals + 15,000 interpretations
   (nominally; 14,970 actually present, see above), organized in families.
+
+### Interpretation rank and the "primary reference" clarification (added 2026-08-20)
+
+**Decision:** interpretation #1 (the first interpretation for a given
+family, in the exact row order already present in the raw source file)
+is treated as that family's **primary/best human reference**, not
+interchangeable with #2–#5. This changes how "1 interpretation per
+original" is selected everywhere in this document: **always
+interpretation #1 specifically, never a random draw.**
+
+- The family-aware loader (`src/sign/data/load_sign.py`) already
+  preserves this order as `interp_index` (1..N, in file order) — no
+  schema change was needed, just the explicit semantic designation. A
+  convenience column `is_primary_interpretation` (`interp_index == 1`)
+  was added for clarity.
+- **Honest caveat, not a silent assumption**: the raw files carry no
+  interpretation-ID column (confirmed again by the official-source diff
+  above — the published files are plain `[original, interpretation]`
+  pairs, nothing more). "Interpretation #1" therefore means "first row
+  for this family in the officially published file," which is the only
+  ordering signal available — there's no independent way to confirm this
+  matches whatever internal numbering the original annotation process
+  used. Treated as the best available proxy, disclosed as a limitation.
+- **`src/sign/data/family_utils.py` now has a rank-based, non-shuffled
+  selector** (`select_top_k_interpretations_per_family` /
+  `select_primary_interpretation_per_family`) that picks interpretations
+  #1..k by rank, always nested (k=1 ⊂ k=2 ⊂ k=3 ⊂ k=5) by construction —
+  no seed needed since there's nothing random. The earlier seeded-shuffle
+  selector (`select_k_interpretations_per_family`) is kept in the module,
+  documented as deprecated for the primary-reference experiments, not
+  deleted (no code depended on it yet — Phase 7 hadn't run).
+- **Affects Phase 5, 7, 9, 10 methodology** — see each phase's updated
+  entry below. Phase 4's zero-transfer evaluation already covers *every*
+  interpretation (not just #1), so it's unaffected by this decision;
+  Phase 5's analysis of those same predictions is where the primary-vs-
+  full-family distinction actually enters.
 
 ### Reference material already in the repo
 
@@ -160,11 +220,16 @@ worked around):**
 - **RQ3:** how much SIGN Train data is needed to close the gap found in
   RQ2?
 - **RQ4** (secondary): does using more of SIGN's 5 human interpretations
-  per tweet (vs. just 1) improve the classifier's learned boundary?
+  per tweet (vs. just interpretation #1) improve the classifier's learned
+  boundary?
+- **RQ5** (added 2026-08-20): what kinds of SIGN sarcasm fail to
+  transfer across datasets, and which of those failures does domain
+  adaptation actually fix?
 
 Phases 1–3 below build the evidence base (is there even a domain shift to
-explain?); Phases 4–6 answer RQ2 and characterize *why*; Phases 7–10
-answer RQ3/RQ4; Phase 11 synthesizes all of it.
+explain?); Phases 4–6 answer RQ2 and RQ5 and characterize *why*; Phases
+7–10 answer RQ3/RQ4; Phase 6 is repeated after adaptation (§ Phase 8-10)
+to close RQ5; Phase 11 synthesizes all of it.
 
 ---
 
@@ -412,39 +477,118 @@ start until this is fully persisted.**
   checkpointed resume for these inference runs, mirrors Part II's own
   runs). Each method's `predictions.csv` is written only on full
   completion — an interrupted run leaves no partial (and no incorrect)
-  artifact.
-- **Status:** NOT STARTED. **Depends on:** Phase 1. **Must complete and
-  be persisted before Phase 7.**
+  artifact. A monitor watches the VM log and rsyncs each method's
+  `results/sign/EXP-SIGN-01#/` back to the local Mac **the moment that
+  method's line is printed** (not waiting for the whole batch) — added
+  2026-08-20 per explicit request, since `/mnt` is ephemeral and a VM
+  loss should cost at most the one method currently mid-run.
+- **Status: IN PROGRESS as of 2026-08-20.** VM session opened, environment
+  rebuilt and verified (§13 log). **Verified state (not inferred from
+  what was scheduled):**
+  - M1 (EXP-SIGN-011): **DONE**, persisted locally, results in §7.
+  - M6 (EXP-SIGN-016): **DONE**, persisted locally, results in §7.
+  - M2 (EXP-SIGN-012): **RUNNING** on VM (single process also queued to
+    run M3/M4 after, so it loads the ~8GB Qwen model once). Not yet
+    complete, not yet synced back — no `metrics.json` exists yet, so it
+    is NOT marked done regardless of how far the progress bar has gotten.
+  - M3 (EXP-SIGN-013): **QUEUED**, same VM process, starts automatically
+    when M2 finishes.
+  - M4 (EXP-SIGN-014): **QUEUED**, same VM process, starts automatically
+    when M3 finishes.
+  - M5 (EXP-SIGN-015): **QUEUED**, separate process, launched after
+    M2–M4's process exits (loads the frozen `results/EXP-008/compiled_program.json`
+    via `dspy.Predict.load(...)`, inference only, no recompilation).
+  - **Depends on:** Phase 1 (done). **Must complete and be persisted
+    before Phase 7** — not yet complete, so Phase 7 has correctly not
+    started.
 
 ### Phase 5 — SIGN contrastive / family-aware evaluation
 
 - **Research question:** RQ2, at family granularity — not just "is each
   row right" but "does the model correctly separate an original from its
-  own 5 rewrites."
+  own rewrites."
 - **Inputs:** Phase 4's predictions (no new model inference — this phase
   re-analyzes Phase 4's `predictions.csv` files with family-aware
-  metrics). **No SIGN Train use.**
-- **Outputs:** `results/sign/family_eval/` — per method: original
-  detection rate, interpretation non-sarcasm rate, pairwise contrastive
-  accuracy, strict family accuracy, soft family score; full per-family
-  results table for qualitative follow-up (Phase 6).
+  metrics, via `src.sign.family_eval.metrics`, already built and tested
+  in Phase 1). **No SIGN Train use.**
+- **Two explicit views, both reported, never conflated (added 2026-08-20
+  per the interpretation-#1-is-primary decision, §1):**
+  - **A. Primary-reference evaluation** — original vs. interpretation #1
+    only (`is_primary_interpretation`). The clean, minimal-noise signal:
+    one original, one best sincere rewrite, straightforward binary +
+    contrastive metrics.
+  - **B. Full-family evaluation** — original vs. all available
+    interpretations (1–5, whatever that family actually has). Original
+    detection rate, interpretation non-sarcasm rate, pairwise contrastive
+    accuracy, strict family accuracy (**all** available interpretations
+    must be correct, not just #1), soft family score. Computed once over
+    **all families** and reported again over the **clean (exactly-5)**
+    subset only, so a reader can see whether anomalous/incomplete
+    families are skewing the aggregate.
+- **Outputs:** `results/sign/family_eval/` — per method, both views (A
+  and B×2 family-subsets) as JSON/CSV; full per-family results table
+  (family_id, original prediction, every interpretation's prediction,
+  which view(s) it passed/failed) for Phase 6's error analysis to consume
+  directly rather than re-deriving.
 - **Compute:** trivial (re-aggregating existing predictions).
 - **VM required:** NO.
 - **Estimated time:** ~2h.
-- **Status:** NOT STARTED. **Depends on:** Phase 4.
+- **Status:** NOT STARTED. **Depends on:** Phase 4 (in progress — see
+  Phase 4 entry above for exact per-method state).
 
-### Phase 6 — Error analysis on SIGN
+### Phase 6 — Error analysis on SIGN (MANDATORY: complete, not representative-sample)
 
-- **Research question:** RQ2's "why" — what kinds of sarcasm fail to
+- **Research question:** RQ2/RQ5's "why" — what kinds of sarcasm fail to
   transfer, and what are false-positive interpretations reacting to.
-- **Inputs:** Phase 4/5 outputs (predictions + family metrics).
-- **Outputs:** `results/sign/error_analysis/` — categorized false
-  negatives (originals missed) and false positives (interpretations
-  flagged sarcastic) with representative examples, cross-method
-  comparison, qualitative write-up appended to this doc / `EXPERIMENT_LOG.md`.
-- **Compute:** trivial; mostly manual/LLM-assisted qualitative review.
+- **Scope requirement (2026-08-20, explicit, supersedes any earlier
+  "representative examples" framing):** this must cover **every** SIGN
+  false negative for every zero-transfer method, not a curated sample.
+  Representative examples belong in the write-up/report; the underlying
+  analysis artifact must be exhaustive.
+- **Inputs:** Phase 4/5 outputs (predictions + family metrics — both the
+  primary-reference and full-family views).
+- **Outputs:**
+  - `results/sign/error_analysis/false_negatives.csv` (or `.jsonl`) — one
+    row per **original that at least one model missed**, columns: `family_id`,
+    `original_text`, per-model predicted label (one column per method,
+    e.g. `pred_M1`, `pred_M2`, ... `pred_M6`), `n_models_missed`,
+    `which_models_missed` (list), `interpretation_1`..`interpretation_5`
+    (blank where unavailable), qualitative error tag(s), free-text notes.
+    This is the exhaustive machine-readable artifact the brief requires —
+    every false negative, not a sample.
+  - `results/sign/error_analysis/false_positives.csv` — the mirror for
+    interpretations flagged sarcastic: `family_id`, `interp_rank`,
+    `interpretation_text`, per-model predicted label, `original_text`
+    (for context), qualitative tag(s).
+  - **Quantitative comparison, not anecdotal** (explicit requirement): for
+    every proposed error category/characteristic (length, sentiment,
+    punctuation, capitalization, lexical features, embedding position),
+    compute it for **both** missed and correctly-detected originals and
+    report the contrast — a characteristic common among misses that's
+    equally common among successes is not reported as explanatory.
+  - **Cross-model overlap analysis**: which originals are missed by every
+    method, by most, by exactly one; per-model-pair miss overlap (a
+    model×model or model×example matrix); whether DSPy's errors differ in
+    *kind* from plain-prompted Qwen's, not just in count; category-level
+    miss rates per method where the qualitative tagging supports it.
+    Plots as useful (heatmap / overlap matrix), not obligatory for every
+    cut.
+  - Qualitative write-up (representative examples + conclusions) appended
+    to this document and `EXPERIMENT_LOG.md`, explicitly titled to match
+    the final-report requirement ("What Kinds of SIGN Sarcasm Do the
+    Models Fail to Detect?" — drafted here, finalized in Phase 11).
+- **Repeated after adaptation** (new, §Phase 8-10): the same artifacts are
+  regenerated for the adapted model(s) once Phase 8/9 produce a selected
+  adapted checkpoint, plus an explicit before/after diff (fixed / still
+  missed / newly broken) — see Phase 8's entry.
+- **Compute:** trivial to generate; the quantitative contrasts and
+  cross-model overlap are systematic (not manual), the qualitative
+  tagging/write-up is the part that takes real time.
 - **VM required:** NO.
-- **Estimated time:** ~2–4h (qualitative work takes longer than it looks).
+- **Estimated time:** ~4–6h (revised up from the original 2–4h given the
+  "complete, not sampled" + cross-model overlap + quantitative-contrast
+  requirements — qualitative tagging of up to ~265 originals × up to 6
+  methods, plus building the overlap/contrast artifacts, is real work).
 - **Status:** NOT STARTED. **Depends on:** Phase 5.
 
 ### Phase 7 — Prepare SIGN Train variants (data prep only, no training yet)
@@ -452,16 +596,44 @@ start until this is fully persisted.**
 - **Research question:** none directly — controlled data prep for Phase
   8/9/10, gated on Phase 4 being safely persisted first (brief's hard
   requirement).
-- **Inputs:** SIGN **Train** only (2,185 clean families after the Phase-1
-  filter; 2,292 if anomalous families are kept for the non-strict
-  variants — decided per-experiment and recorded).
-- **Outputs:** `data/sign/train_variants/` — deterministic, seeded
-  (`seed=42`, matching the rest of the project's convention) family-level
-  samples: balanced (1:1, one interpretation/original), and 1/2/3/5-
-  interpretations-per-original variants. Every variant file records its
-  exact family_ids and the seed used; `assert_no_family_leakage` run on
-  every variant as a saved check, not just at generation time.
-- **Compute:** trivial (sampling ~2,185 families).
+- **Inputs:** SIGN **Train** — 2,292 families total (verified 2026-08-20
+  against the official upstream file, §1), 2,185 "clean" (exactly-5)
+  after the Phase-1 filter. Official spec is 2,400; the local/official
+  file itself has 2,292 by exact-text grouping (§1 — confirmed inherent
+  to the published data, not a local error).
+- **Primary balanced condition (default, used unless a specific
+  experiment says otherwise): original + interpretation #1 only**, via
+  `select_primary_interpretation_per_family` — deterministic, rank-based,
+  **never a random draw** (2026-08-20 decision, §1). For the 2,292
+  available Train families this gives **2,292 sarcastic + 2,292
+  non-sarcastic** examples (naturally 1:1 balanced by construction, no
+  imbalance-handling needed for this condition specifically).
+- **Multi-interpretation conditions (k=2/3/5) — secondary/ablation, not
+  the default**: `select_top_k_interpretations_per_family(df, k)`,
+  always interpretations **#1..k by rank** (nested: k=1 ⊂ k=2 ⊂ k=3 ⊂
+  k=5), never shuffled. These are inherently imbalanced (k non-sarcastic
+  per 1 sarcastic) — **imbalance-handling policy, decided and documented
+  here rather than silently at run time:**
+  - **M1 (TF-IDF+LR):** `class_weight="balanced"` in
+    `LogisticRegression` — trivial, already the exact pattern used for
+    Phase 3's origin classifier (`src/sign/origin_classification/run_origin_classifier.py`).
+  - **M6 (DeBERTa/HF `Trainer`):** rather than a custom weighted loss
+    (a real change to `finetune.py`'s training loop, more invasive),
+    **the sarcastic original is duplicated k times** so the training set
+    stays exactly 1:1 for every k (k originals-by-duplication : k
+    interpretations #1..k). Simpler, deterministic, reproducible, and
+    isolates the question Phase 10 actually asks (does interpretation
+    *diversity* help) from a confound of class imbalance or raw example
+    count — which is the brief's explicit requirement (§4/§14 of the
+    kickoff prompt). Documented per-experiment in each run's `config.json`
+    (`imbalance_strategy: "duplicate_original_k_times"`).
+- **Outputs:** `data/sign/train_variants/` — one CSV per condition
+  (`primary.csv`, `k2.csv`, `k3.csv`, `k5.csv`, plus the Phase 9
+  fractional samples), each recording its exact family_ids, interp_index
+  values used, and (for k>1) the imbalance strategy applied.
+  `assert_no_family_leakage` run and saved as a check for every variant,
+  not just at generation time.
+- **Compute:** trivial (sampling ~2,292 families).
 - **VM required:** NO.
 - **Estimated time:** ~1–2h.
 - **Status:** NOT STARTED. **Depends on:** Phase 4 (persisted) + Phase 1.
@@ -473,13 +645,25 @@ start until this is fully persisted.**
 - **Conditions ×2 models:** (A) Dataset-A-only [= Phase 4's zero-transfer,
   reused, not rerun], (B) Dataset A + SIGN Train, (C) SIGN Train only —
   each evaluated on SIGN Test **and** re-evaluated on Dataset A's own held-
-  out TEST to check for forgetting.
+  out TEST to check for forgetting. **B/C use the primary balanced
+  condition (original + interpretation #1, Phase 7) as the default SIGN
+  Train data**, per the 2026-08-20 clarification — not a k>1 variant
+  unless a specific follow-up experiment says so.
+- **Mandatory post-adaptation error-analysis repeat (2026-08-20, new):**
+  once a B/C model is selected, Phase 6's exhaustive false-negative/
+  false-positive artifacts are regenerated for it, plus an explicit
+  **before → after diff**: which zero-transfer false negatives are now
+  fixed, which remain, whether any new false positives appeared, and
+  whether the error *categories* shifted (not just the count). This is
+  what actually answers RQ5's second half ("which failures does
+  adaptation fix") — a macro-F1-improved number alone does not.
 - **Compute:** M1 — seconds/run, all local. M6 — ~15–30 min/run (scales
   with Part II's 22-min/6,706-example baseline), VM required.
 - **VM required:** YES for M6's (B)/(C) runs (2 new fine-tunes; (A) is
   already-frozen `EXP-009`, reused not rerun).
 - **Estimated time:** M1 ~30 min total. M6 ~1–1.5h VM time for both runs
-  + eval.
+  + eval. Post-adaptation error-analysis repeat: ~1–2h on top (reuses
+  Phase 6's machinery, adds the diff).
 - **Status:** NOT STARTED. **Depends on:** Phase 7, and Phase 4 fully
   persisted (hard gate).
 
@@ -487,7 +671,11 @@ start until this is fully persisted.**
 
 - **Research question:** RQ3.
 - **Inputs:** Phase 7's fractional family-level samples (0/10/25/50/75/100%
-  of SIGN Train families), same SIGN Test throughout.
+  of SIGN Train families), **using the primary balanced condition
+  (original + interpretation #1) at every fraction** so the curve isn't
+  confounded by interpretation count changing alongside data volume —
+  that's Phase 10's question, kept strictly separate. Same SIGN Test
+  throughout.
 - **Outputs:** `results/sign/learning_curve/` — metrics (sarcasm recall on
   originals, interpretation accuracy, macro F1, pairwise contrastive
   accuracy, strict family accuracy) per fraction per model; plot of
@@ -502,13 +690,14 @@ start until this is fully persisted.**
 ### Phase 10 — Interpretation-count ablation (1 vs 2 vs 3 vs 5 per tweet)
 
 - **Research question:** RQ4.
-- **Inputs:** Phase 7's 1/2/3/5-interpretations-per-original variants,
-  with total example count and class balance controlled so the
-  comparison isn't confounded by dataset size (documented explicitly per
-  the brief — likely: fix total non-sarcastic examples via
-  duplication/weighting when using fewer interpretations, or fix
-  #families and let size vary but report both a size-matched and a
-  natural-size condition).
+- **Inputs:** Phase 7's k=1/2/3/5 variants — **always interpretations
+  #1..k by rank** (nested, never shuffled — 2026-08-20 decision, §1/§7),
+  same full SIGN Train family set (100%, not swept — that's Phase 9) at
+  every k. Class imbalance handled per Phase 7's documented policy
+  (`class_weight="balanced"` for M1, original-duplicated-k-times for
+  M6) so the comparison isolates interpretation *diversity* from raw
+  example count or class-balance artifacts, per the brief's explicit
+  requirement.
 - **Outputs:** `results/sign/interp_count_ablation/` — same metric set as
   Phase 9, compared across the 4 interpretation-count conditions.
 - **Compute:** M1 — trivial, local. M6 — 4 conditions × ~15–30 min ≈
@@ -519,11 +708,14 @@ start until this is fully persisted.**
 
 ### Phase 11 — Final synthesis
 
-- **Research question:** RQ1–RQ4, connected end-to-end.
+- **Research question:** RQ1–RQ5, connected end-to-end.
 - **Outputs:** a new "Part III — SIGN Generalization" section in
-  `PROJECT_SUMMARY.md` (clean narrative + final tables), a completed
-  `EXPERIMENT_LOG.md` SIGN section (full audit trail, every `EXP-SIGN-###`),
-  this document marked fully COMPLETED.
+  `PROJECT_SUMMARY.md` (clean narrative + final tables) **including a
+  dedicated section titled "What Kinds of SIGN Sarcasm Do the Models Fail
+  to Detect?"** (RQ5 — quantitative + qualitative, drafted in Phase 6,
+  finalized here with the before/after-adaptation comparison from Phase
+  8), a completed `EXPERIMENT_LOG.md` SIGN section (full audit trail,
+  every `EXP-SIGN-###`), this document marked fully COMPLETED.
 - **VM required:** NO.
 - **Estimated time:** ~2–4h writing/assembly, after all prior phases.
 - **Status:** NOT STARTED. **Depends on:** everything above.
@@ -532,28 +724,35 @@ start until this is fully persisted.**
 
 ## 5. Time estimates — summary
 
-| Phase | Local/dev time | VM time | VM required |
-|---|---:|---:|:---:|
-| 0 — Audit & plan | done | — | NO |
-| 1 — Foundation | 2–3h | — | NO |
-| 2 — Characterization | 2–3h | — | NO |
-| 3 — Origin classifier | 1h | — | NO |
-| 4 — Zero-transfer | ~1h (M1/M6 local prep) | 4.5–6h (M2–M5) | YES |
-| 5 — Family eval | 2h | — | NO |
-| 6 — Error analysis | 2–4h | — | NO |
-| 7 — SIGN Train prep | 1–2h | — | NO |
-| 8 — Domain adaptation | 0.5h (M1) | 1–1.5h (M6) | YES |
-| 9 — Learning curve | 1h (M1) | 2–3.5h (M6) | YES |
-| 10 — Interp-count ablation | 0.75h (M1) | 1–2h (M6) | YES |
-| 11 — Synthesis | 2–4h | — | NO |
-| **Total** | **~16–24h local/dev** | **~8.5–13h VM** | — |
+| Phase | Local/dev time | VM time | VM required | Status |
+|---|---:|---:|:---:|---|
+| 0 — Audit & plan | done | — | NO | ✅ DONE |
+| 1 — Foundation | done (~1h actual) | — | NO | ✅ DONE |
+| 2 — Characterization | done (~25min actual) | — | NO | ✅ DONE |
+| 3 — Origin classifier | done (~25min actual) | — | NO | ✅ DONE |
+| 4 — Zero-transfer | M1/M6 done locally | **~2.9h revised** (M2–M5, see below) | YES | 🔄 IN PROGRESS |
+| 5 — Family eval | 2–3h (primary + full-family views) | — | NO | NOT STARTED |
+| 6 — Error analysis | **4–6h** (revised up: complete not sampled) | — | NO | NOT STARTED |
+| 7 — SIGN Train prep | 1–2h | — | NO | NOT STARTED |
+| 8 — Domain adaptation | 0.5h (M1) + ~1–2h (post-adapt error repeat) | 1–1.5h (M6) | YES | NOT STARTED |
+| 9 — Learning curve | 1h (M1) | 2–3.5h (M6) | YES | NOT STARTED |
+| 10 — Interp-count ablation | 0.75h (M1) | 1–2h (M6) | YES | NOT STARTED |
+| 11 — Synthesis | 2–4h | — | NO | NOT STARTED |
+| **Total remaining from now** | **~15–21h local/dev** | **~5–7h VM** | — | |
 
-These are **first-pass estimates** with real uncertainty (flagged per the
-brief): the VM figures for M2–M5 (Phase 4) are extrapolated from Part
-II's per-example rates on a differently-sized SIGN Test set and have not
-been measured yet; M6 retraining times scale with dataset size in a way
-that's only loosely linear. **Will be revised with real numbers after the
-first VM session (Phase 4) — see the "revise estimates" note in §7.**
+**Phase 4 VM time, revised with a real measured rate** (2026-08-20, mid-run):
+M2 zero-shot measured at **~1.55s/example** (1,533/1,735 done in 32m29s) →
+M2 total ≈ **44–45 min** (very close to the original ~40–60min estimate).
+Applying Part II's DEV-time *relative* pacing between methods (M3 ≈
+2.3–2.6× M2's rate, M4 ≈ 1.7–1.9×, both per-example, scaled onto SIGN's
+1,735-row eval set) gives revised estimates: **M3 ≈ 1h45m–2h05m, M4 ≈
+1h15m–1h25m, M5 ≈ 45min–1h15m** (inference-only against the frozen
+program, expected closer to M2/M4's pace than M3's, no compile cost).
+**Revised Phase 4 VM total from the point M2 finishes: ≈ 3h45m–4h45m**;
+already ~35–40 min into that as of this estimate (M2 in progress) →
+**≈ 3h10m–4h10m remaining** for M3+M4+M5 combined. Will be updated again
+once each method's *actual* wall-clock lands (M2's real number already
+folded in above; M3/M4/M5 still projected).
 
 VM sessions can be **batched**: Phases 4, 8, 9, and 10 all need the VM,
 but 8/9/10 depend on Phase 4 being *persisted* first (not on the VM being
@@ -659,10 +858,57 @@ sarcasm detection specifically.
 
 ## 7. Zero-transfer results
 
-*(Populated after Phase 4 runs. Empty for now — this section, once
-filled, is the phase's most important scientific artifact and must never
-be overwritten by a later adaptation result; adaptation results get their
-own §8/§9/§10 sections.)*
+*(Phase 4, in progress, started 2026-08-20. VM session opened this date
+— see §13 for the setup log. This section is the phase's most important
+scientific artifact; adaptation results get their own §8/§9/§10 sections,
+never merged into this one.)*
+
+**Eval set for every method below:** SIGN Test, all roles, full set
+(n=1,735: 265 originals + 1,470 interpretations — see §1 for why this is
+1,735/300 rather than the official 1,800/300).
+
+| Method | Experiment ID | Status | Accuracy | Macro F1 | Sarcasm detection rate (originals) | FN rate | Confusion matrix `[[TN,FP],[FN,TP]]` (not_sarcastic, sarcastic) |
+|---|---|---|---:|---:|---:|---:|---|
+| M1 TF-IDF+LR | EXP-SIGN-011 | done | 0.3660 | 0.3563 | 0.7962 (211/265) | 0.2038 | `[[424,1046],[54,211]]` |
+| M6 DeBERTa-v3-base | EXP-SIGN-016 | done | 0.5326 | 0.4724 | 0.6377 (169/265) | 0.3623 | `[[755,715],[96,169]]` |
+| M2 Qwen zero-shot | EXP-SIGN-012 | **done** | 0.3418 | 0.3397 | **0.9358 (248/265)** | 0.0642 | `[[345,1125],[17,248]]` |
+| M3 Qwen few-shot | EXP-SIGN-013 | running on VM | — | — | — | — | — |
+| M4 Qwen reasoning | EXP-SIGN-014 | queued (same VM run) | — | — | — | — | — |
+| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | queued after M2-M4 | — | — | — | — | — |
+
+**M1/M6 interpretation — a striking reversal of Part II's headline
+finding.** On Dataset A, M1 and M6 (the two "trained on labels" methods)
+were the *balanced* ones (Part II: M1 FP=157/FN=174, M6 FP=112/FN=122),
+while every LLM-prompted method was heavily FP-skewed. **On SIGN,
+zero-transfer, both M1 and M6 flip to heavy false-positive bias
+themselves**: M1 misclassifies 1,046/1,470 (71.2%) of SIGN's sincere
+interpretations as sarcastic; M6 misclassifies 715/1,470 (48.6%). Both
+scores collapse well below their Dataset A TEST numbers (M1: 0.7403 →
+0.3563; M6: 0.8209 → 0.4724) — consistent with Phase 2/3's domain-shift
+evidence, and a direct, quantified answer to "does the shift actually
+hurt." M6 remains the stronger of the two on SIGN (higher macro F1,
+lower FP rate) but both are far below their in-domain performance, and
+both **still detect a majority of the sarcastic originals** (M1: 79.6%,
+M6: 63.8%) — meaning the failure mode isn't "can't recognize the
+sarcastic tweets at all," it's "can't tell sincere SIGN interpretations
+apart from sarcastic ones" — exactly what Phase 2's embedding finding
+(SIGN originals/interpretations overlap heavily with each other) predicted.
+Full detail: `results/sign/EXP-SIGN-011/`, `results/sign/EXP-SIGN-016/`.
+
+**M2 (Qwen zero-shot) interpretation — the LLM's existing bias
+compounds with the domain shift, doesn't just persist.** Part II already
+found every LLM-prompted method heavily FP-skewed on Dataset A (M2 TEST:
+FP=465/1340 ≈ 34.7%). On SIGN, M2's FP rate roughly doubles: **1,125/1,470
+(76.5%)** of interpretations misclassified as sarcastic — far worse than
+either M1 (71.2%) or M6 (48.6%). The upside: M2's sarcasm-recall on
+originals is the best of the three methods so far, **93.6% (248/265)**,
+best FN rate (6.4%) — but at a precision of just 18.1% (`sarcastic_precision`
+in `results/sign/EXP-SIGN-012/metrics.json`), meaning it's now
+essentially calling *almost everything* sarcastic rather than exercising
+real discrimination. Macro F1 0.3397, barely above M1's 0.3563 and well
+below M6's 0.4724, despite M2's much higher raw recall — a clean
+illustration of why macro F1 (not recall alone) is the right primary
+metric here. Full detail: `results/sign/EXP-SIGN-012/`.
 
 ## 8. Domain adaptation results
 
@@ -688,7 +934,10 @@ own §8/§9/§10 sections.)*
 - [x] Phase 1 — Foundation (loaders, family grouping, leakage tests)
 - [x] Phase 2 — Dataset characterization
 - [x] Phase 3 — Dataset-origin classification
-- [ ] Phase 4 — Zero-transfer to SIGN (M1–M6) — **hard gate before Phase 7+**
+- [~] Phase 4 — Zero-transfer to SIGN (M1–M6) — **hard gate before Phase 7+**
+      — IN PROGRESS: M1 ✅ done, M6 ✅ done, M2 🔄 running (~88%+, not yet
+      persisted), M3/M4 queued (same VM process), M5 queued (separate
+      process, after M2-M4)
 - [ ] Phase 5 — SIGN contrastive/family evaluation
 - [ ] Phase 6 — Error analysis
 - [ ] Phase 7 — Prepare SIGN Train variants
@@ -724,41 +973,142 @@ state (`hostname`, `uname -r`, `nvidia-smi`) per the brief's resume
 procedure. `/mnt` on the VM is an ephemeral resource disk — assume it's
 wiped on every restart; nothing there is a source of truth.
 
+### VM session log (2026-08-20, current session)
+
+- **Verified against the known-good baseline** (`scripts/verify_kernel.sh`,
+  extracted from git history and run inline via SSH, not re-added to the
+  tracked repo): hostname `dpmlgpuNC6sv32025s-0003`, kernel
+  `6.8.0-1029-azure` (match), `nvidia-smi` healthy, both Tesla M60s free.
+- **`/mnt` was wiped again** (as expected/documented) — rebuilt
+  `/mnt/vmadmin/{projects/sarcasm,sarcasm-env,huggingface}` (came back
+  root-owned, needed `sudo mkdir`/`sudo chown`, per the established
+  pattern), synced the repo (incl. the new `src/sign/`) via `rsync`
+  (mirroring `sync_to_vm.sh`'s exclude list), rebuilt the Python venv
+  from `environment_stage_b.txt`'s pinned `pip freeze` with two
+  necessary deviations from the frozen list (both consistent with the
+  project's established "bump the closest available version, don't
+  debug it" policy for this exact class of problem):
+  - `litellm==1.96.1` → `1.96.2` (1.96.1 removed from PyPI, same fix as
+    the 2026-08-16 incident recorded in `EXPERIMENT_LOG.md`).
+  - `torchaudio==2.5.1+cu118` / `torchvision==0.20.1+cu118` **removed
+    entirely** (new deviation, not previously encountered) — neither
+    package's `+cu118` build exists on plain PyPI (only on
+    `download.pytorch.org`'s dedicated index, which only `torch` itself
+    was explicitly pointed at), and neither is imported anywhere in this
+    codebase (`grep -rn "torchaudio\|torchvision" src/ scripts/ config/`
+    → no hits) — confirmed unused before removing, not assumed.
+  - Torch itself: `pip install torch==2.5.1+cu118 --index-url https://download.pytorch.org/whl/cu118`
+    (exact pinned version, correct CUDA build) — installed cleanly,
+    `torch.cuda.is_available() == True` confirmed on both GPUs.
+- Test suite on VM: 98/98 passing for the classification + SIGN scope
+  (`tests/test_sign_*.py` + `tests/test_classification*.py`); the
+  remaining 9 pre-existing failures are Part I-only tests
+  (nltk/google-generativeai/seaborn) that were never in the Stage B
+  environment's scope, not a regression.
+- `Qwen/Qwen3-4B-Instruct-2507` re-downloaded fresh into
+  `/mnt/vmadmin/huggingface` (21.6s, 7.6GB — matches the "~9.3GB combined
+  Qwen+DeBERTa, under a minute" figure from prior recoveries).
+  `results/EXP-008/compiled_program.json` (the frozen MIPROv2 program,
+  1.3KB) copied over individually via `scp` for M5's inference-only run
+  (not part of the `rsync` exclude-`results/` sync).
+- Smoke-tested end-to-end (`--limit 5` on M2 zero-shot) before launching
+  the real run — passed, ~1.7s/example, matching Part II's rate.
+
 ---
 
 ## 14. Resume checkpoint (updated on every interruption)
 
-**Last updated:** 2026-08-20 (Phase 3 completion — all local-only work
-done up to the VM gate).
+**Last updated:** 2026-08-20, mid-Phase-4 (VM session active). Every
+status below was **verified against actual persisted artifacts**
+(`results/sign/EXP-SIGN-0##/metrics.json` existing on the local Mac, or
+directly on the VM for in-progress work) — not inferred from what was
+scheduled to run.
 
-- **Current phase:** Phase 4 (Zero-transfer to SIGN) — **blocked on the
-  Azure VM being started** for the M2–M5 legs; M1/M6 legs not yet run
-  either (deliberately batched with the VM session per the "batch VM
-  work" instruction — M1/M6 are quick enough to just run in the same
-  sitting once the VM session opens, no need to split them out earlier).
-- **Completed:** Phase 0 (audit + plan), Phase 1 (foundation — loaders,
-  family grouping, sampling, family-aware metrics, 37 tests), Phase 2
-  (dataset characterization — findings in §6), Phase 3 (dataset-origin
-  classifier — findings inline in the Phase 3 entry above: 0.9555 /
-  0.9235 macro F1 raw/normalized, strong domain-shift evidence).
-- **Incomplete:** Phases 4–11.
+### CURRENT STATUS
+
+Phase 4 (Zero-transfer to SIGN) in progress, VM session open. 4 of 6
+methods resolved (2 done pre-VM locally, 1 done on VM, 1 in progress on
+VM), 2 queued in the same VM session.
+
+### LAST SAFE CHECKPOINT
+
+M2 (EXP-SIGN-012) — synced back to the local Mac (`results/sign/EXP-SIGN-012/`:
+config.json + metrics.json + predictions.csv all present). Everything up
+through M2 can survive a VM loss with zero rework.
+
+### CURRENT EXPERIMENT
+
+M3 (EXP-SIGN-013, Qwen few-shot zero-transfer) — running on the VM inside
+the same Python process as M2 (already-finished) and M4 (queued next),
+`src.sign.zero_transfer.run_llm_zero_transfer`. Not yet persisted locally
+(no `results/sign/EXP-SIGN-013/` on the Mac yet) — if the VM were lost
+right now, M3's in-progress work would need to restart from row 0 (no
+mid-method checkpointing, matches Part II's own LLM-experiment behavior).
+
+### COMPLETED EXPERIMENTS (this phase)
+
+| Experiment | Method | Macro F1 | Persisted locally? |
+|---|---|---:|---|
+| EXP-SIGN-001 | Origin classifier, raw text | 0.9555 | ✅ |
+| EXP-SIGN-002 | Origin classifier, normalized text | 0.9235 | ✅ |
+| EXP-SIGN-011 | M1 zero-transfer | 0.3563 | ✅ |
+| EXP-SIGN-016 | M6 zero-transfer | 0.4724 | ✅ |
+| EXP-SIGN-012 | M2 zero-transfer | 0.3397 | ✅ |
+
+Plus Phase 1 (loaders/tests) and Phase 2 (characterization) artifacts —
+see their entries above.
+
+### REMAINING EXPERIMENTS (this phase)
+
+- EXP-SIGN-013 (M3 few-shot) — running now.
+- EXP-SIGN-014 (M4 reasoning) — queued, same VM process, auto-starts
+  after M3.
+- EXP-SIGN-015 (M5 DSPy, frozen-program inference) — queued, separate
+  process, launched manually after the M2-M4 process exits (needs
+  `results/EXP-008/compiled_program.json`, already copied to the VM).
+
+Then, once all of Phase 4 is persisted: Phase 5 (family-aware
+evaluation, local, no VM) is next.
+
+### BLOCKERS
+
+None currently. (Historical, resolved: `litellm==1.96.1` unavailable on
+PyPI → bumped to 1.96.2; `torchaudio`/`torchvision` `+cu118` builds
+unavailable off the PyTorch index → removed, confirmed unused; a
+Monitor-based auto-sync-back had a shell pipe-buffering bug (`tail -f`
+piped through `tr` without line-buffering, so the completion marker sat
+unseen) → replaced with a polling-based sync-back, verified working.)
+
+### NEXT ACTION
+
+Let the current VM process run (M3 → M4 automatically); when it exits,
+launch M5 (`python -m src.sign.zero_transfer.run_m5_zero_transfer`) on
+the VM. Do not stop the VM process to "fix" documentation — this
+reconciliation pass was done *around* the running job, per explicit
+instruction. Once all of M2–M5 are persisted locally, mark Phase 4
+COMPLETED, and Phase 5 (local-only, no VM) starts.
+
+### Full artifact/environment state
+
 - **Last safely persisted artifacts:** everything from Phase 1, plus
   `src/sign/characterization/{stats,embeddings,run_characterization,nltk_setup}.py`,
   `results/sign/characterization/corpus_stats.json` + `embeddings_2d.csv`
   + 5 PNGs, `src/sign/origin_classification/run_origin_classifier.py`,
-  `results/sign/EXP-SIGN-001/` and `results/sign/EXP-SIGN-002/`
-  (config/metrics/predictions each). **None of this has been committed
-  to git yet** — all present only in the local working tree as of this
-  checkpoint (commit only on explicit request).
-- **VM status:** not started. **Phase 4 needs it next** — see the
-  checkpoint report for the explicit ask and time estimate.
-- **Next action when work resumes:** if the VM is running, proceed with
-  Phase 4 (restore `scripts/sync_to_vm.sh`/`sync_from_vm.sh`/
-  `verify_gpu.py`/`verify_kernel.sh` from git history at commit
-  `7a17e8e~1`, verify the VM per the brief's resume procedure, then run
-  M1/M6 zero-transfer locally-or-on-VM first since they're cheap, then
-  M2→M3→M4→M5 in sequence, persisting each method's `results/sign/EXP-SIGN-0##/`
-  immediately after it finishes). If the VM is not running yet, ask the
-  user to start it and wait — do not proceed to Phase 4 without it, and
-  do not begin Phase 7+ (SIGN Train use) under any circumstance until
-  Phase 4's results are fully persisted here.
+  `results/sign/EXP-SIGN-001/`, `EXP-SIGN-002/`, `EXP-SIGN-011/`,
+  `EXP-SIGN-016/`, `EXP-SIGN-012/` (config/metrics/predictions each),
+  `src/sign/zero_transfer/{io,run_m1_zero_transfer,run_m6_zero_transfer,run_llm_zero_transfer,run_m5_zero_transfer}.py`,
+  the interpretation-rank additions to `src/sign/data/{load_sign,family_utils}.py`
+  and their tests. **None of this has been committed to git yet** — all
+  present only in the local working tree (commit only on explicit
+  request).
+- **VM status:** running, actively executing M3. Two monitors active:
+  one 15-min status-check heartbeat, one ~2-min polling sync-back (pulls
+  any newly-`metrics.json`-complete `results/sign/EXP-SIGN-01#/` to the
+  local Mac automatically).
+- **Command/config/seed for the current experiment:** `python -m
+  src.sign.zero_transfer.run_llm_zero_transfer` (all three modes,
+  `--modes zero_shot few_shot reasoning` default), model
+  `Qwen/Qwen3-4B-Instruct-2507`, `provider=local_hf`, `temperature=0.0`,
+  `seed=42` (Dataset A TRAIN few-shot demo selection only — reproduces
+  Part II's exact EXP-003 demo set, `select_random_few_shot`, n_shots=8).
+  Eval data: `data/sign/family_table_test.csv` (1,735 rows, all roles).

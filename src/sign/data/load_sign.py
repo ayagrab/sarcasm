@@ -14,9 +14,33 @@ Output schema (one row per original OR per interpretation -- long format):
     family_id      str   stable within a split, e.g. "train-00001"
     split          str   "train" | "dev" | "test"
     role           str   "original" | "interpretation"
-    interp_index   int   0 for the original; 1..N for interpretations
-                          (N == family_size; usually 5, sometimes not --
-                          see `is_clean_family`)
+    interp_index   int   0 for the original; 1..N for interpretations, in
+                          the exact order they appear for that family in
+                          the raw source file (N == family_size; usually
+                          5, sometimes not -- see `is_clean_family`).
+                          **This doubles as interpretation RANK**:
+                          interp_index == 1 is treated as "interpretation
+                          #1", the primary/best human reference for that
+                          family (per project decision, 2026-08-20) --
+                          used wherever a single canonical non-sarcastic
+                          reference is needed (Phase 5's primary-reference
+                          view, Phase 7's primary balanced training
+                          condition, Phase 9's learning curve, Phase 10's
+                          nested k=1..5 interpretation-count ablation).
+                          CAVEAT, disclosed rather than assumed silently:
+                          the raw files carry no interpretation-ID column,
+                          so "rank" here means "row order as already
+                          present in the committed raw file" -- there is
+                          no independent way, from the data available in
+                          this repo, to confirm that order matches
+                          whatever numbering the original SIGN release
+                          used internally. Treated as the best available
+                          proxy, not a verified ground truth.
+    is_primary_interpretation bool True iff role=="interpretation" and
+                          interp_index == 1 (convenience flag, exactly
+                          equivalent to that condition -- never used to
+                          derive anything, just avoids repeating the
+                          `interp_index == 1` filter everywhere).
     text           str
     label          str   "sarcastic" (role=original) | "not_sarcastic" (role=interpretation)
     example_id     str   f"{family_id}-orig" | f"{family_id}-interp{interp_index}"
@@ -40,6 +64,7 @@ FAMILY_TABLE_COLUMNS = [
     "split",
     "role",
     "interp_index",
+    "is_primary_interpretation",
     "text",
     "label",
     "example_id",
@@ -99,6 +124,7 @@ def build_family_table(split: str, path: Path | None = None) -> pd.DataFrame:
                 "split": split,
                 "role": "original",
                 "interp_index": 0,
+                "is_primary_interpretation": False,
                 "text": orig_text,
                 "label": sign_settings.original_label,
                 "example_id": f"{family_id}-orig",
@@ -113,6 +139,7 @@ def build_family_table(split: str, path: Path | None = None) -> pd.DataFrame:
                     "split": split,
                     "role": "interpretation",
                     "interp_index": j,
+                    "is_primary_interpretation": j == 1,
                     "text": interp_text,
                     "label": sign_settings.interpretation_label,
                     "example_id": f"{family_id}-interp{j}",

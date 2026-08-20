@@ -10,6 +10,8 @@ from src.sign.data.family_utils import (
     sample_family_ids,
     select_families,
     select_k_interpretations_per_family,
+    select_primary_interpretation_per_family,
+    select_top_k_interpretations_per_family,
 )
 
 
@@ -103,3 +105,64 @@ def test_select_k_interpretations_per_family_selections_are_nested():
 
     assert picks[1] <= picks[2] <= picks[3] <= picks[5]
     assert len(picks[5]) == 5 * 5  # every interpretation, for 5 families
+
+
+def test_select_top_k_interpretations_is_rank_based_not_shuffled():
+    """k=1 must always be interpretation #1 specifically (interp_index==1),
+    never a random pick -- this is the whole point of the rank-based
+    selector (2026-08-20 "interpretation #1 is primary" clarification)."""
+    df = _family_df(n_families=5, interps_per_family=5)
+    top1 = select_top_k_interpretations_per_family(df, k=1)
+    interps = top1[top1["role"] == "interpretation"]
+    assert (interps["interp_index"] == 1).all()
+    assert len(interps) == 5  # exactly one interpretation per family
+
+
+def test_select_top_k_interpretations_is_deterministic_with_no_seed():
+    df = _family_df(n_families=4, interps_per_family=5)
+    a = select_top_k_interpretations_per_family(df, k=3)
+    b = select_top_k_interpretations_per_family(df, k=3)
+    pd.testing.assert_frame_equal(
+        a.sort_values("example_id").reset_index(drop=True),
+        b.sort_values("example_id").reset_index(drop=True),
+    )
+
+
+def test_select_top_k_interpretations_selections_are_nested_by_rank():
+    df = _family_df(n_families=5, interps_per_family=5)
+    picks = {}
+    for k in (1, 2, 3, 5):
+        reduced = select_top_k_interpretations_per_family(df, k=k)
+        picks[k] = set(reduced[reduced["role"] == "interpretation"]["interp_index"])
+    assert picks[1] == {1}
+    assert picks[2] == {1, 2}
+    assert picks[3] == {1, 2, 3}
+    assert picks[5] == {1, 2, 3, 4, 5}
+
+
+def test_select_top_k_interpretations_does_not_invent_missing_interpretations():
+    """A family with only 3 interpretations available must contribute at
+    most 3, even when k=5 -- never padded/invented."""
+    df = _family_df(n_families=1, interps_per_family=3)
+    reduced = select_top_k_interpretations_per_family(df, k=5)
+    interps = reduced[reduced["role"] == "interpretation"]
+    assert len(interps) == 3
+
+
+def test_select_top_k_interpretations_rejects_k_below_one():
+    df = _family_df(n_families=1, interps_per_family=5)
+    with pytest.raises(ValueError):
+        select_top_k_interpretations_per_family(df, k=0)
+
+
+def test_select_primary_interpretation_per_family_matches_top_k_one():
+    df = _family_df(n_families=3, interps_per_family=5)
+    primary = select_primary_interpretation_per_family(df)
+    top1 = select_top_k_interpretations_per_family(df, k=1)
+    pd.testing.assert_frame_equal(
+        primary.sort_values("example_id").reset_index(drop=True),
+        top1.sort_values("example_id").reset_index(drop=True),
+    )
+    interps = primary[primary["role"] == "interpretation"]
+    assert len(interps) == 3  # one primary interpretation per family
+    assert (interps["interp_index"] == 1).all()

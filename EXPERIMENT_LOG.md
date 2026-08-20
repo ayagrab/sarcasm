@@ -1095,5 +1095,48 @@ of domain shift between the two corpora, going into Phase 4 as the
 hypothesis to test against real sarcasm-detection performance.
 Artifacts: `results/sign/EXP-SIGN-001/`, `results/sign/EXP-SIGN-002/`.
 
-**Next: Phase 4 (zero-transfer to SIGN) — blocked on the Azure VM for
-the M2–M5 legs.** Not yet started.
+**Phase 4 — Zero-transfer to SIGN (2026-08-20, VM session, in progress).**
+VM verified (known-good kernel/GPU), environment rebuilt (2 deviations
+from `environment_stage_b.txt`'s pinned freeze: `litellm` 1.96.1→1.96.2,
+`torchaudio`/`torchvision` removed as unused and unavailable in their
+pinned `+cu118` build off plain PyPI), 98/98 relevant tests passing on
+VM. Results so far (`results/sign/EXP-SIGN-0{11,12,16}/`):
+
+- **M1 (EXP-SIGN-011):** accuracy 0.3660, macro F1 0.3563, sarcasm
+  detection 79.6% (211/265 originals), FP 1046/1470 (71.2%) — flips from
+  Part II's *balanced* profile to heavy FP-skew out of domain.
+- **M6 (EXP-SIGN-016):** accuracy 0.5326, macro F1 0.4724, sarcasm
+  detection 63.8% (169/265), FP 715/1470 (48.6%) — same flip, less severe.
+- **M2 (EXP-SIGN-012):** accuracy 0.3418, macro F1 0.3397, sarcasm
+  detection 93.6% (248/265, best so far), FP 1125/1470 (76.5%, worst so
+  far) — Part II's existing FP-skew roughly doubles out of domain.
+- M3 (EXP-SIGN-013, few-shot) running; M4 (EXP-SIGN-014, reasoning)
+  queued in the same process; M5 (EXP-SIGN-015, frozen MIPROv2 program,
+  inference-only via `dspy.Predict.load(...)` — **not** a recompile)
+  queued separately after.
+
+**Methodology clarification added mid-phase (2026-08-20): interpretation
+#1 (first row per family in the officially-sourced raw file) is now
+treated as each family's primary/best human reference**, not
+interchangeable with #2–5. `src/sign/data/load_sign.py` gained an
+`is_primary_interpretation` column (no schema change needed — `interp_index`
+already preserved file order); `src/sign/data/family_utils.py` gained
+`select_top_k_interpretations_per_family`/`select_primary_interpretation_per_family`,
+rank-based and deterministic (no shuffling), superseding the earlier
+seeded-shuffle selector for every Phase 7/9/10 use going forward. Full
+detail and the Phase 5–10 methodology updates this triggered: see
+`SIGN_GENERALIZATION_PLAN.md` §1 and each phase's entry.
+
+**Official-source verification (2026-08-20):** fetched
+`train.csv`/`dev.csv`/`test.csv` directly from the SIGN paper's own
+release (Peled & Reichart, ACL 2017,
+[github.com/Lotemp/SarcasmSIGN](https://github.com/Lotemp/SarcasmSIGN))
+and diffed byte-for-byte against this repo's local copy — **all three
+identical (matching MD5)**. Confirms this project's SIGN copy is exactly
+correct, not corrupted/truncated/edited; the earlier-noted "1,470 not
+1,500" Test-split shortfall is a property of the officially published
+file itself, not a local data-quality issue. Investigation closed, no
+further action needed.
+
+**Next: complete M3→M4→M5, persist, mark Phase 4 COMPLETED, then Phase 5
+(family-aware evaluation, local, no VM).**

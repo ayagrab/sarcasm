@@ -35,6 +35,17 @@ def test_every_interpretation_row_is_labeled_not_sarcastic(tmp_path):
     assert (interps["label"] == "not_sarcastic").all()
 
 
+def test_is_primary_interpretation_flags_exactly_interp_index_one(tmp_path):
+    rows = [("t", f"i{i}") for i in range(5)]
+    path = _write_raw(tmp_path, rows)
+    df = build_family_table("train", path=path)
+    interps = df[df["role"] == "interpretation"]
+    assert set(interps.loc[interps["is_primary_interpretation"], "interp_index"]) == {1}
+    assert interps["is_primary_interpretation"].sum() == 1
+    originals = df[df["role"] == "original"]
+    assert not originals["is_primary_interpretation"].any()
+
+
 def test_sign_never_labels_every_row_sarcastic_regression_guard(tmp_path):
     """Guards against the brief's explicit warning: SIGN must never be
     treated as 15,000 independent sarcastic examples."""

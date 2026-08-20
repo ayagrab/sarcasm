@@ -1,0 +1,9 @@
+{
+  "experiment_id": "EXP-SIGN-016",
+  "approach": "M6_finetuned_deberta_zero_transfer",
+  "frozen_checkpoint_reused": "/Users/ayagrabarsky/Downloads/פרויקט - פרויקט תכן/sarcasm/models/EXP-009/best_checkpoint (EXP-009, Part II's best model)",
+  "train_data": "NONE -- inference only, checkpoint already frozen from Dataset A TRAIN",
+  "eval_data": "SIGN Test, all roles (data/sign/family_table_test.csv, n=1735)",
+  "device": "mps",
+  "max_length": 128
+}

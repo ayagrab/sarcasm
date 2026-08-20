@@ -76,15 +76,18 @@ def select_families(df: pd.DataFrame, family_ids: Iterable[str]) -> pd.DataFrame
 
 
 def select_k_interpretations_per_family(df: pd.DataFrame, k: int, seed: int) -> pd.DataFrame:
-    """For every family in `df`, keep the original row plus a
-    deterministic, per-family-seeded sample of `k` of its interpretation
-    rows (k <= family_size). Selections are **nested**: the k=1 pick is
-    contained in the k=2 pick, which is contained in the k=3 pick, etc.
-    (each family's interpretation order is fixed by one seeded shuffle,
-    and "k interpretations" always means "the first k of that order") --
-    this is what makes the Phase 10 interpretation-count ablation a
-    controlled comparison (increasing k adds interpretations rather than
-    swapping in an unrelated set)."""
+    """DEPRECATED for the primary-reference-based experiments (Phase
+    7/9/10 as of 2026-08-20) -- kept only as a documented alternative,
+    NOT used by default anymore. For every family in `df`, keep the
+    original row plus a deterministic, per-family-seeded *shuffled*
+    sample of `k` of its interpretation rows (k <= family_size).
+    Selections are nested (k=1 subset of k=2 subset of k=3, ...) but
+    which interpretation counts as "first" is randomized per family, not
+    rank-based. Superseded by `select_top_k_interpretations_per_family`,
+    which uses interpretation #1 (the primary/best human reference, see
+    `load_sign.py`'s docstring) as the anchor instead of a random pick --
+    use that one unless there is a specific reason to want the
+    shuffled variant."""
     keep_rows = []
     for family_id, group in df.groupby("family_id", sort=False):
         orig_rows = group[group["role"] == "original"]
@@ -101,6 +104,45 @@ def select_k_interpretations_per_family(df: pd.DataFrame, k: int, seed: int) -> 
     if not keep_rows:
         return df.iloc[0:0].copy()
     return pd.concat(keep_rows, ignore_index=True)
+
+
+def select_top_k_interpretations_per_family(df: pd.DataFrame, k: int) -> pd.DataFrame:
+    """For every family in `df`, keep the original row plus
+    interpretations #1..k **by rank** (`interp_index` 1..k, i.e. the
+    primary/best reference first, then #2, #3, ... in the fixed order
+    already recorded in the family table -- never shuffled, no seed
+    needed since there is nothing random to control). Families with
+    `family_size < k` contribute only their available interpretations
+    (documented, not padded/invented -- see `SIGN_GENERALIZATION_PLAN.md`
+    section 1 on anomalous/incomplete families).
+
+    This is the primary selection function for Phase 7 (SIGN Train
+    variants), Phase 9 (learning curve), and Phase 10 (interpretation
+    -count ablation) as of the 2026-08-20 "interpretation #1 is primary"
+    clarification -- k=1 gives exactly the "original + interpretation #1"
+    balanced condition; k=1/2/3/5 are nested by construction (k=1's
+    interpretation is contained in k=2's, etc.), since they're just
+    prefixes of the same fixed rank order."""
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+    keep_rows = []
+    for _, group in df.groupby("family_id", sort=False):
+        orig_rows = group[group["role"] == "original"]
+        interp_rows = group[(group["role"] == "interpretation") & (group["interp_index"] <= k)]
+        keep_rows.append(orig_rows)
+        keep_rows.append(interp_rows)
+    if not keep_rows:
+        return df.iloc[0:0].copy()
+    return pd.concat(keep_rows, ignore_index=True)
+
+
+def select_primary_interpretation_per_family(df: pd.DataFrame) -> pd.DataFrame:
+    """The primary balanced SIGN condition: original + interpretation #1
+    only, for every family in `df`. Equivalent to
+    `select_top_k_interpretations_per_family(df, k=1)`, kept as a
+    separate named entry point since it's the default/main condition
+    referenced throughout Phase 7-10, not just one point on the k-sweep."""
+    return select_top_k_interpretations_per_family(df, k=1)
 
 
 def to_classification_frame(df: pd.DataFrame) -> pd.DataFrame:

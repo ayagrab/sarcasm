@@ -1,0 +1,6 @@
+﻿example_id,gold_label,predicted_label
+test-00001-orig,sarcastic,sarcastic
+test-00001-interp1,not_sarcastic,sarcastic
+test-00001-interp2,not_sarcastic,sarcastic
+test-00001-interp3,not_sarcastic,sarcastic
+test-00001-interp4,not_sarcastic,sarcastic
