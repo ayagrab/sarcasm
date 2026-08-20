@@ -1286,10 +1286,12 @@ condition), same as Phase 8's condition B; 0%/100% reused from Phase
 the gain from the first 10%. Task A detection rate drops from 79.6% (0%)
 to 71-75% at every nonzero fraction and never recovers — SIGN exposure
 costs some raw sarcasm recall at every fraction tested, not just at
-100%. **M6 leg PARTIAL (2/6, only the reused endpoints)** — VM session
-was time-boxed to ~40min by the user; the 10% run was mid-training
-(~57-82%) when the session had to end and was stopped deliberately
-(not killed by VM shutdown, nothing lost, just not yet run).
+100%. **M6 leg PARTIAL (3/6: 0%, 10%, 100%)** — VM session was time-boxed to
+~40min by the user; the 10% run finished (SIGN Test Macro F1 0.5876,
+Task A detection rate dipped to 58.9% from 63.8% at 0% before recovering
+to 78.5% at 100% -- non-monotonic, too few points yet to call it a real
+pattern) and the run was stopped cleanly right after, before 25% could
+start. Nothing lost -- stopped deliberately, not killed by VM shutdown.
 
 **Phase 10 — Interpretation-count ablation (2026-08-20). M1 leg COMPLETE
 (4/4 points, local).** k=1 reused from Phase 8; k=2/3/5 use Phase 7's

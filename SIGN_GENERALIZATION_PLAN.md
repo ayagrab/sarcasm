@@ -1377,12 +1377,11 @@ Artifacts: `results/sign/EXP-SIGN-023/` (condition B),
 
 ## 9. Learning curve results
 
-*(M1 leg COMPLETE (6/6 points). M6 leg PARTIAL (2/6: 0% and 100%, both
-reused from Phase 4/8) — the VM session was cut short (user needed to
-close it, ~40min window) before the 10/25/50/75% runs could finish;
-resumes next VM session. Recipe throughout: Dataset A TRAIN (fixed) +
-SIGN Train fraction (primary condition), same as Phase 8's condition B.
-0%/100% are Phase 4/8's results, reused not rerun.)*
+*(M1 leg COMPLETE (6/6 points). M6 leg PARTIAL (3/6: 0%, 10%, and 100% —
+0%/100% reused from Phase 4/8, 10% completed before the ~40min VM window
+ran out) — 25/50/75% resume next VM session. Recipe throughout: Dataset A
+TRAIN (fixed) + SIGN Train fraction (primary condition), same as Phase
+8's condition B.)*
 
 | Model | SIGN Train % | Task B Macro F1 | Task A detection rate |
 |---|---:|---:|---:|
@@ -1393,6 +1392,7 @@ SIGN Train fraction (primary condition), same as Phase 8's condition B.
 | M1 | 75% | 0.5785 | 72.5% |
 | M1 | 100% | 0.5861 | 74.7% |
 | M6 | 0% | 0.4724 | 63.8% |
+| M6 | 10% | 0.5876 | 58.9% |
 | M6 | 100% | 0.6870 | 78.5% |
 
 **M1 finding: clear diminishing returns, most of the gain from the first
@@ -1408,8 +1408,17 @@ gain at every fraction tested, not just at 100% (consistent with Phase
 Artifacts: `results/sign/EXP-SIGN-0{25..28}/` (10/25/50/75%),
 `results/sign/learning_curve/summary.csv` + `learning_curve.png`. Code:
 `src/sign/learning_curve/{run_m1_learning_curve,run_m6_learning_curve,build_learning_curve_summary}.py`,
-4 new tests. **M6's 10/25/50/75% points remain to run next VM session**
-— `run_m6_learning_curve.py` is ready, just needs launching again.
+4 new tests. **M6's 10% point completed before the session ended: SIGN
+Test Macro F1 0.5876 (jump from 0.4724 at 0%, similar-sized first-10%
+jump to M1's pattern), but Task A detection rate dipped to 58.9% (from
+63.8% at 0%) before recovering to 78.5% by 100% — non-monotonic, unlike
+M1's steady plateau. Only 3 of 6 points, too early to call this a real
+pattern vs. noise. M6's 25/50/75% remain for next VM session** —
+`run_m6_learning_curve.py` already skips nothing extra to rerun; it will
+redo all four originally-targeted fractions (10/25/50/75%) since it
+doesn't currently check for already-completed points, so re-running it
+will redundantly redo the 10% point too (cheap, ~17min, not worth adding
+skip-logic for one experiment).
 
 ## 10. Interpretation-count ablation results
 
