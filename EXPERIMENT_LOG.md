@@ -1132,9 +1132,19 @@ other.)*
 - **M4 (EXP-SIGN-014, reasoning, done):** Task A detection rate 91.3%
   (242/265), between M2's 93.6% and M3's 89.4%. Task B accuracy 0.3782,
   Macro F1 0.3658 — better than M2's 0.3397, worse than M3's 0.4015.
-- M5 (EXP-SIGN-015, frozen MIPROv2 program, inference-only via
-  `dspy.Predict.load(...)` — **not** a recompile) launched on VM after
-  the M2-M4 process exited cleanly; running.
+- **M5 (EXP-SIGN-015, frozen MIPROv2 program, inference-only via
+  `dspy.Predict.load(...)` — not a recompile, done):** Task A detection
+  rate 77.4% (205/265) — lowest of the three LLM zero-transfer methods.
+  Task B accuracy 0.4092, Macro F1 0.3957 — second-best of the six
+  methods overall (M3 still highest at 0.4015).
+
+**Phase 4 status: COMPLETE (2026-08-20).** All 6 methods (M1/M2/M3/M4/M5/M6)
+zero-transfer evaluated on SIGN Test, results persisted locally and
+committed. One process note: M3's results (`EXP-SIGN-013`) were computed
+on the VM but not yet synced to the local Mac when Phase 4 was first
+checked for completeness — caught immediately by verifying all 6
+`metrics.json` files present before declaring the phase done, re-synced,
+resolved with zero rework lost.
 
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now

@@ -538,25 +538,23 @@ start until this is fully persisted.**
   method's line is printed** (not waiting for the whole batch) — added
   2026-08-20 per explicit request, since `/mnt` is ephemeral and a VM
   loss should cost at most the one method currently mid-run.
-- **Status: IN PROGRESS as of 2026-08-20.** VM session opened, environment
+- **Status: COMPLETE as of 2026-08-20.** VM session opened, environment
   rebuilt and verified (§13 log). **Verified state (not inferred from
   what was scheduled):**
   - M1 (EXP-SIGN-011): **DONE**, persisted locally, results in §7.
   - M6 (EXP-SIGN-016): **DONE**, persisted locally, results in §7.
-  - M2 (EXP-SIGN-012): **RUNNING** on VM (single process also queued to
-    run M3/M4 after, so it loads the ~8GB Qwen model once). Not yet
-    complete, not yet synced back — no `metrics.json` exists yet, so it
-    is NOT marked done regardless of how far the progress bar has gotten.
-  - M3 (EXP-SIGN-013): **QUEUED**, same VM process, starts automatically
-    when M2 finishes.
-  - M4 (EXP-SIGN-014): **QUEUED**, same VM process, starts automatically
-    when M3 finishes.
-  - M5 (EXP-SIGN-015): **QUEUED**, separate process, launched after
-    M2–M4's process exits (loads the frozen `results/EXP-008/compiled_program.json`
-    via `dspy.Predict.load(...)`, inference only, no recompilation).
+  - M2 (EXP-SIGN-012): **DONE**, persisted locally, results in §7.
+  - M3 (EXP-SIGN-013): **DONE**, persisted locally (briefly missing from
+    the local Mac despite being computed on the VM — caught and re-synced
+    at the Phase 4 checkpoint), results in §7.
+  - M4 (EXP-SIGN-014): **DONE**, persisted locally, results in §7.
+  - M5 (EXP-SIGN-015): **DONE**, persisted locally, results in §7.
+  - **All six methods' `results/sign/EXP-SIGN-0{11..16}/` verified present
+    locally (metrics.json + predictions.csv + config.json each) and
+    git-committed.**
   - **Depends on:** Phase 1 (done). **Must complete and be persisted
-    before Phase 7** — not yet complete, so Phase 7 has correctly not
-    started.
+    before Phase 7** — done; per the checkpoint gate above, Phase 5 and
+    Phase 6 still come before Phase 7's first SIGN Train touch.
 
 **Checkpoint gate (explicit, 2026-08-20 request): after Phase 4 finishes
 and before any Phase 7 SIGN Train exposure**, stop and do three things in
@@ -1014,7 +1012,14 @@ and poorly on the other — see M2/M3 below.
 | M2 Qwen zero-shot | EXP-SIGN-012 | **done** | 0.3418 | 0.3397 | **0.9358 (248/265)** | 0.0642 | `[[345,1125],[17,248]]` |
 | M3 Qwen few-shot | EXP-SIGN-013 | **done** | 0.4133 | 0.4015 | 0.8943 (237/265) | 0.1057 | `[[480,990],[28,237]]` |
 | M4 Qwen reasoning | EXP-SIGN-014 | **done** | 0.3782 | 0.3658 | 0.9132 (242/265) | 0.0868 | see `results/sign/EXP-SIGN-014/metrics.json` |
-| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | running on VM | — | — | — | — | — |
+| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | **done** | 0.4092 | 0.3957 | 0.7736 (205/265) | 0.2264 | see `results/sign/EXP-SIGN-015/metrics.json` |
+
+**Phase 4 status: COMPLETE as of 2026-08-20 — all 6 methods (M1, M2, M3,
+M4, M5, M6) zero-transfer evaluated, predictions + metrics persisted
+locally and committed.** M3's results (`EXP-SIGN-013`) were briefly
+missing from the local Mac despite being computed on the VM — caught at
+this checkpoint and re-synced before proceeding; all six now verified
+present.
 
 **M1/M6 interpretation — a striking reversal of Part II's headline
 finding.** On Dataset A, M1 and M6 (the two "trained on labels" methods)
@@ -1111,10 +1116,8 @@ M1–M6's persisted predictions rather than piecemeal per method here.
 - [x] Phase 1 — Foundation (loaders, family grouping, leakage tests)
 - [x] Phase 2 — Dataset characterization
 - [x] Phase 3 — Dataset-origin classification
-- [~] Phase 4 — Zero-transfer to SIGN (M1–M6) — **hard gate before Phase 7+**
-      — IN PROGRESS: M1 ✅ done, M6 ✅ done, M2 🔄 running (~88%+, not yet
-      persisted), M3/M4 queued (same VM process), M5 queued (separate
-      process, after M2-M4)
+- [x] Phase 4 — Zero-transfer to SIGN (M1–M6) — **COMPLETE, all 6 methods
+      persisted and committed**
 - [ ] Phase 5 — SIGN contrastive/family evaluation
 - [ ] Phase 6 — Error analysis
 - [ ] Phase 7 — Prepare SIGN Train variants
@@ -1195,75 +1198,79 @@ wiped on every restart; nothing there is a source of truth.
 
 ## 14. Resume checkpoint (updated on every interruption)
 
-**Last updated:** 2026-08-20, mid-Phase-4 (VM session active). Every
-status below was **verified against actual persisted artifacts**
-(`results/sign/EXP-SIGN-0##/metrics.json` existing on the local Mac, or
-directly on the VM for in-progress work) — not inferred from what was
-scheduled to run.
+**Last updated:** 2026-08-20, Phase 4 checkpoint (VM still up, idle — no
+job queued as of this update). Every status below was **verified against
+actual persisted artifacts** (`results/sign/EXP-SIGN-0##/metrics.json`
+existing on the local Mac) — not inferred from what was scheduled to run.
 
 ### CURRENT STATUS
 
-Phase 4 (Zero-transfer to SIGN) in progress, VM session open. 4 of 6
-methods resolved (2 done pre-VM locally, 1 done on VM, 1 in progress on
-VM), 2 queued in the same VM session.
+**Phase 4 (Zero-transfer to SIGN) COMPLETE.** All 6 methods (M1, M2, M3,
+M4, M5, M6) evaluated, persisted locally, and git-committed. At the
+explicit pre-Phase-7 checkpoint gate now (§1/§Phase 4-5): backup verified
+→ next is Phase 5's consolidated M1-M6 comparison table → Phase 6 error
+analysis → only then Phase 7 (first SIGN Train touch).
 
 ### LAST SAFE CHECKPOINT
 
-M2 (EXP-SIGN-012) — synced back to the local Mac (`results/sign/EXP-SIGN-012/`:
-config.json + metrics.json + predictions.csv all present). Everything up
-through M2 can survive a VM loss with zero rework.
+All of Phase 4: `results/sign/EXP-SIGN-0{11,12,13,14,15,16}/` each
+verified present locally (config.json + metrics.json + predictions.csv)
+and committed to git (commits `a26b990`, `d3184a8`, `3e1e19c`, plus this
+checkpoint's commit for M3/M5). Nothing from Phase 4 depends on the
+ephemeral VM `/mnt` disk anymore.
 
 ### CURRENT EXPERIMENT
 
-M3 (EXP-SIGN-013, Qwen few-shot zero-transfer) — running on the VM inside
-the same Python process as M2 (already-finished) and M4 (queued next),
-`src.sign.zero_transfer.run_llm_zero_transfer`. Not yet persisted locally
-(no `results/sign/EXP-SIGN-013/` on the Mac yet) — if the VM were lost
-right now, M3's in-progress work would need to restart from row 0 (no
-mid-method checkpointing, matches Part II's own LLM-experiment behavior).
+None running. VM is idle (M2-M4 process and M5 process both exited
+cleanly, verified via `pgrep`). No further VM work is needed until Phase
+8 (M6 domain adaptation) — Phase 5, 6, and 7 (data prep) are all
+local-only.
 
 ### COMPLETED EXPERIMENTS (this phase)
 
-| Experiment | Method | Macro F1 | Persisted locally? |
-|---|---|---:|---|
-| EXP-SIGN-001 | Origin classifier, raw text | 0.9555 | ✅ |
-| EXP-SIGN-002 | Origin classifier, normalized text | 0.9235 | ✅ |
-| EXP-SIGN-011 | M1 zero-transfer | 0.3563 | ✅ |
-| EXP-SIGN-016 | M6 zero-transfer | 0.4724 | ✅ |
-| EXP-SIGN-012 | M2 zero-transfer | 0.3397 | ✅ |
+| Experiment | Method | Task B Macro F1 | Task A detection rate | Persisted locally? |
+|---|---|---:|---:|---|
+| EXP-SIGN-001 | Origin classifier, raw text | 0.9555 | n/a | ✅ |
+| EXP-SIGN-002 | Origin classifier, normalized text | 0.9235 | n/a | ✅ |
+| EXP-SIGN-011 | M1 zero-transfer | 0.3563 | 79.6% (211/265) | ✅ |
+| EXP-SIGN-012 | M2 zero-transfer | 0.3397 | 93.6% (248/265) | ✅ |
+| EXP-SIGN-013 | M3 zero-transfer | 0.4015 | 89.4% (237/265) | ✅ |
+| EXP-SIGN-014 | M4 zero-transfer | 0.3658 | 91.3% (242/265) | ✅ |
+| EXP-SIGN-015 | M5 zero-transfer | 0.3957 | 77.4% (205/265) | ✅ |
+| EXP-SIGN-016 | M6 zero-transfer | 0.4724 | 63.8% (169/265) | ✅ |
 
 Plus Phase 1 (loaders/tests) and Phase 2 (characterization) artifacts —
 see their entries above.
 
 ### REMAINING EXPERIMENTS (this phase)
 
-- EXP-SIGN-013 (M3 few-shot) — running now.
-- EXP-SIGN-014 (M4 reasoning) — queued, same VM process, auto-starts
-  after M3.
-- EXP-SIGN-015 (M5 DSPy, frozen-program inference) — queued, separate
-  process, launched manually after the M2-M4 process exits (needs
-  `results/EXP-008/compiled_program.json`, already copied to the VM).
-
-Then, once all of Phase 4 is persisted: Phase 5 (family-aware
-evaluation, local, no VM) is next.
+None — Phase 4 is complete.
 
 ### BLOCKERS
 
 None currently. (Historical, resolved: `litellm==1.96.1` unavailable on
 PyPI → bumped to 1.96.2; `torchaudio`/`torchvision` `+cu118` builds
 unavailable off the PyTorch index → removed, confirmed unused; a
-Monitor-based auto-sync-back had a shell pipe-buffering bug (`tail -f`
-piped through `tr` without line-buffering, so the completion marker sat
-unseen) → replaced with a polling-based sync-back, verified working.)
+Monitor-based auto-sync-back had a shell pipe-buffering bug → replaced
+with a polling-based sync-back; two background Monitor tasks were lost
+across a `/compact` and had to be relaunched, and separately a zsh
+word-splitting bug — `$VAR "cmd"` not splitting the way it does in bash —
+broke their first relaunch attempt, fixed by writing the ssh invocation
+literally instead of through a variable; **M3's results
+(`EXP-SIGN-013`) were computed on the VM but not yet synced/committed
+locally when Phase 4 was first thought complete** — caught at this
+checkpoint by explicitly verifying all 6 `metrics.json` files present
+before declaring Phase 4 done, re-synced, now resolved.)
 
 ### NEXT ACTION
 
-Let the current VM process run (M3 → M4 automatically); when it exits,
-launch M5 (`python -m src.sign.zero_transfer.run_m5_zero_transfer`) on
-the VM. Do not stop the VM process to "fix" documentation — this
-reconciliation pass was done *around* the running job, per explicit
-instruction. Once all of M2–M5 are persisted locally, mark Phase 4
-COMPLETED, and Phase 5 (local-only, no VM) starts.
+Phase 5 (SIGN contrastive/family-aware evaluation, local, no VM): compute
+Task A/Task B/Primary-Reference/per-rank blocks plus View 1/View 2 family
+metrics for all 6 methods from their persisted `predictions.csv` files,
+produce `results/sign/family_eval/m1_m6_comparison.csv`. No SIGN Train
+exposure. VM can be turned off for this and Phase 6 (next VM need is
+Phase 8's M6 domain adaptation) — ask the user before actually powering
+it down.
 
 ### Full artifact/environment state
 

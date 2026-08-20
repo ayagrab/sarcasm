@@ -1,0 +1,11 @@
+{
+  "experiment_id": "EXP-SIGN-015",
+  "approach": "M5_dspy_mipro_v2_zero_transfer_inference_only",
+  "frozen_program_reused": "/mnt/vmadmin/projects/sarcasm/results/EXP-008/compiled_program.json (EXP-008, NOT recompiled)",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "provider": "local_hf",
+  "temperature": 0.0,
+  "train_data": "NONE -- inference only against the already-compiled frozen program",
+  "eval_data": "SIGN Test, all roles (data/sign/family_table_test.csv, n=1735)",
+  "dspy_version": "3.3.0"
+}
