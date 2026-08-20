@@ -1102,18 +1102,36 @@ from `environment_stage_b.txt`'s pinned freeze: `litellm` 1.96.1→1.96.2,
 pinned `+cu118` build off plain PyPI), 98/98 relevant tests passing on
 VM. Results so far (`results/sign/EXP-SIGN-0{11,12,16}/`):
 
-- **M1 (EXP-SIGN-011):** accuracy 0.3660, macro F1 0.3563, sarcasm
-  detection 79.6% (211/265 originals), FP 1046/1470 (71.2%) — flips from
-  Part II's *balanced* profile to heavy FP-skew out of domain.
-- **M6 (EXP-SIGN-016):** accuracy 0.5326, macro F1 0.4724, sarcasm
-  detection 63.8% (169/265), FP 715/1470 (48.6%) — same flip, less severe.
-- **M2 (EXP-SIGN-012):** accuracy 0.3418, macro F1 0.3397, sarcasm
-  detection 93.6% (248/265, best so far), FP 1125/1470 (76.5%, worst so
-  far) — Part II's existing FP-skew roughly doubles out of domain.
-- M3 (EXP-SIGN-013, few-shot) running; M4 (EXP-SIGN-014, reasoning)
-  queued in the same process; M5 (EXP-SIGN-015, frozen MIPROv2 program,
-  inference-only via `dspy.Predict.load(...)` — **not** a recompile)
-  queued separately after.
+*(Task A = SIGN originals only, sarcasm detection rate is the primary
+metric; Task B = full 1,735-row contrastive set, Macro F1 is the primary
+metric — see the "Task A vs. Task B" clarification below and
+`SIGN_GENERALIZATION_PLAN.md` §1. The two never substitute for each
+other.)*
+
+- **M1 (EXP-SIGN-011):** Task B accuracy 0.3660, Macro F1 0.3563; Task A
+  detection rate 79.6% (211/265 originals); Task B FP on interpretations
+  1046/1470 (71.2%) — flips from Part II's *balanced* profile to heavy
+  FP-skew out of domain.
+- **M6 (EXP-SIGN-016):** Task B accuracy 0.5326, Macro F1 0.4724; Task A
+  detection rate 63.8% (169/265); Task B FP 715/1470 (48.6%) — same flip,
+  less severe.
+- **M2 (EXP-SIGN-012):** Task A detection rate **93.6% (248/265,
+  best of all methods so far)**; Task B accuracy 0.3418, Macro F1 0.3397,
+  FP on interpretations 1125/1470 (76.5%, worst so far) — Part II's
+  existing FP-skew roughly doubles out of domain. **M2 is not "34%
+  accurate at detecting sarcasm"** — that number is Task B's, driven
+  entirely by over-flagging sincere interpretations, not by missing
+  sarcastic originals.
+- **M3 (EXP-SIGN-013, few-shot, done):** Task A detection rate 89.4%
+  (237/265) — a real but modest drop from M2's 93.6% (28 vs. 17 missed
+  originals). Task B accuracy 0.4133, Macro F1 **0.4015** (up from M2's
+  0.3397), FP on interpretations improves to 990/1470 (67.3%, still high
+  but better than M2's 76.5%). Trade-off read explicitly: few-shot makes
+  M3 less trigger-happy overall — better Task B, slightly worse Task A —
+  neither number is reported as the single verdict.
+- M4 (EXP-SIGN-014, reasoning) running on VM; M5 (EXP-SIGN-015, frozen
+  MIPROv2 program, inference-only via `dspy.Predict.load(...)` — **not**
+  a recompile) queued separately after.
 
 **Methodology clarification added mid-phase (2026-08-20): interpretation
 #1 (first row per family in the officially-sourced raw file) is now
@@ -1126,6 +1144,29 @@ rank-based and deterministic (no shuffling), superseding the earlier
 seeded-shuffle selector for every Phase 7/9/10 use going forward. Full
 detail and the Phase 5–10 methodology updates this triggered: see
 `SIGN_GENERALIZATION_PLAN.md` §1 and each phase's entry.
+
+**Methodological clarification (2026-08-20): Task A vs. Task B, must
+never be conflated going forward.** Every SIGN original is, by
+construction, `sarcastic`; every interpretation is, by construction,
+`not_sarcastic`. Evaluating "originals only" (**Task A** — is there a
+domain-transferred sarcastic tweet the model can recognize? single gold
+class, so **sarcasm detection rate/recall is the primary metric, not
+Macro F1**) and evaluating "originals + interpretations combined"
+(**Task B** — can the model tell a sarcastic original apart from a
+sincere rewrite of the same underlying meaning? balanced-ish binary
+setting, Macro F1 is appropriate here) are different research questions.
+A low Task B Macro F1 must never be quoted as "the model can't detect
+SIGN sarcasm" without checking Task A first — M2 above is the clearest
+example (93.6% Task A recall, 0.3397 Task B Macro F1, same model, same
+predictions, two different questions). Also added: a **Primary-Reference**
+view (original vs. interpretation #1 only, since #1 is the primary
+reference per the clarification above) and a **per-interpretation-rank**
+breakdown (not_sarcastic recall by rank #1–#5, tested not assumed).
+Historical numbers above are unchanged by this — only their framing is
+corrected; M1/M6/M2/M3's Task B numbers were always Task B numbers, they
+just weren't labeled as such until now. Full detail:
+`SIGN_GENERALIZATION_PLAN.md` §1 (new subsection) and each of Phase
+5/6/11's updated entries.
 
 **Official-source verification (2026-08-20):** fetched
 `train.csv`/`dev.csv`/`test.csv` directly from the SIGN paper's own

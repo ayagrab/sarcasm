@@ -201,6 +201,62 @@ interpretation #1 specifically, never a random draw.**
   Phase 5's analysis of those same predictions is where the primary-vs-
   full-family distinction actually enters.
 
+### Task A vs. Task B vs. Primary-Reference: the SIGN evaluation must always specify which question it's answering (added 2026-08-20)
+
+**This is a hard reporting rule from here through Phase 11, applied
+retroactively to how Phase 4's existing M1–M3 results are *interpreted*
+(not re-run):** every SIGN original tweet is, by construction, sarcastic;
+every one of its human interpretations is, by construction,
+not_sarcastic. Evaluating "originals only" and evaluating "originals +
+interpretations combined" are **different research questions with
+different appropriate primary metrics**, and a result from one must never
+be quoted as if it were the other.
+
+- **Task A — Original SIGN sarcasm transfer.** Eval set = the 265 SIGN Test
+  originals only. Every gold label is `sarcastic` — this is **not** a
+  balanced binary classification setting, so **Macro F1 is not the
+  primary metric here**. Primary metric: **sarcasm detection
+  rate / sarcastic recall** (correct sarcastic predictions ÷ total
+  originals), plus false-negative count and rate, plus per-example
+  predictions. Answers: "can a model developed on Dataset A recognize an
+  independent SIGN sarcastic tweet at all?"
+- **Task B — Full contrastive/binary SIGN evaluation.** Eval set = all
+  1,735 rows (265 originals + 1,470 interpretations, both roles, all
+  ranks). Binary metrics **are** appropriate here: Macro F1, accuracy,
+  per-class precision/recall, confusion matrix. Answers the harder
+  question: "can the model tell a sarcastic original apart from a sincere
+  human rewrite of the same underlying meaning?" **This is the task
+  Phase 4's existing Macro F1 numbers (§7) already measure** — they were
+  always Task B numbers; the correction is in how they get *described*,
+  not in the numbers themselves.
+- **Primary-Reference view — a third, focused evaluation**: original vs.
+  interpretation #1 only (one sarcastic + one best sincere reference per
+  family, naturally balanced 1:1). Reports the same binary metrics as
+  Task B plus **pair success rate** (original predicted sarcastic **and**
+  interpretation #1 predicted not_sarcastic, both correct, per family).
+  Distinct from Task B because it isolates the model's best-case
+  contrastive signal from the noisier full-family aggregate.
+- **Per-interpretation-rank breakdown**: not_sarcastic recall computed
+  separately for interpretation #1, #2, #3, #4, #5 (where each rank has
+  data). Tests — does not assume — whether a model is especially good at
+  recognizing the *primary* interpretation as sincere, or behaves
+  similarly across all five.
+- **Reporting rule:** any sentence of the form "model X scores Y% on
+  SIGN" is incomplete and must not be written — always name the task
+  (Task A / Task B / Primary-Reference) the number belongs to. In
+  particular: **a low Task B Macro F1 is not evidence a model "can't
+  detect SIGN sarcasm"** — check Task A's detection rate before drawing
+  that conclusion; the two can and do diverge sharply (see §7's revised
+  M2/M3 interpretation).
+- **Applies to:** Phase 4's existing results (§7, reinterpreted below,
+  numbers unchanged), Phase 5 (formalizes Task A/B/Primary-Reference as
+  named, separately-reported metric blocks per method), Phase 6 (false
+  negatives = Task A misses; false positives = Task B's sincere
+  interpretations mislabeled sarcastic — a distinct failure mode
+  investigated on its own terms, see Phase 6's updated entry), Phase 8's
+  before/after-adaptation comparison, and Phase 11's final report
+  structure (§ Phase 11 below).
+
 ### Reference material already in the repo
 
 - `docs/sign_paper.pdf` — the SIGN paper itself.
@@ -502,6 +558,21 @@ start until this is fully persisted.**
     before Phase 7** — not yet complete, so Phase 7 has correctly not
     started.
 
+**Checkpoint gate (explicit, 2026-08-20 request): after Phase 4 finishes
+and before any Phase 7 SIGN Train exposure**, stop and do three things in
+order: (1) back up all six methods' zero-transfer `predictions.csv` +
+`metrics.json` (already git-committed as each method lands, per the
+per-phase-commit policy below — this step just confirms nothing from
+Phase 4 is only on the ephemeral `/mnt` disk); (2) produce one
+consolidated M1–M6 comparison table (macro F1, sarcasm detection rate,
+false negative rate side by side — folded into Phase 5's output below
+rather than a separate artifact); (3) only then proceed to Phase 6's full
+false-negative analysis, and only after Phase 6 does Phase 7 (first SIGN
+Train touch) begin. This does not change phase order — Phase 5 → 6 → 7
+was already the plan — it makes the backup + single comparison table an
+explicit, checked step rather than implicit in Phase 5/7's existing
+inputs.
+
 ### Phase 5 — SIGN contrastive / family-aware evaluation
 
 - **Research question:** RQ2, at family granularity — not just "is each
@@ -511,13 +582,36 @@ start until this is fully persisted.**
   re-analyzes Phase 4's `predictions.csv` files with family-aware
   metrics, via `src.sign.family_eval.metrics`, already built and tested
   in Phase 1). **No SIGN Train use.**
-- **Two explicit views, both reported, never conflated (added 2026-08-20
-  per the interpretation-#1-is-primary decision, §1):**
-  - **A. Primary-reference evaluation** — original vs. interpretation #1
-    only (`is_primary_interpretation`). The clean, minimal-noise signal:
-    one original, one best sincere rewrite, straightforward binary +
-    contrastive metrics.
-  - **B. Full-family evaluation** — original vs. all available
+- **Reports Task A, Task B, and Primary-Reference as three explicitly
+  labeled, never-conflated blocks per method (§1's naming — note these
+  are distinct from this phase's own "View 1/View 2" family-granularity
+  split below; both distinctions coexist):**
+  - **Task A** (originals only): sarcasm detection rate, FN count/rate —
+    already computed in Phase 4 (`sign_originals_summary` in each
+    method's `metrics.json`), just surfaced here alongside the rest
+    rather than recomputed.
+  - **Task B** (full 1,735-row set): Macro F1, accuracy, per-class
+    precision/recall, confusion matrix — already computed in Phase 4,
+    surfaced here.
+  - **Primary-Reference** (original vs. interpretation #1 only, new
+    computation this phase): accuracy, Macro F1, sarcastic
+    precision/recall, not_sarcastic precision/recall, **pair success
+    rate** (both original→sarcastic and interp#1→not_sarcastic correct,
+    per family).
+  - **Per-interpretation-rank breakdown** (new computation this phase):
+    not_sarcastic recall computed separately for interp #1, #2, #3, #4,
+    #5 — measured, not assumed, whether rank #1 is actually easier for
+    the model than #2–#5.
+- **Two family-granularity views on top of the above, both reported,
+  never conflated (added 2026-08-20 per the interpretation-#1-is-primary
+  decision, §1) — these answer "does the model separate an original from
+  its own rewrites," a step beyond Task A/B/Primary-Reference's per-row
+  metrics:**
+  - **View 1 (primary-reference family view)** — original vs.
+    interpretation #1 only (`is_primary_interpretation`). Same pairing as
+    the Primary-Reference block above, reported here as
+    pairwise/strict/soft family metrics instead of row-level binary ones.
+  - **View 2 (full-family view)** — original vs. all available
     interpretations (1–5, whatever that family actually has). Original
     detection rate, interpretation non-sarcasm rate, pairwise contrastive
     accuracy, strict family accuracy (**all** available interpretations
@@ -525,11 +619,17 @@ start until this is fully persisted.**
     **all families** and reported again over the **clean (exactly-5)**
     subset only, so a reader can see whether anomalous/incomplete
     families are skewing the aggregate.
-- **Outputs:** `results/sign/family_eval/` — per method, both views (A
-  and B×2 family-subsets) as JSON/CSV; full per-family results table
+- **Outputs:** `results/sign/family_eval/` — per method: Task A block,
+  Task B block, Primary-Reference block, per-rank breakdown, View 1, and
+  View 2×2 family-subsets, all as JSON/CSV; full per-family results table
   (family_id, original prediction, every interpretation's prediction,
   which view(s) it passed/failed) for Phase 6's error analysis to consume
-  directly rather than re-deriving.
+  directly rather than re-deriving. Also: one consolidated
+  `results/sign/family_eval/m1_m6_comparison.csv` — one row per method
+  (M1–M6), with Task A / Task B / Primary-Reference / family-view
+  headline numbers side by side, organized under clearly labeled column
+  groups so the distinction is visible at a glance, not just in prose
+  (added 2026-08-20 per the pre-Phase-7 checkpoint request above).
 - **Compute:** trivial (re-aggregating existing predictions).
 - **VM required:** NO.
 - **Estimated time:** ~2h.
@@ -559,7 +659,23 @@ start until this is fully persisted.**
   - `results/sign/error_analysis/false_positives.csv` — the mirror for
     interpretations flagged sarcastic: `family_id`, `interp_rank`,
     `interpretation_text`, per-model predicted label, `original_text`
-    (for context), qualitative tag(s).
+    (for context), qualitative tag(s). **This is Task B's dominant
+    failure mode for the LLM methods (§7 — M2 76.5%, M3 still high FP
+    rate on interpretations) and gets equal analytical weight to the
+    false-negative side, not a footnote.** Test (don't assume) hypotheses
+    for *why* a sincere rewrite still reads as sarcastic to the model:
+    semantic/topic inheritance from the sarcastic original, negative
+    sentiment mistaken for sarcasm, retained lexical cues, general
+    over-prediction of the sarcastic class, interpretation quality/fidelity
+    to the original's meaning, and any other structural property the data
+    surfaces. **Central framing for this half of the analysis (added
+    2026-08-20, explicit research issue, not just an error category):**
+    SIGN's original/interpretation pairs are semantically related but
+    differ in *form* (sarcastic vs. sincere expression of the same
+    underlying meaning) — if a model tags both as sarcastic, check
+    whether it's actually responding to topic/sentiment/underlying
+    negative meaning rather than sarcastic linguistic form specifically.
+    This is a candidate top finding for Phase 11, not a routine tag.
   - **Quantitative comparison, not anecdotal** (explicit requirement): for
     every proposed error category/characteristic (length, sentiment,
     punctuation, capitalization, lexical features, embedding position),
@@ -710,12 +826,27 @@ start until this is fully persisted.**
 
 - **Research question:** RQ1–RQ5, connected end-to-end.
 - **Outputs:** a new "Part III — SIGN Generalization" section in
-  `PROJECT_SUMMARY.md` (clean narrative + final tables) **including a
-  dedicated section titled "What Kinds of SIGN Sarcasm Do the Models Fail
-  to Detect?"** (RQ5 — quantitative + qualitative, drafted in Phase 6,
-  finalized here with the before/after-adaptation comparison from Phase
-  8), a completed `EXPERIMENT_LOG.md` SIGN section (full audit trail,
-  every `EXP-SIGN-###`), this document marked fully COMPLETED.
+  `PROJECT_SUMMARY.md` (clean narrative + final tables), a completed
+  `EXPERIMENT_LOG.md` SIGN section (full audit trail, every
+  `EXP-SIGN-###`), this document marked fully COMPLETED. **Required
+  section structure (2026-08-20, explicit — the Task A/B/Primary-
+  Reference/family distinctions from §1 must stay visible as separate
+  named sections, never collapsed into one narrative):**
+  1. Cross-Dataset Sarcasm Detection (Task A — SIGN originals only)
+  2. Contrastive Sarcasm Recognition (Task B — original vs. sincere
+     interpretations)
+  3. Primary Human Reference Evaluation (original vs. interpretation #1)
+  4. Full Family Evaluation (original + all five interpretations)
+  5. **What Kinds of SIGN Sarcasm Do the Models Fail to Detect?** (RQ5 —
+     quantitative + qualitative, drafted in Phase 6, finalized here)
+  6. Why Are Sincere SIGN Interpretations Misclassified as Sarcastic?
+     (Task B's false-positive analysis, Phase 6, incl. the
+     semantic-meaning-vs-sarcastic-form finding if it holds up)
+  7. Effect of SIGN Domain Adaptation (Phase 8, before/after diff)
+  8. Effect of the Amount of SIGN Training Data (Phase 9, learning curve)
+  9. Effect of the Number of Human Interpretations (Phase 10, k-ablation)
+  10. Remaining Difficult Cases After Adaptation (Phase 8's post-adaptation
+      error-analysis repeat)
 - **VM required:** NO.
 - **Estimated time:** ~2–4h writing/assembly, after all prior phases.
 - **Status:** NOT STARTED. **Depends on:** everything above.
@@ -863,18 +994,27 @@ sarcasm detection specifically.
 scientific artifact; adaptation results get their own §8/§9/§10 sections,
 never merged into this one.)*
 
+**Read this table as two separate tasks, not one score per method** (see
+§1's Task A/B/Primary-Reference clarification, added 2026-08-20): the
+"Sarcasm detection rate" column is **Task A** (originals only, single
+gold class — this is the answer to "can the model recognize a SIGN
+sarcastic tweet"); Accuracy/Macro F1/confusion matrix are **Task B**
+(full 1,735-row contrastive set — the answer to "can the model tell that
+original apart from a sincere rewrite"). A method can score well on one
+and poorly on the other — see M2/M3 below.
+
 **Eval set for every method below:** SIGN Test, all roles, full set
 (n=1,735: 265 originals + 1,470 interpretations — see §1 for why this is
 1,735/300 rather than the official 1,800/300).
 
-| Method | Experiment ID | Status | Accuracy | Macro F1 | Sarcasm detection rate (originals) | FN rate | Confusion matrix `[[TN,FP],[FN,TP]]` (not_sarcastic, sarcastic) |
+| Method | Experiment ID | Status | Task B Accuracy | Task B Macro F1 | Task A: sarcasm detection rate | Task A: FN rate | Confusion matrix `[[TN,FP],[FN,TP]]` (not_sarcastic, sarcastic) |
 |---|---|---|---:|---:|---:|---:|---|
 | M1 TF-IDF+LR | EXP-SIGN-011 | done | 0.3660 | 0.3563 | 0.7962 (211/265) | 0.2038 | `[[424,1046],[54,211]]` |
 | M6 DeBERTa-v3-base | EXP-SIGN-016 | done | 0.5326 | 0.4724 | 0.6377 (169/265) | 0.3623 | `[[755,715],[96,169]]` |
 | M2 Qwen zero-shot | EXP-SIGN-012 | **done** | 0.3418 | 0.3397 | **0.9358 (248/265)** | 0.0642 | `[[345,1125],[17,248]]` |
-| M3 Qwen few-shot | EXP-SIGN-013 | running on VM | — | — | — | — | — |
-| M4 Qwen reasoning | EXP-SIGN-014 | queued (same VM run) | — | — | — | — | — |
-| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | queued after M2-M4 | — | — | — | — | — |
+| M3 Qwen few-shot | EXP-SIGN-013 | **done** | 0.4133 | 0.4015 | 0.8943 (237/265) | 0.1057 | `[[480,990],[28,237]]` |
+| M4 Qwen reasoning | EXP-SIGN-014 | running on VM | — | — | — | — | — |
+| M5 DSPy MIPROv2 (frozen, inference-only) | EXP-SIGN-015 | queued after M4 | — | — | — | — | — |
 
 **M1/M6 interpretation — a striking reversal of Part II's headline
 finding.** On Dataset A, M1 and M6 (the two "trained on labels" methods)
@@ -895,20 +1035,57 @@ apart from sarcastic ones" — exactly what Phase 2's embedding finding
 (SIGN originals/interpretations overlap heavily with each other) predicted.
 Full detail: `results/sign/EXP-SIGN-011/`, `results/sign/EXP-SIGN-016/`.
 
-**M2 (Qwen zero-shot) interpretation — the LLM's existing bias
-compounds with the domain shift, doesn't just persist.** Part II already
-found every LLM-prompted method heavily FP-skewed on Dataset A (M2 TEST:
-FP=465/1340 ≈ 34.7%). On SIGN, M2's FP rate roughly doubles: **1,125/1,470
-(76.5%)** of interpretations misclassified as sarcastic — far worse than
-either M1 (71.2%) or M6 (48.6%). The upside: M2's sarcasm-recall on
-originals is the best of the three methods so far, **93.6% (248/265)**,
-best FN rate (6.4%) — but at a precision of just 18.1% (`sarcastic_precision`
-in `results/sign/EXP-SIGN-012/metrics.json`), meaning it's now
-essentially calling *almost everything* sarcastic rather than exercising
-real discrimination. Macro F1 0.3397, barely above M1's 0.3563 and well
-below M6's 0.4724, despite M2's much higher raw recall — a clean
-illustration of why macro F1 (not recall alone) is the right primary
-metric here. Full detail: `results/sign/EXP-SIGN-012/`.
+**M2 (Qwen zero-shot) interpretation — corrected 2026-08-20 to separate
+Task A from Task B (numbers unchanged, framing fixed):**
+
+- **Task A (SIGN originals, sarcasm detection):** M2 is the **best of the
+  three methods so far** — 248/265 = **93.6% sarcastic recall**, FN rate
+  6.4%. It is *not* correct to describe M2 as "~34% sarcasm-detection
+  performance" — that 0.3397 figure is Task B's Macro F1, a different
+  question. On Task A alone, M2 clearly can recognize unseen SIGN
+  sarcastic tweets.
+- **Task B (full contrastive, 1,735 rows):** M2's failure mode is
+  entirely on the *interpretation* side, not the original side: **1,125/1,470
+  (76.5%)** of sincere interpretations are misclassified as sarcastic —
+  worse than either M1 (71.2%) or M6 (48.6%) — at a sarcastic precision
+  of just 18.1% (`results/sign/EXP-SIGN-012/metrics.json`). Task B Macro
+  F1 = 0.3397, barely above M1's 0.3563 and well below M6's 0.4724,
+  *despite* M2's much higher Task A recall — Macro F1 is the right
+  primary metric **for Task B specifically** (a single-class recall
+  number would be misleading there), while Task A correctly uses
+  detection rate instead. **Net read: M2 is not failing to detect
+  sarcasm — it is failing to withhold the sarcastic label from sincere
+  rewrites of the same underlying meaning** (see §1's "semantic meaning
+  vs. sarcastic form" framing, expanded in Phase 6).
+
+Full detail: `results/sign/EXP-SIGN-012/`.
+
+**M3 (Qwen few-shot) interpretation — done 2026-08-20:**
+
+- **Task A:** 237/265 = **89.4% sarcastic recall**, FN rate 10.6% —
+  *lower* than M2's 93.6%, a real (if modest) trade-off, not noise (28
+  vs. 17 missed originals out of 265).
+- **Task B:** Macro F1 improves to **0.4015** (vs. M2's 0.3397), driven by
+  better interpretation rejection: not_sarcastic recall on interpretations
+  rises to 32.7% (480/1,470) from M2's 23.5% (345/1,470); sarcastic
+  precision ticks up to 0.193 from 0.181.
+- **Reading the trade-off explicitly (per §1's rule against conflating
+  tasks):** few-shot prompting makes M3 *less* trigger-happy about
+  labeling things sarcastic overall — this helps Task B (fewer false
+  positives on interpretations) but costs a small amount of Task A recall
+  (a few originals that zero-shot's more aggressive sarcastic-leaning
+  bias happened to catch are now missed). Neither number "wins" outright;
+  which matters more depends on whether the downstream use case cares
+  more about not missing sarcasm (Task A) or not over-flagging sincere
+  text (Task B) — both are real, both are reported, deliberately not
+  collapsed into one verdict here.
+
+Full detail: `results/sign/EXP-SIGN-013/`.
+
+**Pending, per §1's rule:** primary-reference (original vs. interp #1
+only) and per-rank (#1–#5) not_sarcastic-recall breakdowns are not yet
+computed for any method — that's Phase 5's job, run once against all of
+M1–M6's persisted predictions rather than piecemeal per method here.
 
 ## 8. Domain adaptation results
 
