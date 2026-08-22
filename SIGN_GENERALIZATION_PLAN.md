@@ -1433,11 +1433,11 @@ model-capacity contrast already seen in Phase 8's post-adaptation diffs.
 
 ## 10. Interpretation-count ablation results
 
-*(M1 leg COMPLETE (4/4 points). M6 leg IN PROGRESS (k=1 reused from
-Phase 8; k=2/3/5 launched immediately after Phase 9's M6 leg finished —
-the planned VM-side auto-chain wrapper failed silently on relaunch after
-the mid-session reboot, so k=2/3/5 were launched manually instead once
-Phase 9 was confirmed complete.)*
+*(M1 leg COMPLETE (4/4 points). M6 leg COMPLETE (4/4 points) — k=1 reused
+from Phase 8; k=2/3/5 required two VM sessions due to two unplanned
+reboots mid-run (see §13's VM session log): k=2 landed cleanly, k=3/5
+were relaunched via a targeted one-off script after the second reboot
+wiped `/mnt` entirely and required a full environment rebuild.)*
 
 | Model | k (interpretations) | Task B Macro F1 | Task A detection rate |
 |---|---:|---:|---:|
@@ -1446,6 +1446,9 @@ Phase 9 was confirmed complete.)*
 | M1 | 3 | 0.6480 | 57.7% |
 | M1 | 5 | 0.6644 | 55.9% |
 | M6 | 1 (primary) | 0.6870 | 78.5% |
+| M6 | 2 | 0.6902 | 81.5% |
+| M6 | 3 | 0.7129 | 80.8% |
+| M6 | 5 | 0.7404 | 77.7% |
 
 **M1 finding: more interpretation diversity helps Task B but costs Task A
 increasingly.** Task B Macro F1 climbs steadily with k (0.586 → 0.629 →
@@ -1461,8 +1464,23 @@ obviously dominated by higher k** — the "best" k depends on whether Task
 A or Task B matters more for the downstream use case, echoing Phase 8's
 M1 before/after diff finding.
 
-Artifacts: `results/sign/EXP-SIGN-03{3,4,5}/` (k=2/3/5),
-`results/sign/interp_count_ablation/summary.csv`. Code:
+**M6 finding: more interpretation diversity helps Task B substantially,
+with essentially no Task A cost -- the opposite of M1's trade-off.** Task
+B Macro F1 climbs steadily and by more than M1's absolute range (0.687 →
+0.690 → 0.713 → 0.740, +0.053 total vs. M1's +0.078 but from a much
+higher floor). Task A detection rate stays roughly flat-to-improving
+across k (78.5% → 81.5% → 80.8% → 77.7%), never dropping meaningfully
+below its k=1 starting point. For M6, k=5 is close to strictly dominant
+over k=1: better Task B *and* comparable Task A. This is the clearest
+model-capacity contrast in the whole project -- the same interpretation-
+diversity manipulation that forces a hard trade-off for the linear M1
+model is absorbed by M6's fine-tuned representation with little
+downside, consistent with the pattern already seen in Phase 8's
+before/after diffs and Phase 9's learning curve (M6 gains Task A
+performance from more SIGN exposure where M1 loses it).
+
+Artifacts: `results/sign/EXP-SIGN-03{3,4,5,6,7,8}/` (k=2/3/5 for both
+models), `results/sign/interp_count_ablation/summary.csv`. Code:
 `src/sign/interp_ablation/{run_m1_interp_ablation,run_m6_interp_ablation,build_ablation_summary}.py`,
 4 new tests.
 
@@ -1488,9 +1506,8 @@ Artifacts: `results/sign/EXP-SIGN-03{3,4,5}/` (k=2/3/5),
 - [x] Phase 8 — Domain adaptation — **COMPLETE** (M1 + M6, condition B
       wins for both, zero/negligible forgetting on Dataset A)
 - [x] Phase 9 — Learning curve — **COMPLETE** (M1 6/6, M6 6/6)
-- [~] Phase 10 — Interp-count ablation — M1 **COMPLETE** (4/4); M6 **IN
-      PROGRESS** (k=1 reused, k=2/3/5 running)
-- [ ] Phase 11 — Final synthesis — blocked on M6 legs of Phase 9/10
+- [x] Phase 10 — Interp-count ablation — **COMPLETE** (M1 4/4, M6 4/4)
+- [ ] Phase 11 — Final synthesis — unblocked, not yet started
 
 Status legend: NOT STARTED / IN PROGRESS / COMPLETED / BLOCKED / WAITING
 FOR VM / FAILED / SKIPPED.
@@ -1564,57 +1581,67 @@ wiped on every restart; nothing there is a source of truth.
 
 ## 14. Resume checkpoint (updated on every interruption)
 
-**Last updated:** 2026-08-22, Phase 9 complete / Phase 10 M6 in progress
-(VM up, k=2/3/5 ablation running). Every status below was **verified
-against actual persisted artifacts** (`results/sign/EXP-SIGN-0##/metrics.json`
-existing on the local Mac, synced via `rsync` from the VM) — not inferred
-from what was scheduled to run.
+**Last updated:** 2026-08-22, Phase 9 AND Phase 10 both fully COMPLETE.
+Every status below was **verified against actual persisted artifacts**
+(`results/sign/EXP-SIGN-0##/metrics.json` existing on the local Mac,
+synced via `rsync` from the VM) — not inferred from what was scheduled to
+run.
 
 ### CURRENT STATUS
 
-**Phase 4-9 all COMPLETE. Phase 10: M1 COMPLETE (4/4), M6 IN PROGRESS
-(k=1 reused, k=2/3/5 launched 2026-08-22 ~12:39, running).** M6's full
-learning curve (6/6 points) is now in: Task B Macro F1 rises from 0.472
-(0%) to a peak of 0.685 (50%), dips to 0.649 (75%), recovers to 0.687
-(100%) — non-monotonic in the 50-75% region (flagged as a limitation, no
-controls run to isolate sampling vs. fine-tuning variance). Task A
-detection rate climbs almost the whole way (63.8% → 84.2% at 75%) before
-dropping back to 78.5% at 100% — the opposite direction from M1's Task A
-regression, a genuine model-capacity contrast to write up in Phase 11.
+**Phase 4-10 all COMPLETE. Phase 11 (final synthesis) is next — local
+only, no VM needed.** M6's full learning curve (6/6 points): Task B Macro
+F1 rises from 0.472 (0%) to a peak of 0.685 (50%), dips to 0.649 (75%),
+recovers to 0.687 (100%) — non-monotonic in the 50-75% region (flagged as
+a limitation). Task A detection rate climbs almost the whole way (63.8%
+→ 84.2% at 75%) before settling at 78.5% (100%) — opposite direction from
+M1's Task A regression under the same recipe. M6's full k-ablation (4/4
+points): Task B Macro F1 climbs steadily with k (0.687 → 0.690 → 0.713 →
+0.740) with **no real Task A cost** (78.5% → 81.5% → 80.8% → 77.7%,
+staying roughly flat) — the opposite of M1's sharp Task A decline with k
+(74.7% → 55.9%). This M1-vs-M6 contrast (capacity-limited model forced
+into a real trade-off vs. fine-tuned model absorbing more SIGN diversity
+almost for free) is the single clearest finding to lead with in Phase 11.
 
-**This VM session had an unplanned mid-run reboot** (`up 1 min` observed
-at ~11:55, not user-initiated) that killed the M6 learning-curve process
-mid-75%-fraction and its already-armed Phase-10 auto-chain wrapper —
-**this time `/mnt` was NOT wiped** (unlike prior restarts), so the venv,
-repo, and all already-completed experiment results (through 50%) survived
-intact; only the in-flight 75% run needed to be redone, via a
-targeted one-off script (`run_frac75_only.py`, since resuming just that
-one fraction was cheaper than rerunning all four). Once the 75% point
-finished, Phase 10's M6 ablation (`run_m6_interp_ablation.py`, k=2/3/5)
-was launched manually since the VM-side `pgrep`-based auto-chain wrapper
-died silently on relaunch (root cause not diagnosed — deprioritized in
-favor of just launching it directly and monitoring). **Next: wait for
-k=2/3/5 to finish, sync + rebuild
-`results/sign/interp_count_ablation/summary.csv`, update
-SIGN_GENERALIZATION_PLAN.md §10/§12 and EXPERIMENT_LOG.md, run the full
-test suite, commit, then Phase 11 (final synthesis, local-only, no VM
-needed) is unblocked.**
+**This VM session had two unplanned reboots.** The first (~11:55) killed
+the M6 learning-curve mid-75%-fraction; `/mnt` survived intact that time,
+so only the in-flight fraction needed a targeted rerun
+(`run_frac75_only.py`). The second (~14:15-14:44, SSH/ping both timed out
+for ~25min before the VM came back) hit mid-k=3-ablation and **did wipe
+`/mnt` completely** this time, requiring a full environment rebuild (venv
++ pinned deps + repo rsync, ~25min) before relaunching just k=3/k=5 via
+another targeted one-off script (`run_k35_only.py` — k=2/EXP-SIGN-036 had
+already synced+committed locally, so it wasn't rerun). Both incidents:
+zero data loss, only wasted GPU time redoing the specific in-flight
+run. The VM-side `pgrep`-based auto-chain wrapper (planned to link
+Phase 9 M6 → Phase 10 M6 automatically) died silently on relaunch after
+the first reboot; root cause not diagnosed, deprioritized in favor of
+manually launching + monitoring each stage directly, which is what
+actually got both phases to completion.
+
+**Next: Phase 11 (final synthesis) — populate `PROJECT_SUMMARY.md`'s
+"Part III — SIGN Generalization" section per the previously agreed
+10-section structure, finish `EXPERIMENT_LOG.md`'s SIGN narrative, mark
+`SIGN_GENERALIZATION_PLAN.md` fully COMPLETE. Also queued (separate from
+Phase 11): add a new "Part III" section to `Sarcasm_Project_Report.docx`
+covering the SIGN generalization work now that all results are final.**
 
 ### LAST SAFE CHECKPOINT
 
-All of Phase 9 (M1 6/6 + M6 6/6): `results/sign/EXP-SIGN-0{11,16,21,23,25..32}/`
-each verified present locally and synced via `rsync`. Phase 10 M1 (4/4):
-`results/sign/EXP-SIGN-03{3,4,5}/`. Not yet committed to git as of this
-checkpoint — commit is the next step once Phase 10's M6 leg also lands.
+All of Phase 9 (M1 6/6 + M6 6/6) and Phase 10 (M1 4/4 + M6 4/4):
+`results/sign/EXP-SIGN-0{11,16,21,23,25..38}/` each verified present
+locally, synced via `rsync`, and committed to git (commits `944ad0d`,
+`3a7966a`, `ea1e412`, plus this checkpoint's commit for k=5/final docs).
 
 ### CURRENT EXPERIMENT
 
-`run_m6_interp_ablation.py` running on the VM (GPU 1,
-`CUDA_VISIBLE_DEVICES=1`; GPU 0 remains hardware-faulted with persistent
-uncorrected ECC errors, unused). k=2 (EXP-SIGN-036) in progress as of
-this checkpoint; k=3 (EXP-SIGN-037) and k=5 (EXP-SIGN-038) queued next
-within the same process (script iterates all three sequentially, no
-chaining needed since it's one long-running process).
+None running. VM still up (last confirmed alive, GPU 1 healthy 0 ECC
+errors, GPU 0 shows 0 ECC errors too as of the second reboot — its
+"volatile" counter reset on reboot, so this doesn't confirm the earlier
+hardware fault is gone, just that the session counter cleared; kept using
+GPU 1 only out of caution). Safe to power off once this checkpoint's
+commit is confirmed pushed/saved — no further VM work is needed for
+Phase 11.
 
 ### COMPLETED EXPERIMENTS (this phase)
 

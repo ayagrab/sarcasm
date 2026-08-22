@@ -1385,10 +1385,32 @@ committed — reruns just `run_condition` for the single missing fraction)
 rather than rerunning all four fractions from scratch. Recovered with
 zero data loss, ~20 minutes of rework.
 
-**Phase 10 — Interpretation-count ablation, M6 leg started (2026-08-22).**
+**Phase 10 — Interpretation-count ablation, M6 leg COMPLETE (2026-08-22).**
 Launched `run_m6_interp_ablation.py` (k=2/3/5) manually right after
 Phase 9 was confirmed complete — the planned VM-side `pgrep`-based
 auto-chain wrapper (which had worked earlier in the project) died
 silently on relaunch after the reboot; root cause not diagnosed, not
 worth the time given manual launch + monitoring was just as reliable
-here. Results pending.
+here. k=2 (EXP-SIGN-036) landed cleanly. A second unplanned VM reboot
+then hit mid-k=3: this time `/mnt` was wiped completely (unlike the
+first reboot), requiring a full environment rebuild (fresh venv, pinned
+deps reinstalled, repo resynced, ~25min) before relaunching just k=3/k=5
+via a one-off script (k=2 was already safe locally, not rerun).
+
+Full M6 k-ablation (4/4): Task B Macro F1 climbs steadily with k (0.687
+→ 0.690 → 0.713 → 0.740) with **no real Task A cost** (78.5% → 81.5% →
+80.8% → 77.7%, staying roughly flat) -- the opposite of M1's sharp Task A
+decline with k (74.7% → 61.1% → 57.7% → 55.9%). **Phase 10 now fully
+COMPLETE (M1 4/4 + M6 4/4).** This M1-vs-M6 contrast -- a trade-off for
+the capacity-limited linear model vs. near-free gains for the fine-tuned
+model -- mirrors the same pattern seen in Phase 8's post-adaptation diffs
+and Phase 9's learning curve, and is the clearest single finding to lead
+with in Phase 11.
+
+**Phases 9 and 10 are now both fully COMPLETE (M1 + M6, all points).**
+Phase 11 (final synthesis) is next: populate `PROJECT_SUMMARY.md`'s
+"Part III — SIGN Generalization" section, finish this log's SIGN
+narrative, mark `SIGN_GENERALIZATION_PLAN.md` fully COMPLETE. Local-only,
+no VM needed. Separately queued: add a "Part III" section to
+`Sarcasm_Project_Report.docx` (currently only has Part I/Part II) once
+Phase 11's synthesis settles the final framing.
