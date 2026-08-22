@@ -1377,11 +1377,12 @@ Artifacts: `results/sign/EXP-SIGN-023/` (condition B),
 
 ## 9. Learning curve results
 
-*(M1 leg COMPLETE (6/6 points). M6 leg PARTIAL (3/6: 0%, 10%, and 100% —
-0%/100% reused from Phase 4/8, 10% completed before the ~40min VM window
-ran out) — 25/50/75% resume next VM session. Recipe throughout: Dataset A
-TRAIN (fixed) + SIGN Train fraction (primary condition), same as Phase
-8's condition B.)*
+*(M1 leg COMPLETE (6/6 points). M6 leg COMPLETE (6/6 points) — 0%/100%
+reused from Phase 4/8; 10/25/50/75% run across two VM sessions (10/25/50%
+in the first, an unplanned VM reboot mid-75%-run required a
+targeted single-fraction relaunch, no results lost — see VM session log
+in §13). Recipe throughout: Dataset A TRAIN (fixed) + SIGN Train fraction
+(primary condition), same as Phase 8's condition B.)*
 
 | Model | SIGN Train % | Task B Macro F1 | Task A detection rate |
 |---|---:|---:|---:|
@@ -1392,7 +1393,10 @@ TRAIN (fixed) + SIGN Train fraction (primary condition), same as Phase
 | M1 | 75% | 0.5785 | 72.5% |
 | M1 | 100% | 0.5861 | 74.7% |
 | M6 | 0% | 0.4724 | 63.8% |
-| M6 | 10% | 0.5876 | 58.9% |
+| M6 | 10% | 0.5973 | 66.8% |
+| M6 | 25% | 0.6341 | 75.1% |
+| M6 | 50% | 0.6854 | 79.6% |
+| M6 | 75% | 0.6485 | 84.2% |
 | M6 | 100% | 0.6870 | 78.5% |
 
 **M1 finding: clear diminishing returns, most of the gain from the first
@@ -1405,28 +1409,35 @@ improving — SIGN exposure trades some raw sarcasm recall for the Task B
 gain at every fraction tested, not just at 100% (consistent with Phase
 8's condition-B diff finding for M1).
 
-Artifacts: `results/sign/EXP-SIGN-0{25..28}/` (10/25/50/75%),
-`results/sign/learning_curve/summary.csv` + `learning_curve.png`. Code:
+Artifacts: `results/sign/EXP-SIGN-0{25..32}/` (10/25/50/75% for both
+models), `results/sign/learning_curve/summary.csv` + `learning_curve.png`.
+Code:
 `src/sign/learning_curve/{run_m1_learning_curve,run_m6_learning_curve,build_learning_curve_summary}.py`,
-4 new tests. **M6's 10% point completed before the session ended: SIGN
-Test Macro F1 0.5876 (jump from 0.4724 at 0%, similar-sized first-10%
-jump to M1's pattern), but Task A detection rate dipped to 58.9% (from
-63.8% at 0%) before recovering to 78.5% by 100% — non-monotonic, unlike
-M1's steady plateau. Only 3 of 6 points, too early to call this a real
-pattern vs. noise. M6's 25/50/75% remain for next VM session** —
-`run_m6_learning_curve.py` already skips nothing extra to rerun; it will
-redo all four originally-targeted fractions (10/25/50/75%) since it
-doesn't currently check for already-completed points, so re-running it
-will redundantly redo the 10% point too (cheap, ~17min, not worth adding
-skip-logic for one experiment).
+4 new tests.
+
+**M6 finding: Task B rises then dips at 75% before recovering at 100%
+(non-monotonic), while Task A climbs almost the whole way then also dips
+at 75%.** Task B Macro F1: 0.472 (0%) → 0.597 (10%) → 0.634 (25%) → 0.685
+(50%, the peak) → 0.649 (75%, a dip) → 0.687 (100%). Task A detection
+rate: 63.8% → 66.8% → 75.1% → 79.6% → 84.2% (75%, its own peak) → 78.5%
+(100%, drops back). Unlike M1's clean plateau, M6's curve is not smooth —
+both metrics move together mostly but the 50%/75% region shows some
+run-to-run volatility not explained by data quantity alone (plausibly
+family-sampling variance at these fraction sizes, or fine-tuning-run
+variance — no controls were run to distinguish these, flagged as a
+limitation). The overall trend, however, is consistent with M1: most of
+the Task B gain arrives early (0%→25% covers over half the 0%→100% total
+gain), and Task A improves substantially with SIGN exposure for M6 —
+the opposite direction from M1's Task A regression, echoing the
+model-capacity contrast already seen in Phase 8's post-adaptation diffs.
 
 ## 10. Interpretation-count ablation results
 
-*(M1 leg COMPLETE (4/4 points). M6 leg NOT STARTED (only k=1, reused from
-Phase 8) — VM time ran out before this phase could start; the chained
-auto-launch was stopped deliberately rather than left to be killed
-mid-run by VM shutdown, so no wasted/lost GPU time. `run_m6_interp_ablation.py`
-is ready to launch next session, right after Phase 9's M6 leg finishes.)*
+*(M1 leg COMPLETE (4/4 points). M6 leg IN PROGRESS (k=1 reused from
+Phase 8; k=2/3/5 launched immediately after Phase 9's M6 leg finished —
+the planned VM-side auto-chain wrapper failed silently on relaunch after
+the mid-session reboot, so k=2/3/5 were launched manually instead once
+Phase 9 was confirmed complete.)*
 
 | Model | k (interpretations) | Task B Macro F1 | Task A detection rate |
 |---|---:|---:|---:|
@@ -1476,10 +1487,9 @@ Artifacts: `results/sign/EXP-SIGN-03{3,4,5}/` (k=2/3/5),
 - [x] Phase 7 — Prepare SIGN Train variants — **COMPLETE**
 - [x] Phase 8 — Domain adaptation — **COMPLETE** (M1 + M6, condition B
       wins for both, zero/negligible forgetting on Dataset A)
-- [~] Phase 9 — Learning curve — M1 **COMPLETE** (6/6); M6 **PARTIAL**
-      (2/6: endpoints only, VM session cut short)
-- [~] Phase 10 — Interp-count ablation — M1 **COMPLETE** (4/4); M6 **NOT
-      STARTED** (only k=1, reused)
+- [x] Phase 9 — Learning curve — **COMPLETE** (M1 6/6, M6 6/6)
+- [~] Phase 10 — Interp-count ablation — M1 **COMPLETE** (4/4); M6 **IN
+      PROGRESS** (k=1 reused, k=2/3/5 running)
 - [ ] Phase 11 — Final synthesis — blocked on M6 legs of Phase 9/10
 
 Status legend: NOT STARTED / IN PROGRESS / COMPLETED / BLOCKED / WAITING
@@ -1554,44 +1564,57 @@ wiped on every restart; nothing there is a source of truth.
 
 ## 14. Resume checkpoint (updated on every interruption)
 
-**Last updated:** 2026-08-20, Phase 4 checkpoint (VM still up, idle — no
-job queued as of this update). Every status below was **verified against
-actual persisted artifacts** (`results/sign/EXP-SIGN-0##/metrics.json`
-existing on the local Mac) — not inferred from what was scheduled to run.
+**Last updated:** 2026-08-22, Phase 9 complete / Phase 10 M6 in progress
+(VM up, k=2/3/5 ablation running). Every status below was **verified
+against actual persisted artifacts** (`results/sign/EXP-SIGN-0##/metrics.json`
+existing on the local Mac, synced via `rsync` from the VM) — not inferred
+from what was scheduled to run.
 
 ### CURRENT STATUS
 
-**Phase 4-8 all COMPLETE. Phase 9/10's M1 legs COMPLETE, M6 legs
-PARTIAL/NOT-STARTED (VM session cut short at the user's ~40min window,
-2026-08-20).** M1's full learning curve (6/6 points) shows diminishing
-returns on Task B and a Task A cost at every nonzero fraction. M1's full
-k-ablation (4/4 points) shows Task B improving and Task A declining
-monotonically with k — a real trade-off curve, not a dominated choice.
-M6's learning curve has only its two reused endpoints (0%, 100%); the
-10/25/50/75% runs were mid-flight (the 10% point ~57% done) when the
-session had to end — **stopped deliberately, not killed by VM shutdown**,
-so nothing was lost, just not yet run. M6's k-ablation (k=2/3/5) never
-started — its VM chain was stopped before launching to avoid wasting GPU
-time on a run that couldn't finish in the window. **Next VM session:
-launch `run_m6_learning_curve.py` (re-runs all 4 missing fractions --
-current code doesn't skip already-attempted-but-incomplete ones, cheap
-to just rerun cleanly), then `run_m6_interp_ablation.py`, then rebuild
-both summary artifacts, then Phase 11.**
+**Phase 4-9 all COMPLETE. Phase 10: M1 COMPLETE (4/4), M6 IN PROGRESS
+(k=1 reused, k=2/3/5 launched 2026-08-22 ~12:39, running).** M6's full
+learning curve (6/6 points) is now in: Task B Macro F1 rises from 0.472
+(0%) to a peak of 0.685 (50%), dips to 0.649 (75%), recovers to 0.687
+(100%) — non-monotonic in the 50-75% region (flagged as a limitation, no
+controls run to isolate sampling vs. fine-tuning variance). Task A
+detection rate climbs almost the whole way (63.8% → 84.2% at 75%) before
+dropping back to 78.5% at 100% — the opposite direction from M1's Task A
+regression, a genuine model-capacity contrast to write up in Phase 11.
+
+**This VM session had an unplanned mid-run reboot** (`up 1 min` observed
+at ~11:55, not user-initiated) that killed the M6 learning-curve process
+mid-75%-fraction and its already-armed Phase-10 auto-chain wrapper —
+**this time `/mnt` was NOT wiped** (unlike prior restarts), so the venv,
+repo, and all already-completed experiment results (through 50%) survived
+intact; only the in-flight 75% run needed to be redone, via a
+targeted one-off script (`run_frac75_only.py`, since resuming just that
+one fraction was cheaper than rerunning all four). Once the 75% point
+finished, Phase 10's M6 ablation (`run_m6_interp_ablation.py`, k=2/3/5)
+was launched manually since the VM-side `pgrep`-based auto-chain wrapper
+died silently on relaunch (root cause not diagnosed — deprioritized in
+favor of just launching it directly and monitoring). **Next: wait for
+k=2/3/5 to finish, sync + rebuild
+`results/sign/interp_count_ablation/summary.csv`, update
+SIGN_GENERALIZATION_PLAN.md §10/§12 and EXPERIMENT_LOG.md, run the full
+test suite, commit, then Phase 11 (final synthesis, local-only, no VM
+needed) is unblocked.**
 
 ### LAST SAFE CHECKPOINT
 
-All of Phase 4: `results/sign/EXP-SIGN-0{11,12,13,14,15,16}/` each
-verified present locally (config.json + metrics.json + predictions.csv)
-and committed to git (commits `a26b990`, `d3184a8`, `3e1e19c`, plus this
-checkpoint's commit for M3/M5). Nothing from Phase 4 depends on the
-ephemeral VM `/mnt` disk anymore.
+All of Phase 9 (M1 6/6 + M6 6/6): `results/sign/EXP-SIGN-0{11,16,21,23,25..32}/`
+each verified present locally and synced via `rsync`. Phase 10 M1 (4/4):
+`results/sign/EXP-SIGN-03{3,4,5}/`. Not yet committed to git as of this
+checkpoint — commit is the next step once Phase 10's M6 leg also lands.
 
 ### CURRENT EXPERIMENT
 
-None running. VM is idle (M2-M4 process and M5 process both exited
-cleanly, verified via `pgrep`). No further VM work is needed until Phase
-8 (M6 domain adaptation) — Phase 5, 6, and 7 (data prep) are all
-local-only.
+`run_m6_interp_ablation.py` running on the VM (GPU 1,
+`CUDA_VISIBLE_DEVICES=1`; GPU 0 remains hardware-faulted with persistent
+uncorrected ECC errors, unused). k=2 (EXP-SIGN-036) in progress as of
+this checkpoint; k=3 (EXP-SIGN-037) and k=5 (EXP-SIGN-038) queued next
+within the same process (script iterates all three sequentially, no
+chaining needed since it's one long-running process).
 
 ### COMPLETED EXPERIMENTS (this phase)
 

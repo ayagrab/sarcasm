@@ -1358,3 +1358,37 @@ further action needed.
 
 **Next: complete M3→M4→M5, persist, mark Phase 4 COMPLETED, then Phase 5
 (family-aware evaluation, local, no VM).**
+
+**Phase 9 — Learning curve, M6 leg COMPLETE (2026-08-22).** Finished the
+remaining 25/50/75% points (10% had already landed in the prior
+time-boxed session). Full M6 curve (6/6): Task B Macro F1 0.472 (0%) →
+0.597 (10%) → 0.634 (25%) → 0.685 (50%, peak) → 0.649 (75%, a dip) →
+0.687 (100%); Task A detection rate 63.8% → 66.8% → 75.1% → 79.6% →
+84.2% (75%, its own peak) → 78.5% (100%). Non-monotonic in the 50-75%
+region on both metrics — flagged as a limitation (no controls run to
+separate family-sampling variance from fine-tuning-run variance at these
+fraction sizes). Big-picture, consistent with M1: most of the Task B
+gain lands early. Unlike M1, M6's Task A detection rate *improves*
+substantially with SIGN exposure rather than regressing — a genuine
+model-capacity contrast for Phase 11 to discuss. **Phase 9 now fully
+COMPLETE (M1 6/6 + M6 6/6).**
+
+**Mid-session VM incident:** an unplanned reboot (`uptime` showed `up 1
+min`, not user-initiated) hit mid-way through the 75% fraction's
+training, killing both that run and the already-armed Phase-10
+auto-chain wrapper. Unlike every prior VM restart this project has hit,
+**`/mnt` was NOT wiped this time** — venv, repo, and all
+already-completed results (through 50%) were confirmed intact via a
+fresh SSH check, so only the in-flight 75% point needed to be redone.
+Relaunched via a small one-off script (`run_frac75_only.py`, not
+committed — reruns just `run_condition` for the single missing fraction)
+rather than rerunning all four fractions from scratch. Recovered with
+zero data loss, ~20 minutes of rework.
+
+**Phase 10 — Interpretation-count ablation, M6 leg started (2026-08-22).**
+Launched `run_m6_interp_ablation.py` (k=2/3/5) manually right after
+Phase 9 was confirmed complete — the planned VM-side `pgrep`-based
+auto-chain wrapper (which had worked earlier in the project) died
+silently on relaunch after the reboot; root cause not diagnosed, not
+worth the time given manual launch + monitoring was just as reliable
+here. Results pending.
