@@ -1486,7 +1486,22 @@ models), `results/sign/interp_count_ablation/summary.csv`. Code:
 
 ## 11. Final synthesis
 
-*(Populated after Phase 11.)*
+**COMPLETE (2026-08-22).** Full 10-section synthesis (Task A, Task B,
+Primary-Reference, Full Family, error analysis ×2, domain adaptation,
+learning curve, k-ablation, remaining-cases) written into
+`PROJECT_SUMMARY.md`'s "Part III — SIGN Generalization" section — see
+that document for the reader-facing narrative version of every result in
+§6-§10 above. Headline finding: sarcasm *detection* (Task A) transfers
+reasonably well across the domain shift even zero-shot; the real
+challenge is Task B (telling a sarcastic original apart from a sincere
+rewrite), made harder by a genuine data-quality ceiling (§6's duplicate-
+interpretation finding) in a meaningful minority of SIGN. The single most
+consequential finding for future work is the consistent model-capacity
+contrast that recurs independently across domain adaptation (§8),
+learning curve (§9), and k-ablation (§10): the capacity-limited linear
+model (M1) is forced into a real Task A/Task B trade-off as it receives
+more SIGN signal, while the fine-tuned transformer (M6) absorbs the same
+signal with little to no such trade-off.
 
 ---
 
@@ -1507,7 +1522,11 @@ models), `results/sign/interp_count_ablation/summary.csv`. Code:
       wins for both, zero/negligible forgetting on Dataset A)
 - [x] Phase 9 — Learning curve — **COMPLETE** (M1 6/6, M6 6/6)
 - [x] Phase 10 — Interp-count ablation — **COMPLETE** (M1 4/4, M6 4/4)
-- [ ] Phase 11 — Final synthesis — unblocked, not yet started
+- [x] Phase 11 — Final synthesis — **COMPLETE**, see `PROJECT_SUMMARY.md`
+      "Part III — SIGN Generalization"
+
+**SIGN generalization phase (Part III) is now fully COMPLETE, all 11
+phases.**
 
 Status legend: NOT STARTED / IN PROGRESS / COMPLETED / BLOCKED / WAITING
 FOR VM / FAILED / SKIPPED.
@@ -1619,12 +1638,13 @@ the first reboot; root cause not diagnosed, deprioritized in favor of
 manually launching + monitoring each stage directly, which is what
 actually got both phases to completion.
 
-**Next: Phase 11 (final synthesis) — populate `PROJECT_SUMMARY.md`'s
-"Part III — SIGN Generalization" section per the previously agreed
-10-section structure, finish `EXPERIMENT_LOG.md`'s SIGN narrative, mark
-`SIGN_GENERALIZATION_PLAN.md` fully COMPLETE. Also queued (separate from
-Phase 11): add a new "Part III" section to `Sarcasm_Project_Report.docx`
-covering the SIGN generalization work now that all results are final.**
+**Phase 11 done: `PROJECT_SUMMARY.md`'s "Part III — SIGN Generalization"
+section fully populated (10-section structure), `EXPERIMENT_LOG.md`'s
+SIGN narrative finished, this document marked fully COMPLETE. Remaining
+queued item (separate from the SIGN plan itself): add a "Part III"
+section to `Sarcasm_Project_Report.docx` (the formal write-up, currently
+only has Part I/Part II) covering the SIGN generalization work now that
+all results are final.**
 
 ### LAST SAFE CHECKPOINT
 

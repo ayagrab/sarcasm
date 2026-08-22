@@ -617,27 +617,262 @@ detecting sarcasm itself (Part II).
 
 ---
 
-## Part III — SIGN Generalization (new phase, in progress)
+## Part III — SIGN Generalization
 
-A third, additive phase — **not yet started as of 2026-08-20, currently
-in planning** — investigates how well Part II's six frozen classifiers
-generalize beyond Dataset A to the structurally different **SIGN**
-dataset (3,000 sarcastic tweets, each with 5 independent human
-non-sarcastic interpretations — the same corpus Part I drew its
-sarcastic-only source sentences from, here used in full for the first
-time, including the interpretations). It asks: how different are the two
-datasets; do Dataset-A classifiers transfer zero-shot; how much SIGN
-training data (respecting tweet-family structure, never leaking a
-family across train/eval) is needed to adapt; and whether more human
-interpretations per tweet help. Full roadmap, current status, phase-by-
-phase checklist, and (as they're produced) results:
-**[`SIGN_GENERALIZATION_PLAN.md`](SIGN_GENERALIZATION_PLAN.md)**.
+A third, additive phase — **COMPLETE as of 2026-08-22** — investigates
+how well Part II's six frozen classifiers (M1–M6) generalize beyond
+Dataset A to the structurally different **SIGN** dataset (sarcastic
+tweets, each with up to five independent human non-sarcastic
+interpretations — the same corpus Part I drew its sarcastic-only source
+sentences from, here used in full for the first time, including the
+interpretations). Full roadmap, phase-by-phase methodology, and the
+complete raw results underlying every number below:
+**[`SIGN_GENERALIZATION_PLAN.md`](SIGN_GENERALIZATION_PLAN.md)**; full
+narrative audit trail: **[`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md)**.
 
 This phase is strictly additive: Part II's frozen configs, predictions,
 metrics, and the `EXP-00#` experiment IDs are read-only inputs here,
 never modified. New experiments use a distinct `EXP-SIGN-###` ID
 namespace and a separate `results/sign/` artifact tree, so the two
 studies never collide in this repository's history.
+
+### A note on how to read every result below: Task A vs. Task B
+
+Every SIGN original is, by construction, `sarcastic`; every
+interpretation is, by construction, `not_sarcastic`. Two different
+questions get asked of the same predictions, and they must never be
+conflated: **Task A** ("can the model recognize a SIGN sarcastic tweet
+at all?" — originals only, single gold class, sarcasm **detection rate**
+is the metric) and **Task B** ("can the model tell that sarcastic
+original apart from a sincere rewrite of the same underlying meaning?" —
+the full contrastive set, **Macro F1** is the metric). A low Task B score
+must never be read as "the model can't detect sarcasm" without checking
+Task A — several methods below score in the 90s on Task A while scoring
+under 0.40 Macro F1 on Task B, because their failure is entirely on the
+interpretation side, not the original side.
+
+### 1. Cross-Dataset Sarcasm Detection (Task A — SIGN originals only, zero SIGN exposure)
+
+| Method | Sarcasm detection rate (Task A) |
+|---|---:|
+| M2 Qwen zero-shot | **93.6%** (248/265) |
+| M4 Qwen structured reasoning | 91.3% (242/265) |
+| M3 Qwen few-shot | 89.4% (237/265) |
+| M1 TF-IDF + LR | 79.6% (211/265) |
+| M5 DSPy MIPROv2 (frozen) | 77.4% (205/265) |
+| M6 DeBERTa-v3-base (fine-tuned) | 63.8% (169/265) |
+
+Every method, including the weakest, still recognizes the clear majority
+of unseen SIGN sarcastic tweets zero-shot — sarcasm *detection* transfers
+across the domain shift reasonably well on its own. The LLM-prompted
+methods (M2–M4) transfer best on this narrow task, ahead of both
+label-trained methods (M1, M6) — the reverse of Part II's Dataset A
+ranking, where M6 led by a wide margin.
+
+### 2. Contrastive Sarcasm Recognition (Task B — original vs. sincere interpretation)
+
+| Method | Task B Macro F1 (zero-transfer) | Task B Macro F1 (after adaptation, M1/M6 only) |
+|---|---:|---:|
+| M6 DeBERTa-v3-base | 0.4724 | **0.6870** |
+| M3 Qwen few-shot | 0.4015 | — |
+| M5 DSPy MIPROv2 | 0.3957 | — |
+| M4 Qwen structured reasoning | 0.3658 | — |
+| M1 TF-IDF + LR | 0.3563 | 0.5861 |
+| M2 Qwen zero-shot | 0.3397 | — |
+
+Every method collapses well below its Dataset A TEST score zero-shot
+(M1: 0.7403→0.3563; M6: 0.8209→0.4724) — but per §1's Task A/B
+distinction, this is *not* a detection failure: the dominant error mode
+is misclassifying **sincere** SIGN interpretations as sarcastic (M1
+flags 71.2% of them; M2, the worst offender, flags 76.5%), not missing
+the sarcastic originals. M6 is the strongest zero-transfer method on
+Task B despite being the weakest on Task A — a direct illustration of
+why the two tasks must be reported separately.
+
+### 3. Primary Human Reference Evaluation (original vs. interpretation #1 only)
+
+Interpretation #1 (first-listed per SIGN family) is treated as the
+primary/best human reference — a provenance decision (see plan doc §1),
+tested rather than assumed to also be the "easiest" case (§4 below).
+
+| Method | Primary-Ref Macro F1 | Primary-Ref pair success rate |
+|---|---:|---:|
+| M3 Qwen few-shot | 0.5901 | 26.8% |
+| M5 DSPy frozen | 0.5650 | 24.2% |
+| M6 DeBERTa | 0.5658 | 21.5% |
+| M4 Qwen reasoning | 0.5645 | 23.0% |
+| M2 Qwen zero-shot | 0.5408 | 20.8% |
+| M1 TF-IDF+LR | 0.5172 | 13.6% |
+
+Restricting to the single primary interpretation is substantially easier
+than the full contrastive set for every method (e.g. M1: 0.356→0.517
+Macro F1; M6: 0.472→0.566) — but pair success (getting **both** the
+original and its primary interpretation right, same family) still tops
+out at 26.8%, so even the cleanest single-pair case remains hard in
+absolute terms.
+
+### 4. Full Family Evaluation (original + all five interpretations)
+
+| Method | Strict family accuracy (all 6 rows correct) | Soft family score (mean correct fraction) |
+|---|---:|---:|
+| M6 DeBERTa | **3.8%** | **0.370** |
+| M5 DSPy frozen | 2.3% | 0.218 |
+| M3 Qwen few-shot | 1.9% | 0.282 |
+| M2 Qwen zero-shot | 1.1% | 0.212 |
+| M4 Qwen reasoning | 0.8% | 0.236 |
+| M1 TF-IDF+LR | 0.0% | 0.178 |
+
+Getting an entire family exactly right (the original plus all five
+interpretations) is essentially unsolved for every method (0-3.8%) — the
+gap between this and §3's pair-success rate is the clearest illustration
+of Task B's real difficulty: one interpretation right per family is
+plausible, all five simultaneously is not. **Per-interpretation-rank
+recall was tested, not assumed, and does *not* show a clean "rank #1 is
+easiest" pattern** — M6's not-sarcastic recall by rank is 49.8% / 54.7% /
+39.6% / 60.4% / 53.2% (#1→#5), non-monotonic; most methods peak at rank
+#4, not #1. Interpretation #1 being the "primary reference" is a
+provenance/quality claim (first-listed = best annotation), not a claim
+that it is linguistically the easiest case for a model.
+
+### 5. What Kinds of SIGN Sarcasm Do the Models Fail to Detect? (Task A error analysis)
+
+Complete pass over every Task A miss across all six methods (148/265
+originals missed by at least one method), not a sample. Of the
+measurable text properties tested, only length shows even a modest
+contrast: ever-missed originals average 13.4 words vs. 14.8 for
+always-detected ones (mildly harder when shorter). Question marks are
+*more* common among always-detected originals (17.1%) than ever-missed
+ones (13.5%) — contradicting a naive "rhetorical questions are harder"
+hypothesis. VADER sentiment is nearly identical between groups (0.237 vs.
+0.223) — surface polarity alone does not predict what gets missed.
+Qualitatively, the 117/265 originals every method detects cluster around
+classic **polarity-reversal verbal irony** (strongly positive words
+applied to clearly negative topics, "don't you just love..."
+constructions) — idiomatic markers that transfer well from Dataset A.
+The hardest non-duplicate cases tend toward flat, factual-sounding
+statements whose sarcasm depends on outside world knowledge not
+recoverable from the text alone (e.g. whether a specific sports result
+was actually good or bad) — a context-dependence limitation no amount of
+in-domain fine-tuning on text alone can fully close.
+
+### 6. Why Are Sincere SIGN Interpretations Misclassified as Sarcastic? (Task B false-positive analysis)
+
+**Headline data-quality finding:** a real fraction of SIGN's "sincere
+interpretations" are byte-identical to their own sarcastic original — an
+irreducible label contradiction, discovered by direct inspection, not
+assumed. 28.1% of the 427 interpretations flagged sarcastic by *every*
+method are exact duplicates of their original; both SIGN Test originals
+missed by all six methods share this property. This means a real share
+of Task B's apparent difficulty is a **data-quality ceiling no model can
+cross**, not purely a modeling gap — disclosed as a limitation rather
+than filtered out, per an explicit decision made before Phase 7's
+training-data preparation. Separately, cross-model overlap analysis
+shows two distinct failure clusters rather than one shared hard subset:
+the three Qwen-prompted methods (M2/M3/M4, same base model) miss heavily
+overlapping originals (pairwise Jaccard 0.50-0.67), while M1 and M6 each
+fail in their own largely distinct pattern (M1-M6 Jaccard 0.22, M1-M2
+0.04) — a candidate signal that M1/M6 would be the more complementary
+pairing for any future ensembling, not yet tested.
+
+### 7. Effect of SIGN Domain Adaptation
+
+Three conditions compared for M1 and M6: **A** = Dataset A only
+(zero-transfer, reused); **B** = Dataset A TRAIN + SIGN Train, combined
+fit; **C** = SIGN Train only.
+
+| Model | Condition | SIGN Test Macro F1 | Dataset A TEST Macro F1 |
+|---|---|---:|---:|
+| M1 | A (zero-transfer) | 0.3563 | 0.7403 |
+| M1 | **B (combined — winner)** | **0.5861** | **0.7477** |
+| M1 | C (SIGN only) | 0.5829 | 0.4527 (catastrophic forgetting) |
+| M6 | A (zero-transfer) | 0.4724 | 0.8209 |
+| M6 | **B (combined — winner)** | **0.6870** | **0.8209** (unchanged, 4 decimals) |
+| M6 | C (SIGN only) | 0.6806 | 0.4034 (catastrophic forgetting) |
+
+Combining SIGN Train with Dataset A (condition B) captures almost all of
+SIGN-only training's improvement while **fully avoiding** the
+catastrophic forgetting condition C causes on both models — the clean
+answer for how to adapt without sacrificing the original task. A genuine
+model-capacity contrast emerged in the before/after error diff: M1's
+adaptation traded a little Task A recall for a large Task B gain
+(79.6%→74.7% detection rate); **M6's adaptation improved both Task A and
+Task B simultaneously**, with no such trade-off.
+
+### 8. Effect of the Amount of SIGN Training Data (learning curve, 0-100% of SIGN Train, condition B recipe)
+
+| SIGN Train used | M1 Task B F1 | M1 Task A | M6 Task B F1 | M6 Task A |
+|---:|---:|---:|---:|---:|
+| 0% | 0.356 | 79.6% | 0.472 | 63.8% |
+| 10% | 0.448 | 71.3% | 0.597 | 66.8% |
+| 25% | 0.524 | 72.8% | 0.634 | 75.1% |
+| 50% | 0.558 | 72.8% | 0.685 | 79.6% |
+| 75% | 0.579 | 72.5% | 0.649 | 84.2% |
+| 100% | 0.586 | 74.7% | 0.687 | 78.5% |
+
+Most of the Task B gain arrives early for both models (the first 10-25%
+of SIGN Train covers over half the total 0%→100% improvement) — a
+classic diminishing-returns learning curve. M1's Task A rate stays
+roughly flat across every nonzero fraction (never recovering to its
+zero-transfer level); **M6's Task A rate climbs substantially with more
+SIGN exposure** (63.8%→84.2% at 75%) — the opposite direction from M1,
+consistent with §7's model-capacity contrast. M6's curve shows some
+non-monotonic run-to-run variance in the 50-75% region, flagged as a
+limitation (no controls run to separate sampling variance from
+fine-tuning-run variance at these fraction sizes).
+
+### 9. Effect of the Number of Human Interpretations (k-ablation, k=1/2/3/5, full 100% family set)
+
+| k (interpretations per family) | M1 Task B F1 | M1 Task A | M6 Task B F1 | M6 Task A |
+|---:|---:|---:|---:|---:|
+| 1 | 0.586 | 74.7% | 0.687 | 78.5% |
+| 2 | 0.629 | 61.1% | 0.690 | 81.5% |
+| 3 | 0.648 | 57.7% | 0.713 | 80.8% |
+| 5 | 0.664 | 55.9% | 0.740 | 77.7% |
+
+**The sharpest model contrast in the whole project.** For M1, more
+interpretation diversity buys Task B gains at an increasingly steep Task
+A cost (74.7%→55.9%, a real trade-off — k=1 is not dominated by higher
+k). For M6, the identical manipulation improves Task B by even more
+(0.687→0.740) with **no comparable Task A cost** (stays in a tight
+77.7-81.5% band) — k=5 is close to strictly better than k=1 for M6. The
+same pattern — capacity-limited model forced into a trade-off,
+fine-tuned model absorbing added diversity almost for free — recurs
+across §7, §8, and §9 independently, making it the project's most robust
+finding about *how* domain adaptation should be approached differently
+depending on model class.
+
+### 10. Remaining Difficult Cases After Adaptation
+
+Even after the winning adaptation recipe (condition B, §7), both models
+still leave real gaps. M1: 41/265 originals still missed after
+adaptation (plus 26 newly broken by the adaptation itself), and 483/1,470
+interpretations still misclassified as sarcastic. M6: 35/265 originals
+still missed (plus 22 newly broken), and 257/1,470 interpretations still
+misclassified. Some fraction of both models' remaining Task B errors is
+the irreducible duplicate-interpretation data-quality ceiling from §6,
+not a closable modeling gap. The residual errors are concentrated in the
+same context/world-knowledge-dependent cases identified in §5 — adaptation
+closes most of the *distributional* gap between Dataset A and SIGN, but
+does not resolve cases that require information outside the text itself.
+
+### Overall Part III conclusion
+
+Sarcasm *detection* (Task A) transfers reasonably well across the
+Dataset A → SIGN domain shift, even zero-shot; the real generalization
+challenge is Task B — telling a sarcastic original apart from a sincere
+rewrite of the same underlying meaning, made harder by a genuine
+data-quality ceiling in a meaningful minority of SIGN's interpretations.
+Combining a modest amount of SIGN Train data with the original training
+data (never replacing it) closes most of this gap at essentially zero
+cost to Dataset A performance, for both a classical and a fine-tuned
+model. The most consequential finding for future work is the consistent
+model-capacity contrast across every adaptation experiment: a
+capacity-limited linear model (M1) is forced into a real Task A/Task B
+trade-off as it is given more SIGN signal (more training data or more
+interpretation diversity), while a fine-tuned transformer (M6) absorbs
+the same additional signal with little to no such trade-off — evidence
+that *how* a model should be adapted to a shifted domain depends on its
+capacity, not just on how much adaptation data is available.
 
 ## Documentation Map
 

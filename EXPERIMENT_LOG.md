@@ -1408,9 +1408,33 @@ and Phase 9's learning curve, and is the clearest single finding to lead
 with in Phase 11.
 
 **Phases 9 and 10 are now both fully COMPLETE (M1 + M6, all points).**
-Phase 11 (final synthesis) is next: populate `PROJECT_SUMMARY.md`'s
-"Part III — SIGN Generalization" section, finish this log's SIGN
-narrative, mark `SIGN_GENERALIZATION_PLAN.md` fully COMPLETE. Local-only,
-no VM needed. Separately queued: add a "Part III" section to
-`Sarcasm_Project_Report.docx` (currently only has Part I/Part II) once
-Phase 11's synthesis settles the final framing.
+
+**Phase 11 — Final synthesis (2026-08-22, COMPLETE).** Populated
+`PROJECT_SUMMARY.md`'s "Part III — SIGN Generalization" section with the
+full 10-section structure agreed earlier in the project (Task A,
+Task B, Primary-Reference, Full Family, "what kinds of sarcasm do models
+fail to detect", "why are sincere interpretations misclassified",
+domain adaptation, learning curve, k-ablation, remaining difficult
+cases) — every number in that section traces back to a persisted
+`EXP-SIGN-###` artifact, no new inference run for this phase.
+`SIGN_GENERALIZATION_PLAN.md` marked fully COMPLETE (all 11 phases).
+
+**SIGN generalization (Part III) is now fully COMPLETE end to end.**
+Headline finding for the project as a whole: sarcasm *detection*
+transfers reasonably well across the Dataset A → SIGN domain shift even
+zero-shot; the real generalization challenge is telling a sarcastic
+original apart from a sincere rewrite of the same meaning (Task B), made
+harder by a genuine data-quality ceiling in a meaningful minority of
+SIGN's interpretations (duplicate-of-original rows, Phase 6). The most
+consequential and consistently-replicated finding: a capacity-limited
+linear model (M1) is forced into a real Task A/Task B trade-off as it
+receives more SIGN signal (more training data, §Phase 9, or more
+interpretation diversity, §Phase 10), while the fine-tuned transformer
+(M6) absorbs the same additional signal with little to no such
+trade-off — the same pattern recurs independently across Phase 8's
+domain adaptation, Phase 9's learning curve, and Phase 10's k-ablation.
+
+**Remaining queued item (outside this SIGN plan's own scope):** add a new
+"Part III" section to `Sarcasm_Project_Report.docx` (the formal written
+report, currently covers only Part I and Part II) summarizing the SIGN
+generalization work, now that all results are final.
