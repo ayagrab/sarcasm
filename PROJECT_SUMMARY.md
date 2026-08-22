@@ -669,6 +669,28 @@ methods (M2–M4) transfer best on this narrow task, ahead of both
 label-trained methods (M1, M6) — the reverse of Part II's Dataset A
 ranking, where M6 led by a wide margin.
 
+**This result bears directly on an open question from Part II: is the
+LLM-prompting family's weaker Dataset A performance (0.58-0.67 Macro F1
+vs. M6's 0.82, unmoved across four very different prompting strategies —
+zero-shot, few-shot, structured reasoning, DSPy-optimized) a limitation
+of *prompting as an approach*, or of the specific *4B-parameter Qwen
+model* being too small to grasp sarcasm's nuance? If the latter, a
+stronger LLM should close the gap; if the former, it likely would not.
+This SIGN result is evidence against the "model too weak to understand
+sarcasm" reading: the same Qwen3-4B, zero-shot, detects 93.6% of SIGN's
+sarcastic originals — well above M6's 63.8% on the identical task. A
+model that cannot grasp sarcasm at all would not out-detect a
+purpose-built fine-tuned classifier on unseen data. The more consistent
+picture is that Qwen's weakness on Dataset A is a **calibration/decision-
+boundary problem specific to binary classification under prompting** —
+it over-triggers the sarcastic label (Part II's cross-model analysis:
+FP≥382 vs. FN≤38 for every LLM method) rather than failing to recognize
+sarcasm's linguistic signal. This does not fully resolve the
+model-vs-approach question (a stronger LLM was not tested, and Task A's
+single-gold-class setting sidesteps the calibration problem that hurts
+Task B), but it substantially narrows which explanation the evidence
+supports.
+
 ### 2. Contrastive Sarcasm Recognition (Task B — original vs. sincere interpretation)
 
 | Method | Task B Macro F1 (zero-transfer) | Task B Macro F1 (after adaptation, M1/M6 only) |
