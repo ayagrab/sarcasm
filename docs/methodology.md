@@ -1,9 +1,7 @@
 # Methodology
 
 How the dataset was prepared, which models and prompts were used, and how
-outputs were evaluated. For what was actually found, see `results.md`. For
-the chronological, meeting-by-meeting narrative behind these decisions, see
-`project_history.md`.
+outputs were evaluated. For what was actually found, see `results.md`.
 
 ## 1. Dataset preparation
 
@@ -21,7 +19,7 @@ Output: `data/processed/clean_sarcastic_sentences.csv` (one column,
 
 ## 2. Model selection
 
-Five candidate models were surveyed first (see `project_history.md` for the
+Five candidate models were surveyed first (see `results.md` for the
 full comparison): Gemini 2.5 Flash Lite, Baidu Qianfan OCR FastFree, Liquid
 LFM 2.5-1.2B Thinking, Nvidia Nemotron Nano 9B v2, and OpenAI GPT-OSS 20B.
 The project settled on three generator models for the main pipeline:
@@ -48,8 +46,7 @@ versions, stored in `prompts/generation/`:
 
 All four use the same placeholder, `{sarcastic_sentence}`, so any version
 can be selected via `--prompt` on either generation script (default: Prompt
-4). Prompt content itself has not been modified as part of any later
-cleanup -- see `validation.md` for confirmation.
+4).
 
 ```bash
 python -m src.generation.generate_with_gemini --prompt generation/generation_prompt_v2.txt ...
@@ -90,8 +87,7 @@ but is not currently called by any script.
 *premise* and the model's interpretation as the *hypothesis*, and checks
 whether an NLI model predicts entailment more strongly than contradiction.
 This is an experimental alternative to the LLM judge, not the primary
-evaluation method. See `validation.md` for what has been verified about this
-script without downloading the model.
+evaluation method.
 
 ## 5. Human validation
 

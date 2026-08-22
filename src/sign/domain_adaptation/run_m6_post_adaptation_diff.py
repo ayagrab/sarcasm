@@ -4,7 +4,7 @@ condition B, EXP-SIGN-023 -- the winning M6 adapted model, Dataset A +
 SIGN Train primary) diff. Condition B was chosen over C for the same
 reason as M1: it matches C on SIGN Test Macro F1 while completely
 avoiding C's catastrophic forgetting of Dataset A (see
-SIGN_GENERALIZATION_PLAN.md Phase 8 results).
+PROJECT_SUMMARY.md Phase 8 results).
 
 Run: `python -m src.sign.domain_adaptation.run_m6_post_adaptation_diff`
 """

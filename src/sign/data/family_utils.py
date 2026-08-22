@@ -113,7 +113,7 @@ def select_top_k_interpretations_per_family(df: pd.DataFrame, k: int) -> pd.Data
     already recorded in the family table -- never shuffled, no seed
     needed since there is nothing random to control). Families with
     `family_size < k` contribute only their available interpretations
-    (documented, not padded/invented -- see `SIGN_GENERALIZATION_PLAN.md`
+    (documented, not padded/invented -- see `PROJECT_SUMMARY.md`
     section 1 on anomalous/incomplete families).
 
     This is the primary selection function for Phase 7 (SIGN Train

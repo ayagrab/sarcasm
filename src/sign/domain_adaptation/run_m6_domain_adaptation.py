@@ -1,5 +1,5 @@
 """Phase 8, M6 leg: domain adaptation for DeBERTa-v3-base
-(SIGN_GENERALIZATION_PLAN.md, Phase 8). Conditions B and C only --
+(PROJECT_SUMMARY.md, Phase 8). Conditions B and C only --
 condition A is Phase 4's already-frozen zero-transfer result
 (`EXP-SIGN-016`, from the fully-frozen `EXP-009` checkpoint), reused not
 rerun.

@@ -1,5 +1,5 @@
 """Phase 7: prepare SIGN Train variants (data prep only, no training yet
--- SIGN_GENERALIZATION_PLAN.md, Phase 7). Gated on Phase 4/5/6 being
+-- PROJECT_SUMMARY.md, Phase 7). Gated on Phase 4/5/6 being
 persisted first (brief's hard requirement) -- this is the first phase
 that touches SIGN Train at all.
 
@@ -21,7 +21,7 @@ for k>1, the *documented* (not pre-applied) imbalance-handling policy --
 Known limitation, explicitly kept rather than silently handled (2026-08-20
 user decision after Phase 6's error analysis): ~25% of Train families
 have interpretation #1 byte-identical to their own original (see
-SIGN_GENERALIZATION_PLAN.md §1). These families are NOT filtered out or
+PROJECT_SUMMARY.md §1). These families are NOT filtered out or
 special-cased here -- the primary condition trains on them as-is, which
 means a real fraction of "sarcastic" and "not_sarcastic" training pairs
 are the identical input string. This is documented, not fixed, per the
@@ -52,7 +52,7 @@ IMBALANCE_POLICY = {
 
 DUPLICATE_INTERP1_LIMITATION = (
     "~25% of Train families have interpretation #1 byte-identical to their own "
-    "original (SIGN_GENERALIZATION_PLAN.md §1, discovered in Phase 6). Kept as-is "
+    "original (PROJECT_SUMMARY.md §1, discovered in Phase 6). Kept as-is "
     "per explicit 2026-08-20 user decision -- not filtered, not fixed. Every variant "
     "below (including k>1) inherits this property for whichever ranks it includes."
 )

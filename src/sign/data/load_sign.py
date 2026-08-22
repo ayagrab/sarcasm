@@ -4,7 +4,7 @@ The raw files (`data/raw/original_{split}_dataset.csv`) have no header and
 no tweet-ID column -- each row is one `(sarcastic_original,
 human_interpretation)` pair, five rows per source tweet ("family"). Exact
 stripped original text is the only key the data supports for grouping
-rows back into families; see `SIGN_GENERALIZATION_PLAN.md` section 1 for
+rows back into families; see `PROJECT_SUMMARY.md` section 1 for
 the full audit (counts, and why grouping by text yields fewer families
 than the paper's official 2,400/300/300, plus a handful of families that
 don't have exactly 5 interpretation rows).
@@ -173,7 +173,7 @@ def load_family_table(split: str, rebuild: bool = False) -> pd.DataFrame:
 
 def summarize(df: pd.DataFrame) -> dict:
     """Family-level summary stats for one split's table -- the same
-    numbers audited by hand in `SIGN_GENERALIZATION_PLAN.md` section 1,
+    numbers audited by hand in `PROJECT_SUMMARY.md` section 1,
     computed here so they can be asserted against in tests instead of
     only living in a one-off audit script."""
     originals = df[df["role"] == "original"]

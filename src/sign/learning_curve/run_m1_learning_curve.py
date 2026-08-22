@@ -1,5 +1,5 @@
 """Phase 9, M1 leg: learning curve -- how much SIGN Train is needed
-(SIGN_GENERALIZATION_PLAN.md, Phase 9). RQ3. Sweeps 0/10/25/50/75/100%
+(PROJECT_SUMMARY.md, Phase 9). RQ3. Sweeps 0/10/25/50/75/100%
 of SIGN Train families (primary balanced condition only -- interpretation
 count is Phase 10's question, kept strictly separate), family-level
 sampling via `sample_family_ids` (deterministic, seeded).

@@ -10,7 +10,7 @@ provider" pattern (`dspy.BaseLM`, `forward_contract = "legacy"`):
 like an OpenAI chat-completion response (`.choices[i].message.content`,
 `.model`, optional `.usage` dict). Determined by inspecting
 `dspy.BaseLM`'s source directly on the Stage B VM (dspy 3.3.0) -- see
-EXPERIMENT_LOG.md, Stage B, M5 section.
+PROJECT_SUMMARY.md, Stage B, M5 section.
 
 Note: this response shape is intentionally NOT the same `_Response`
 dataclass used by `local_client.py` for the OpenRouter-interface-shaped

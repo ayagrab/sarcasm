@@ -38,7 +38,7 @@ def _require_dspy():
     if not HAS_DSPY:
         raise RuntimeError(
             "dspy is not installed. Run `pip install -r requirements-classification.txt` "
-            "(see EXPERIMENT_LOG.md, Stage A readiness report)."
+            "(see PROJECT_SUMMARY.md, Stage A readiness report)."
         )
     import dspy
 
@@ -56,7 +56,7 @@ def _configure_lm(dspy_module, model: str, temperature: float, provider: str = "
     if not classification_settings.openrouter_api_key:
         raise RuntimeError(
             "OPENROUTER_API_KEY is missing. Add it to your .env file "
-            "(see EXPERIMENT_LOG.md, BLOCKER-1)."
+            "(see PROJECT_SUMMARY.md, BLOCKER-1)."
         )
     lm = dspy_module.LM(
         f"openrouter/{model}",
@@ -95,7 +95,7 @@ def build_program(
     deliberately capped via `trainset_sample_size` / `valset_sample_size`
     in `optimizer_config` (defaults: 150 / 100), matching the "small
     budget first, expand only if it pays off" instruction. See
-    EXPERIMENT_LOG.md, Stage B, M5 for the recorded LM-call estimate and
+    PROJECT_SUMMARY.md, Stage B, M5 for the recorded LM-call estimate and
     actual wall-clock time of each run."""
     signature = build_signature()
     program = dspy_module.Predict(signature)

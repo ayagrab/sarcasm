@@ -7,11 +7,12 @@ found at each stage, see `results.md`.
 The project has two independent pipelines that share the same raw dataset
 and infrastructure:
 
-1. **Interpretation pipeline** (implemented): generate a non-sarcastic
-   interpretation for each sarcastic tweet, then evaluate it automatically
-   and by a human/LLM judge.
-2. **Detection fine-tuning** (planned, not implemented): see
-   `finetuning_plan.md`.
+1. **Interpretation pipeline** (implemented, this document's scope):
+   generate a non-sarcastic interpretation for each sarcastic tweet, then
+   evaluate it automatically and by a human/LLM judge.
+2. **Detection** (implemented, a separate later phase): a six-method
+   comparison under `src/classification/`, documented in
+   `PROJECT_SUMMARY.md` Part II rather than here.
 
 ## Interpretation pipeline
 
@@ -92,5 +93,4 @@ generator model (Gemini, Nvidia, Liquid).
 | Check OpenRouter quota | Yes (`OPENROUTER_API_KEY`) | No |
 | Everything under `src.postprocessing.*` | No | No |
 
-See `README.md` for exact commands, and `validation.md` for what has and
-has not been executed in this environment.
+See `README.md` for exact commands to run each stage.

@@ -1,4 +1,4 @@
-"""Phase 2 (SIGN_GENERALIZATION_PLAN.md): text-level characterization
+"""Phase 2 (PROJECT_SUMMARY.md): text-level characterization
 stats for one corpus (Dataset A / SIGN originals / SIGN interpretations),
 computed independently per corpus so they can be compared side by side.
 No cross-corpus logic lives here -- see `run_characterization.py` for the

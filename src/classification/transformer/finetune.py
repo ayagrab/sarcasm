@@ -6,7 +6,7 @@ precision. Uses `transformers.Trainer` with early stopping on dev Macro F1
 (the same primary metric used everywhere else in this project).
 
 Used for M6's full DEV training run (EXP-009, `microsoft/deberta-v3-base`)
-and its sealed-TEST evaluation (see `EXPERIMENT_LOG.md`). Requires
+and its sealed-TEST evaluation (see `PROJECT_SUMMARY.md`). Requires
 `accelerate` and `sentencepiece` -- see `requirements-classification.txt`.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ ID2LABEL = {v: k for k, v in LABEL2ID.items()}
 
 APPROACH_ID = "M6_finetuned_transformer"
 
-# Candidate English encoders considered for this task (see EXPERIMENT_LOG.md
+# Candidate English encoders considered for this task (see PROJECT_SUMMARY.md
 # "Stage A readiness report" for why `roberta-base` is the recommended
 # first checkpoint). Kept here, not hardcoded elsewhere, so the choice is
 # visible and easy to extend.
@@ -55,7 +55,7 @@ class TransformerConfig:
     seed: int = classification_settings.random_seed
     # DeBERTa-v3's tokenizer must be loaded as slow/SentencePiece
     # (use_fast_tokenizer=False); RoBERTa/BERT-family checkpoints use the
-    # fast tokenizer (default True). See EXPERIMENT_LOG.md, Stage B, M6.
+    # fast tokenizer (default True). See PROJECT_SUMMARY.md, Stage B, M6.
     use_fast_tokenizer: bool = True
     # transformers on torch>=2.5 blocks unsafe torch.load paths for
     # certain older-format checkpoints -- load via safetensors explicitly.

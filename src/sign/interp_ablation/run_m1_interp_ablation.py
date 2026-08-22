@@ -1,4 +1,4 @@
-"""Phase 10, M1 leg: interpretation-count ablation (SIGN_GENERALIZATION_PLAN.md,
+"""Phase 10, M1 leg: interpretation-count ablation (PROJECT_SUMMARY.md,
 Phase 10). RQ4. k=1 (Phase 8's condition B, EXP-SIGN-021) is reused, not
 rerun. k=2/3/5 are new: Dataset A TRAIN (full, fixed) + Phase 7's k2/k3/k5
 variants (100% of SIGN Train families, interpretations #1..k by rank),

@@ -4,7 +4,7 @@ Reads the three raw, untouched category files under
 `data/raw/sarcasm_corpus_v2/` and writes one combined table with a global
 `example_id`, source metadata (`category`, `source_file`), and duplicate/
 label-conflict flags. Nothing is dropped or deduplicated here -- this step
-is purely normalization + metadata attachment. See EXPERIMENT_LOG.md
+is purely normalization + metadata attachment. See PROJECT_SUMMARY.md
 ("Dataset Information") for why each field exists.
 """
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Regression tests against the *real* SIGN raw files, locking in the
 counts verified by hand during the Phase 0 audit
-(see SIGN_GENERALIZATION_PLAN.md section 1). If these numbers ever
+(see PROJECT_SUMMARY.md section 1). If these numbers ever
 change, either the raw files were edited (investigate before continuing,
 per the brief) or `load_sign.py`'s parsing logic changed (update the plan
 doc's audit numbers alongside these tests, don't just adjust the

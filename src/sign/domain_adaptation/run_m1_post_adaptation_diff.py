@@ -3,7 +3,7 @@ explicit before (Phase 4 zero-transfer, EXP-SIGN-011) vs. after (Phase 8
 condition B, EXP-SIGN-021 -- the winning M1 adapted model, Dataset A +
 SIGN Train primary) diff. Condition B was chosen over C because it beats
 C on SIGN Test macro F1 while also avoiding C's catastrophic forgetting
-of Dataset A (see SIGN_GENERALIZATION_PLAN.md Phase 8 results).
+of Dataset A (see PROJECT_SUMMARY.md Phase 8 results).
 
 Run: `python -m src.sign.domain_adaptation.run_m1_post_adaptation_diff`
 """

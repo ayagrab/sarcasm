@@ -7,7 +7,7 @@ Critically, this is **inference only, not recompilation**:
 bootstrapped demos MIPROv2 settled on, optimized against Dataset A
 TRAIN/DEV) is loaded from disk via `dspy.Predict.load(...)` and reused
 as-is. Part II's own M5-TEST run had no such load path and paid the full
-~2h48m compile+eval cost every time (see EXPERIMENT_LOG.md / project
+~2h48m compile+eval cost every time (see PROJECT_SUMMARY.md / project
 memory) -- that limitation doesn't apply here since the *frozen* program
 state was already saved to disk when EXP-008 first ran, and DSPy's
 programs are portable (the compiled state has no reference to Dataset A

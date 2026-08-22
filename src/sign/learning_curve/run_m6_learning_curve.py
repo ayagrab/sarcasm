@@ -1,5 +1,5 @@
 """Phase 9, M6 leg: learning curve -- how much SIGN Train is needed
-(SIGN_GENERALIZATION_PLAN.md, Phase 9). RQ3. Same design as the M1 leg:
+(PROJECT_SUMMARY.md, Phase 9). RQ3. Same design as the M1 leg:
 sweeps 10/25/50/75% of SIGN Train families (primary balanced condition
 only), family-level sampling. 0% and 100% are Phase 4's zero-transfer
 (EXP-SIGN-016) and Phase 8's condition B (EXP-SIGN-023), reused not

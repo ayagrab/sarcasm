@@ -6,7 +6,7 @@ its results only ever became tables (results/EXP-*/metrics.json,
 results/cross_model_test_analysis.csv). This script closes that gap by
 building the standard figures directly from those already-computed
 artifacts -- no new experiments, no new numbers, only visualizing what
-PROJECT_SUMMARY.md / EXPERIMENT_LOG.md / the report already report as text.
+PROJECT_SUMMARY.md and the formal report already report as text.
 
 Style matches src/postprocessing/plot_text_metrics.py and
 human_llm_agreement.py: matplotlib + seaborn, Agg backend, "Set2" for

@@ -102,7 +102,7 @@ class LocalHFClient:
         self.tokenizer = AutoTokenizer.from_pretrained(checkpoint)
         self.model = AutoModelForCausalLM.from_pretrained(
             checkpoint,
-            dtype=torch_dtype,  # `dtype=`, not the deprecated `torch_dtype=` (see EXPERIMENT_LOG.md, Stage B)
+            dtype=torch_dtype,  # `dtype=`, not the deprecated `torch_dtype=` (see PROJECT_SUMMARY.md, Stage B)
             attn_implementation=attn_implementation,
             device_map=device_map,
             max_memory=max_memory,

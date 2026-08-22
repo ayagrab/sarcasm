@@ -7,7 +7,7 @@ failure doesn't re-spend API budget), and runs with bounded thread
 concurrency.
 
 Used with `provider="local_hf"` for M2/M3/M4's real DEV/TEST runs (see
-`EXPERIMENT_LOG.md`); `provider="openrouter"` remains available as an
+`PROJECT_SUMMARY.md`); `provider="openrouter"` remains available as an
 optional secondary comparison. Unit-tested with a mocked client
 (`tests/test_classification_llm_mocked.py`), matching this repository's
 existing convention for API-backed code (see `tests/test_evaluate_with_llm_mocked.py`).

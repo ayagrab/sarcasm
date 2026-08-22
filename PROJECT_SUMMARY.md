@@ -13,10 +13,8 @@ two parts:
   sarcastic in the first place, which no amount of rewriting-prompt
   refinement can fix (see Part I's conclusions below).
 
-Both parts are complete. For the detailed technical record behind Part
-II (exact commands run, environment audit, per-method debugging) see
-`EXPERIMENT_LOG.md`; behind Part I, see `docs/methodology.md`,
-`docs/results.md`, and `docs/project_history.md`.
+Both parts are complete. Behind Part I, see `docs/methodology.md` and
+`docs/results.md` for further detail.
 
 ---
 
@@ -183,7 +181,7 @@ repository's existing (and already-implemented) work, which is a *sarcasm
 interpretation/neutralization* benchmark (rewriting a known-sarcastic tweet
 into a sincere sentence, then judging the rewrite — see the repo's root
 `README.md`). That existing pipeline does not classify sarcasm; this phase
-does. See `EXPERIMENT_LOG.md`'s "Overview" section for the full detail.
+does.
 
 The goal here is not just to train one classifier, but to run a fair,
 reproducible comparison across fundamentally different approaches, and
@@ -210,8 +208,7 @@ categories — a genuine annotation inconsistency in the source data, kept
 and flagged rather than dropped (2 of the 8 rows land in TEST — see
 Section 8). No author/conversation/timestamp metadata exists in the raw
 files, so the only leakage vector identified is duplicate/near-duplicate
-text — handled via grouped splitting (below). Full detail:
-`EXPERIMENT_LOG.md`'s "Dataset" section.
+text — handled via grouped splitting (below).
 
 ## 3. Experimental Methodology
 
@@ -250,8 +247,8 @@ text — handled via grouped splitting (below). Full detail:
   - **Sealing policy**: once built, the TEST split is never touched again
     until each approach's configuration is fully frozen — no prompt
     iteration, no few-shot demo selection, no hyperparameter tuning, no
-    DSPy optimization step is ever run against it. `EXPERIMENT_LOG.md`
-    documents, per experiment, that this was followed.
+    DSPy optimization step is ever run against it, for any of the six
+    approaches.
 
 ### 3.2 How each approach actually used TRAIN / DEV / TEST
 
@@ -295,8 +292,7 @@ All LLM approaches (M2–M5) use the same underlying base LLM
 M60s), to isolate the effect of prompting/optimization technique rather
 than measuring base-model differences. Every method's config above was
 selected as the **DEV-best candidate among the alternatives actually
-tried** (see each method's section in `EXPERIMENT_LOG.md` for the
-full reasoning, e.g. M3's random-vs-curated comparison, M5's
+tried** (e.g. M3's random-vs-curated comparison, M5's
 Predict-vs-BootstrapFewShot-vs-MIPROv2 comparison), then evaluated once on
 TEST — accuracy/cost tradeoffs (e.g. M5's ~2h29m TEST-run cost for
 MIPROv2 vs. a much cheaper `Predict` baseline) were explicitly not taken:
@@ -381,10 +377,8 @@ matters more than *demo count* for this task on this model.
 
 Full pairwise cross-model analysis on TEST predictions (all 6 frozen
 configs, `results/cross_model_test_analysis.csv`), mirroring the same
-analysis already done on DEV during development (see
-`EXPERIMENT_LOG.md`'s "Cross-Model Analysis" section) — every finding
-from DEV holds on TEST too, which is itself a finding (no DEV-only
-artifact):
+analysis already done on DEV during development — every finding from DEV
+holds on TEST too, which is itself a finding (no DEV-only artifact):
 
 - **The four LLM-based methods (M2–M5) cluster tightly together** (88–95%
   pairwise agreement) — they mostly make the *same* mistakes as each
@@ -434,8 +428,7 @@ artifact):
 - **Confidence calibration (M1 and M6, the only methods with a genuine
   per-example confidence score — LLM chat completions have none to
   report honestly):** both were reasonably well-calibrated on DEV
-  (accuracy rises monotonically with predicted confidence; see
-  `EXPERIMENT_LOG.md`'s Cross-Model Analysis section for the exact bins), with
+  (accuracy rises monotonically with predicted confidence), with
   M6's confidence distribution far more concentrated at the top end. This
   is a directly usable signal for a future "flag low-confidence
   predictions for human review" feature (Section 12).
@@ -544,9 +537,9 @@ prompted-LLM approach tried in this project.
 
 ## 13. Reproducing the Experiments
 
-See `EXPERIMENT_LOG.md`'s per-method sections (M1 through M6) for the
-exact command and configuration used for every result in this document.
-General shape:
+Every method's frozen configuration file is under `configs/` (see the
+table in Section 4). General shape to reproduce any result in this
+document:
 
 ```bash
 # 0. Install dependencies (base + this phase's extras)
@@ -582,8 +575,7 @@ remains available as an alternative for a machine with no local GPU, but
 was not the path used to produce any result in this document. Transformer
 fine-tuning downloads `microsoft/deberta-v3-base` from Hugging Face on
 first run (needs a one-time `safetensors` conversion on this pinned
-`torch` version — see `EXPERIMENT_LOG.md`'s M6 section for the exact
-snippet if `use_safetensors=True` fails to load).
+`torch` version if `use_safetensors=True` fails to load).
 
 Run the test suite (never calls a real API or downloads a model):
 
@@ -592,9 +584,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
 
-Reproducing Part I: see `README.md`'s "Running the pipeline" section and
-`docs/validation.md` for exactly what has been executed and what still
-needs real credentials or a model download to confirm.
+Reproducing Part I: see `README.md`'s "Running the pipeline" section.
 
 ---
 
@@ -625,10 +615,9 @@ Dataset A to the structurally different **SIGN** dataset (sarcastic
 tweets, each with up to five independent human non-sarcastic
 interpretations — the same corpus Part I drew its sarcastic-only source
 sentences from, here used in full for the first time, including the
-interpretations). Full roadmap, phase-by-phase methodology, and the
-complete raw results underlying every number below:
-**[`SIGN_GENERALIZATION_PLAN.md`](SIGN_GENERALIZATION_PLAN.md)**; full
-narrative audit trail: **[`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md)**.
+interpretations). Every number below traces back to a persisted
+`results/sign/EXP-SIGN-###/` artifact, no new inference run for this
+synthesis.
 
 This phase is strictly additive: Part II's frozen configs, predictions,
 metrics, and the `EXP-00#` experiment IDs are read-only inputs here,
@@ -904,10 +893,7 @@ capacity, not just on how much adaptation data is available.
 | `docs/methodology.md` | Part I: how the dataset, models, prompts, and evaluation were chosen |
 | `docs/results.md` | Part I: full results — metrics, Alt-Test, significance tests, case studies |
 | `docs/alt_test_reference.md` | The Alt-Test method itself, its source paper, and how it's used here |
-| `docs/validation.md` | Part I: what has been executed, mocked, or statically reviewed |
-| `docs/project_history.md` | The project's full meeting-by-meeting narrative, including the Part I → Part II pivot |
-| `docs/finetuning_plan.md` | The original Part II plan (superseded by the broader 6-method comparison actually built) |
 | `docs/project_structure.md` | Every file and folder in the repository, explained |
-| `EXPERIMENT_LOG.md` | Part II (+ Part III as it proceeds): the detailed technical record behind this document |
 | `docs/pipeline.md` | Part I: technical, stage-by-stage map of the codebase |
-| `SIGN_GENERALIZATION_PLAN.md` | Part III: master roadmap, live status, phase-by-phase results for the SIGN generalization phase |
+| `Sarcasm_Project_Report.docx` | The full formal write-up, all three parts, submission-ready |
+| `Sarcasm_Project_Poster.pptx` | The project poster (Part I + Part II) |

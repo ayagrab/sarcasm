@@ -1,4 +1,4 @@
-"""Phase 3 (SIGN_GENERALIZATION_PLAN.md): dataset-of-origin diagnostic.
+"""Phase 3 (PROJECT_SUMMARY.md): dataset-of-origin diagnostic.
 
 NOT a product classifier -- the only question is "how easily does a
 simple model tell Dataset A text apart from SIGN text?" High accuracy is

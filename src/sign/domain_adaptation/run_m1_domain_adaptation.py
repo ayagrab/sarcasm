@@ -1,4 +1,4 @@
-"""Phase 8, M1 leg: domain adaptation for TF-IDF+LR (SIGN_GENERALIZATION_PLAN.md,
+"""Phase 8, M1 leg: domain adaptation for TF-IDF+LR (PROJECT_SUMMARY.md,
 Phase 8). Conditions B and C only -- condition A is Phase 4's already-
 frozen zero-transfer result (`EXP-SIGN-011`) and Part II's own frozen
 Dataset-A-TEST result (`results/EXP-001/metrics.json`), reused not rerun.

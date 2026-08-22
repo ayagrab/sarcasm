@@ -15,7 +15,6 @@ sarcasm/
 ├── configs/         # one JSON config per Stage B (classification) experiment
 ├── data/            # datasets and result files (no code)
 ├── docs/            # research documentation
-├── logs/            # raw stdout logs from Stage B experiment runs
 ├── models/          # trained checkpoints (gitignored, not in version control)
 ├── prompts/         # every prompt template, as plain .txt files
 ├── results/         # per-experiment metrics/predictions (Stage B)
@@ -26,8 +25,8 @@ sarcasm/
 ├── .gitignore
 ├── conftest.py      # makes `config`/`src` importable from tests/
 ├── README.md
-├── PROJECT_SUMMARY.md   # full project results, methodology, conclusions (both phases)
-├── EXPERIMENT_LOG.md    # detailed technical record, organized by method
+├── PROJECT_SUMMARY.md   # full project results, methodology, conclusions (all three parts)
+├── Sarcasm_Project_Report.docx  # full formal write-up, submission-ready
 ├── requirements.txt
 ├── requirements-classification.txt
 └── requirements-dev.txt
@@ -183,43 +182,13 @@ Research documentation — the "why" and "what happened," as opposed to code.
 - **`results.md`** — *what was found* in the interpretation pipeline:
   automatic-metric tables, Alt-Test outcome, Fleiss' Kappa, significance
   tests, human-vs-LLM-judge agreement, case studies.
-- **`project_history.md`** — the chronological, meeting-by-meeting
-  narrative of how the project's methods and conclusions developed,
-  including the pivot from interpretation to detection (originally
-  sourced from the 4 supervisor-meeting slide decks, since removed —
-  their full content is preserved here).
 - **`alt_test_reference.md`** — what the Alt-Test is, citation for the
   paper it's from, how epsilon was chosen, and where the
   code/data/script live in this repo.
-- **`finetuning_plan.md`** — the original plan for the detection phase
-  (proposed at the project's 4th supervisor meeting). Superseded by the
-  fuller 6-method Stage B comparison actually implemented; kept as
-  planning history.
-- **`validation.md`** — the interpretation pipeline's validation report:
-  what has been executed locally, what was validated with mocks, and
-  what still needs a real API key or model download to confirm. (Stage
-  B's own test suite plus `PROJECT_SUMMARY.md` cover the classification
-  pipeline's validation.)
 - **`project_structure.md`** — this file.
 - **`sign_paper.pdf`** — local copy of the original SIGN paper (ACL 2017)
   that the interpretation pipeline's dataset and starting point are drawn
-  from; see `methodology.md` and `project_history.md`.
-
----
-
-## `logs/`
-
-Raw stdout logs from Stage B experiment runs on the Azure GPU VM, kept
-for reproducibility/audit alongside the structured `results/` artifacts.
-- **`EXP-003/004/005/006/007/008/009-*.log`** — per-experiment run logs.
-- **`m3_m4_chain.log`, `m5_chain.log`** — combined logs from the DEV-phase
-  chain scripts that ran M2–M5's development experiments back-to-back
-  (the scripts themselves were removed once the VM was no longer needed —
-  see `scripts/`, above).
-- **`phase2-test-chain.log`, `phase2-test-chain-resume.log`** — combined
-  logs from `scripts/run_phase2_test_chain.sh`, still in the repo.
-- **`M5-dspy-smoke-test.log`, `hf_download.log`** — one-off verification
-  logs (DSPy adapter smoke test, Hugging Face model download).
+  from; see `methodology.md`.
 
 ---
 
@@ -305,8 +274,7 @@ Other files:
 What remains once Stage B's experiments were all complete and sealed —
 the scripts still needed to reproduce a result, not the one-time Azure
 GPU VM setup/sync/kernel-verification tooling used to produce them
-(removed once the VM was no longer needed; see `EXPERIMENT_LOG.md`'s
-"Environment and Infrastructure" section for what that tooling did).
+(removed once the VM was no longer needed).
 
 - **`smoke_test_dspy.py`** — exercises the DSPy/local-Qwen adapter on a
   handful of examples before committing to a full-DEV run.
@@ -451,11 +419,10 @@ calls a real API, never downloads a model, never needs a GPU.
   IDE folders, `.DS_Store`, `data/llm_cache/`, `models/`.
 - **`README.md`** — quick-start overview and installation.
 - **`PROJECT_SUMMARY.md`** — the project's full results, methodology, and
-  conclusions for both phases (interpretation and detection); the main
-  deliverable.
-- **`EXPERIMENT_LOG.md`** — detailed technical record behind
-  `PROJECT_SUMMARY.md`, organized by topic and method (M1-M6): exact
-  commands, configs, results, and infrastructure notes.
+  conclusions for all three parts (interpretation, detection, SIGN
+  generalization); the main deliverable.
+- **`Sarcasm_Project_Report.docx`** — the full formal write-up,
+  submission-ready.
 - **`requirements.txt`** — base runtime dependencies (both pipelines).
 - **`requirements-classification.txt`** — additional dependencies needed
   only for Stage B (`dspy`, `accelerate`, `sentencepiece`).

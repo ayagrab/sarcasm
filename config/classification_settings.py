@@ -3,7 +3,7 @@
 Kept separate from `config/settings.py`, which is scoped to the existing
 sarcasm *interpretation* pipeline (generation/evaluation of sincere
 rewrites), so the two phases never share or accidentally overwrite each
-other's configuration. See `EXPERIMENT_LOG.md` for why the two phases are
+other's configuration. See `PROJECT_SUMMARY.md` for why the two phases are
 kept apart.
 """
 from __future__ import annotations

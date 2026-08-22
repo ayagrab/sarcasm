@@ -1,5 +1,5 @@
 """Family-aware SIGN evaluation metrics (Phase 5 of
-SIGN_GENERALIZATION_PLAN.md). Pure functions over a predictions table
+PROJECT_SUMMARY.md). Pure functions over a predictions table
 joined with family structure -- no model involved, so this module (and
 its tests) can exist and be validated before any model is ever run
 against SIGN, ahead of Phase 4/5 actually executing.

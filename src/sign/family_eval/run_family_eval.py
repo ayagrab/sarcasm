@@ -1,5 +1,5 @@
 """Phase 5: SIGN contrastive / family-aware evaluation
-(SIGN_GENERALIZATION_PLAN.md, Phase 5). Consumes Phase 4's already-persisted
+(PROJECT_SUMMARY.md, Phase 5). Consumes Phase 4's already-persisted
 `results/sign/EXP-SIGN-0{11..16}/predictions.csv` -- no new model inference,
 no SIGN Train use. For each method, computes and reports (never conflated,
 see the plan's Task A/B/Primary-Reference clarification):

@@ -1,7 +1,6 @@
 # Results
 
-What was found, using the methods described in `methodology.md`. For the
-full chronological narrative, see `project_history.md`.
+What was found, using the methods described in `methodology.md`.
 
 ## Automatic metrics (initial 5-model survey)
 
@@ -111,6 +110,3 @@ agreement/discrepancy examples to `data/summaries/`).
   (Muhammad Ali's death) was misread literally by all 3 models, since none
   had the cultural context; human annotators themselves split on how to
   score it.
-
-Full detail on all of these (with exact tweet text) is in
-`project_history.md`, 2026-07-16 meeting section.

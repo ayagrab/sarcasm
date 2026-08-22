@@ -3,7 +3,7 @@
 Trains on the canonical TRAIN split. Configuration selection (which
 vectorizer variant, which classifier) happens by evaluating on DEV only;
 the chosen frozen configuration is evaluated on TEST exactly once. See
-EXPERIMENT_LOG.md, EXP-001 series, for the sweep and the final result.
+PROJECT_SUMMARY.md, EXP-001 series, for the sweep and the final result.
 """
 from __future__ import annotations
 

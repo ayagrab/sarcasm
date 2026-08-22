@@ -2,9 +2,8 @@
 
 Kept separate from `config/classification_settings.py` (Part II, Dataset
 A) so Part II's frozen paths/config are never accidentally reused or
-overwritten by this new phase. See `SIGN_GENERALIZATION_PLAN.md` for the
-full research plan and `EXPERIMENT_LOG.md`'s "Part III" section for the
-running experimental record.
+overwritten by this new phase. See `PROJECT_SUMMARY.md`'s "Part III"
+section for the full results.
 """
 from __future__ import annotations
 

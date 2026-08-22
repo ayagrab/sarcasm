@@ -1,5 +1,5 @@
 """Phase 6: mandatory COMPLETE (not sampled) SIGN error analysis
-(SIGN_GENERALIZATION_PLAN.md, Phase 6). Consumes Phase 4's persisted
+(PROJECT_SUMMARY.md, Phase 6). Consumes Phase 4's persisted
 predictions + Phase 1's family table -- no new model inference, no SIGN
 Train use. Builds, for every SIGN original/interpretation with at least
 one wrong prediction across all 6 methods (never a curated sample):

@@ -1,4 +1,4 @@
-"""Phase 2 (SIGN_GENERALIZATION_PLAN.md): dataset characterization.
+"""Phase 2 (PROJECT_SUMMARY.md): dataset characterization.
 
 Compares three corpora, always kept separate (never merges SIGN into one
 blob):
@@ -66,7 +66,7 @@ def class_structure(dataset_a: pd.DataFrame, sign_orig: pd.DataFrame, sign_inter
             f"{len(sign_orig)}); SIGN interpretations are ALL not_sarcastic "
             f"by construction (n={len(sign_interp)}). SIGN is never a "
             "15,000-example balanced/independent sarcastic set -- see "
-            "SIGN_GENERALIZATION_PLAN.md section 1."
+            "PROJECT_SUMMARY.md section 1."
         ),
     }
 

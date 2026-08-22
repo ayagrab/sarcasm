@@ -3,9 +3,9 @@
 The Alt-Test is a statistical procedure to determine whether an LLM's
 annotations can replace human annotators. This project uses it to check
 whether the LLM judge (`src/evaluation/evaluate_with_llm.py`) can replace
-the three human annotators who scored sarcasm interpretations by hand (see
-`docs/project_history.md`, 2026-07-09 and 2026-07-16 meetings, for the
-full methodology and results: Winning Rate 0.67, Advantage Probability 0.77).
+the three human annotators who scored sarcasm interpretations by hand --
+see `docs/results.md` for the full methodology and results (Winning Rate
+0.67, Advantage Probability 0.77).
 
 ## Source
 

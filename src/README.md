@@ -237,5 +237,4 @@ phases can never collide. Entry point:
     multiple experiments' `predictions.csv` into one wide table, produces
     pairwise disagreement subsets (e.g. "TF-IDF right, Qwen wrong").
 
-For full results and methodology, see `PROJECT_SUMMARY.md` Part II; for
-the detailed technical record, `EXPERIMENT_LOG.md`.
+For full results and methodology, see `PROJECT_SUMMARY.md` Part II.

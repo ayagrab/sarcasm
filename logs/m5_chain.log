@@ -1,155 +1,0 @@
-Kernel:  6.8.0-1029-azure (expected: 6.8.0-1029-azure)
---- nvidia-smi ---
-Thu Aug 13 12:40:03 2026       
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 535.230.02             Driver Version: 535.230.02   CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  Tesla M60                      On  | 00000001:00:00.0 Off |                  Off |
-| N/A   24C    P8              14W / 150W |      0MiB /  8192MiB |      0%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-|   1  Tesla M60                      On  | 00000002:00:00.0 Off |                  Off |
-| N/A   28C    P8              15W / 150W |      0MiB /  8192MiB |      0%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-                                                                                         
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|  No running processes found                                                           |
-+---------------------------------------------------------------------------------------+
-OK: verified kernel (6.8.0-1029-azure) and working NVIDIA driver.
-=== 2026-08-13T09:40:03Z starting M5-DSPy-smoke-test ===
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   0%|          | 1/398 [00:00<00:41,  9.61it/s]Loading weights:   9%|▉         | 37/398 [00:00<00:01, 209.90it/s]Loading weights:  17%|█▋        | 69/398 [00:00<00:01, 255.92it/s]Loading weights:  26%|██▌       | 102/398 [00:00<00:01, 276.27it/s]Loading weights:  34%|███▍      | 135/398 [00:00<00:00, 283.88it/s]Loading weights:  42%|████▏     | 168/398 [00:00<00:00, 293.88it/s]Loading weights:  51%|█████     | 201/398 [00:00<00:00, 295.68it/s]Loading weights:  59%|█████▉    | 234/398 [00:00<00:00, 294.86it/s]Loading weights:  67%|██████▋   | 267/398 [00:00<00:00, 296.61it/s]Loading weights:  75%|███████▌  | 300/398 [00:01<00:00, 287.43it/s]Loading weights:  84%|████████▍ | 335/398 [00:01<00:00, 301.53it/s]Loading weights:  92%|█████████▏| 367/398 [00:01<00:00, 305.31it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 288.83it/s]
-[OK] example_id=GEN-9 gold=not_sarcastic pred='sarcastic'
-[OK] example_id=GEN-13 gold=not_sarcastic pred='sarcastic'
-[OK] example_id=GEN-28 gold=not_sarcastic pred='sarcastic'
-[OK] example_id=GEN-30 gold=not_sarcastic pred='sarcastic'
-[OK] example_id=GEN-31 gold=not_sarcastic pred='sarcastic'
-
-DSPy smoke test PASSED: 5/5 examples produced a valid label via LocalQwenLM.
-=== 2026-08-13T09:40:29Z finished M5-DSPy-smoke-test ===
-=== 2026-08-13T09:40:29Z starting EXP-006-dspy-predict (configs/dspy_predict.json) ===
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   4%|▍         | 15/398 [00:00<00:02, 147.73it/s]Loading weights:  12%|█▏        | 47/398 [00:00<00:01, 239.14it/s]Loading weights:  20%|█▉        | 78/398 [00:00<00:01, 269.68it/s]Loading weights:  28%|██▊       | 110/398 [00:00<00:01, 280.76it/s]Loading weights:  36%|███▌      | 143/398 [00:00<00:00, 291.37it/s]Loading weights:  44%|████▍     | 176/398 [00:00<00:00, 302.22it/s]Loading weights:  52%|█████▏    | 207/398 [00:00<00:00, 287.01it/s]Loading weights:  59%|█████▉    | 236/398 [00:00<00:00, 279.00it/s]Loading weights:  67%|██████▋   | 268/398 [00:00<00:00, 283.61it/s]Loading weights:  76%|███████▌  | 301/398 [00:01<00:00, 291.98it/s]Loading weights:  84%|████████▍ | 334/398 [00:01<00:00, 302.81it/s]Loading weights:  92%|█████████▏| 366/398 [00:01<00:00, 303.23it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 290.68it/s]
-{
-  "n_examples": 1340,
-  "accuracy": 0.6798507462686567,
-  "macro_f1": 0.6618707278725784,
-  "weighted_f1": 0.66163797682538,
-  "per_class": {
-    "not_sarcastic": {
-      "precision": 0.8384401114206128,
-      "recall": 0.4479166666666667,
-      "f1": 0.5838991270611057,
-      "support": 672
-    },
-    "sarcastic": {
-      "precision": 0.6218144750254841,
-      "recall": 0.9131736526946108,
-      "f1": 0.739842328684051,
-      "support": 668
-    }
-  },
-  "positive_label": "sarcastic",
-  "sarcastic_precision": 0.6218144750254841,
-  "sarcastic_recall": 0.9131736526946108,
-  "sarcastic_f1": 0.739842328684051,
-  "confusion_matrix": {
-    "labels": [
-      "not_sarcastic",
-      "sarcastic"
-    ],
-    "matrix": [
-      [
-        301,
-        371
-      ],
-      [
-        58,
-        610
-      ]
-    ]
-  }
-}
-
-Artifacts written to /mnt/vmadmin/projects/sarcasm/results/EXP-006
-=== 2026-08-13T10:37:18Z finished EXP-006-dspy-predict ===
-=== 2026-08-13T10:37:18Z starting EXP-007-dspy-bootstrap (configs/dspy_bootstrap_few_shot.json) ===
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   0%|          | 1/398 [00:00<00:42,  9.31it/s]Loading weights:  10%|▉         | 38/398 [00:00<00:01, 214.82it/s]Loading weights:  18%|█▊        | 70/398 [00:00<00:01, 256.26it/s]Loading weights:  26%|██▌       | 102/398 [00:00<00:01, 268.50it/s]Loading weights:  34%|███▍      | 135/398 [00:00<00:00, 278.26it/s]Loading weights:  42%|████▏     | 168/398 [00:00<00:00, 286.39it/s]Loading weights:  50%|█████     | 199/398 [00:00<00:00, 293.43it/s]Loading weights:  58%|█████▊    | 229/398 [00:00<00:00, 290.18it/s]Loading weights:  65%|██████▌   | 259/398 [00:00<00:00, 284.89it/s]Loading weights:  73%|███████▎  | 290/398 [00:01<00:00, 289.83it/s]Loading weights:  81%|████████  | 322/398 [00:01<00:00, 297.99it/s]Loading weights:  89%|████████▉ | 355/398 [00:01<00:00, 300.20it/s]Loading weights:  97%|█████████▋| 388/398 [00:01<00:00, 307.41it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 285.37it/s]
-  0%|          | 0/150 [00:00<?, ?it/s]  1%|          | 1/150 [00:04<12:12,  4.91s/it]  1%|▏         | 2/150 [00:11<14:27,  5.86s/it]  2%|▏         | 3/150 [00:16<13:18,  5.43s/it]  3%|▎         | 4/150 [00:22<14:18,  5.88s/it]  3%|▎         | 5/150 [00:27<13:11,  5.46s/it]  4%|▍         | 6/150 [00:34<14:04,  5.86s/it]  4%|▍         | 6/150 [00:34<13:42,  5.71s/it]
-Bootstrapped 4 full traces after 6 examples for up to 1 rounds, amounting to 6 attempts.
-{
-  "n_examples": 1340,
-  "accuracy": 0.6664179104477612,
-  "macro_f1": 0.640623284428869,
-  "weighted_f1": 0.6403358791250373,
-  "per_class": {
-    "not_sarcastic": {
-      "precision": 0.8640776699029126,
-      "recall": 0.39732142857142855,
-      "f1": 0.5443425076452599,
-      "support": 672
-    },
-    "sarcastic": {
-      "precision": 0.6071774975751697,
-      "recall": 0.937125748502994,
-      "f1": 0.736904061212478,
-      "support": 668
-    }
-  },
-  "positive_label": "sarcastic",
-  "sarcastic_precision": 0.6071774975751697,
-  "sarcastic_recall": 0.937125748502994,
-  "sarcastic_f1": 0.736904061212478,
-  "confusion_matrix": {
-    "labels": [
-      "not_sarcastic",
-      "sarcastic"
-    ],
-    "matrix": [
-      [
-        267,
-        405
-      ],
-      [
-        42,
-        626
-      ]
-    ]
-  }
-}
-
-Artifacts written to /mnt/vmadmin/projects/sarcasm/results/EXP-007
-=== 2026-08-13T13:25:42Z finished EXP-007-dspy-bootstrap ===
-=== 2026-08-13T13:25:42Z starting EXP-008-dspy-mipro (configs/dspy_mipro_v2.json) ===
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   6%|▌         | 22/398 [00:00<00:01, 204.65it/s]Loading weights:  14%|█▍        | 56/398 [00:00<00:01, 278.77it/s]Loading weights:  22%|██▏       | 88/398 [00:00<00:01, 292.92it/s]Loading weights:  30%|██▉       | 119/398 [00:00<00:00, 298.41it/s]Loading weights:  37%|███▋      | 149/398 [00:00<00:00, 290.22it/s]Loading weights:  45%|████▌     | 180/398 [00:00<00:00, 294.85it/s]Loading weights:  53%|█████▎    | 212/398 [00:00<00:00, 291.19it/s]Loading weights:  62%|██████▏   | 245/398 [00:00<00:00, 296.52it/s]Loading weights:  70%|██████▉   | 278/398 [00:00<00:00, 300.92it/s]Loading weights:  78%|███████▊  | 311/398 [00:01<00:00, 298.01it/s]Loading weights:  86%|████████▋ | 344/398 [00:01<00:00, 289.87it/s]Loading weights:  95%|█████████▌| 379/398 [00:01<00:00, 299.78it/s]Loading weights: 100%|██████████| 398/398 [00:01<00:00, 299.01it/s]
-2026/08/13 16:25:53 INFO dspy.teleprompt.mipro_optimizer_v2: 
-RUNNING WITH THE FOLLOWING LIGHT AUTO RUN SETTINGS:
-num_trials: 10
-minibatch: True
-num_fewshot_candidates: 6
-num_instruct_candidates: 3
-valset size: 100
-
-2026/08/13 16:25:53 INFO dspy.teleprompt.mipro_optimizer_v2: 
-==> STEP 1: BOOTSTRAP FEWSHOT EXAMPLES <==
-2026/08/13 16:25:53 INFO dspy.teleprompt.mipro_optimizer_v2: These will be used as few-shot example candidates for our program and for creating instructions.
-
-2026/08/13 16:25:53 INFO dspy.teleprompt.mipro_optimizer_v2: Bootstrapping N=6 sets of demonstrations...
-Bootstrapping set 1/6
-Bootstrapping set 2/6
-Bootstrapping set 3/6
-  0%|          | 0/150 [00:00<?, ?it/s]  1%|          | 1/150 [00:03<09:30,  3.83s/it]  1%|▏         | 2/150 [00:08<09:56,  4.03s/it]  2%|▏         | 3/150 [00:11<09:37,  3.93s/it]  3%|▎         | 4/150 [00:15<09:39,  3.97s/it]  3%|▎         | 5/150 [00:19<09:16,  3.84s/it]  4%|▍         | 6/150 [00:23<09:37,  4.01s/it]  4%|▍         | 6/150 [00:23<09:31,  3.97s/it]
-Bootstrapped 4 full traces after 6 examples for up to 1 rounds, amounting to 6 attempts.
-Bootstrapping set 4/6
-  0%|          | 0/150 [00:00<?, ?it/s]

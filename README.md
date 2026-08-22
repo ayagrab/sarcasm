@@ -16,8 +16,7 @@ Full results, methodology, and conclusions for both phases:
   prompting, and a fine-tuned Transformer encoder. Started after Phase 1
   repeatedly found that models often can't tell a sentence is sarcastic
   in the first place, which no amount of rewriting-prompt refinement can
-  fix — see `docs/project_history.md` for the full narrative of that
-  pivot.
+  fix.
 
 Both phases are complete: every result below is real, executed, and
 recorded — nothing is a plan or a placeholder.
@@ -55,8 +54,8 @@ sarcasm/
 ├── .env.example     # template for your local .env (copy, then fill in)
 ├── .gitignore
 ├── README.md               # this file
-├── PROJECT_SUMMARY.md      # full project results, methodology, and conclusions (both phases)
-├── EXPERIMENT_LOG.md       # detailed experiment-by-experiment audit trail
+├── PROJECT_SUMMARY.md      # full project results, methodology, and conclusions (all three parts)
+├── Sarcasm_Project_Report.docx    # full formal write-up, submission-ready
 ├── requirements.txt              # runtime dependencies
 ├── requirements-classification.txt  # + Stage B (classification) dependencies
 └── requirements-dev.txt          # + testing dependencies
@@ -69,23 +68,14 @@ For a detailed, file-by-file explanation of every folder, see
 
 | Document | What it covers |
 |---|---|
-| [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | Full project results, methodology, and conclusions for *both* phases (interpretation and detection) -- the main deliverable |
-| [`EXPERIMENT_LOG.md`](EXPERIMENT_LOG.md) | Detailed technical record for Stage B, organized by method (M1-M6) |
+| [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | Full project results, methodology, and conclusions for all three parts (interpretation, detection, SIGN generalization) -- the main deliverable |
+| `Sarcasm_Project_Report.docx` | The full formal write-up, submission-ready |
 | [`docs/pipeline.md`](docs/pipeline.md) | Technical, stage-by-stage map of the interpretation pipeline and which stages need an API key or model download |
 | [`docs/methodology.md`](docs/methodology.md) | *How* the interpretation pipeline's dataset, models, prompts, and evaluation methods were chosen |
 | [`docs/results.md`](docs/results.md) | *What was found* in the interpretation pipeline: metrics, Alt-Test outcome, significance tests, case studies |
-| [`docs/project_history.md`](docs/project_history.md) | Chronological, meeting-by-meeting narrative of the project's decisions, including the pivot to sarcasm detection |
 | [`docs/alt_test_reference.md`](docs/alt_test_reference.md) | What the Alt-Test is, its source paper, and how it's used here |
-| [`docs/finetuning_plan.md`](docs/finetuning_plan.md) | The original sarcasm-detection fine-tuning plan -- superseded by the fuller Stage B comparison, kept for planning history |
 | [`docs/project_structure.md`](docs/project_structure.md) | Every folder and file in the repository, explained |
 | [`src/README.md`](src/README.md) | Same level of detail as `project_structure.md`, but scoped to the code in `src/` only |
-| [`docs/validation.md`](docs/validation.md) | What has been executed, mocked, or still needs real credentials/models (interpretation pipeline) |
-
-A note on presentations: the project's four supervisor-meeting slide decks
-(`.pptx` files) have been removed from the repository. Every piece of
-unique information they contained -- experiment descriptions, results,
-decisions, open questions -- was first extracted into `docs/project_history.md`,
-`docs/methodology.md`, and `docs/results.md`. Nothing was lost.
 
 ---
 
@@ -184,9 +174,7 @@ your .env file.` -- not a confusing traceback.
 | Everything under `src.postprocessing.*` (summaries, metrics, Alt-Test, significance tests, plots) | No | No |
 
 Everything in the last row runs on data that's already in the repository --
-no key or download needed. See `docs/validation.md` for exactly which
-commands have been executed in this environment and which still need real
-credentials or the NLI model download to confirm.
+no key or download needed.
 
 ### Recommended run order
 
@@ -273,9 +261,7 @@ python -m src.classification.run_experiment --config configs/transformer_deberta
 Every experiment's configuration, metrics, and per-example predictions
 land under `results/<experiment_id>/`. See `PROJECT_SUMMARY.md` §13 for
 the exact commands and configs used to produce every result in this
-repository (including the frozen-configuration TEST evaluations), and
-`EXPERIMENT_LOG.md`'s per-method sections (M1–M6) for the full technical
-detail behind each one.
+repository, including the frozen-configuration TEST evaluations.
 
 ---
 
@@ -339,9 +325,6 @@ on first run. Confirm it passed by checking `/tmp/nli_smoke_test.csv` has an
 where the interpretation clearly captures the sarcastic meaning should
 mostly be 1.
 
-See `docs/validation.md` for exactly what has and hasn't been verified in
-this environment, and why (no real keys, no model download performed here).
-
 ---
 
 ## Known limitations
@@ -355,11 +338,11 @@ this environment, and why (no real keys, no model download performed here).
 - **The NLI evaluation path (`evaluate_with_nli.py`) has not been executed
   in this environment** -- only statically reviewed and tested via mocked
   label-mapping logic (`tests/test_nli_utils.py`), since running it for
-  real requires downloading a model. See `docs/validation.md`.
+  real requires downloading a model.
 - **API-backed scripts (Gemini, OpenRouter, LLM judge, quota check)**
-  were validated via imports, static review, and mocked responses (see
-  `docs/validation.md`); run the real API smoke test above with your own
-  keys to confirm live behavior.
+  were validated via imports, static review, and mocked responses; run
+  the real API smoke test above with your own keys to confirm live
+  behavior.
 - **`prompts/evaluation/nli_premise_template.txt` and
   `nli_hypothesis_template.txt`** are minimal pass-through templates
   (`{sarcastic_sentence}` / `{model_interpretation}` respectively); their

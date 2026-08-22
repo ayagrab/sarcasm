@@ -67,7 +67,7 @@ def _build_warnings(report: dict) -> list[str]:
     if report["n_rows_label_conflict"]:
         warnings.append(
             f"{report['n_rows_label_conflict']} rows belong to a duplicate-text group with "
-            "conflicting labels -- kept, not dropped (see EXPERIMENT_LOG.md)"
+            "conflicting labels -- kept, not dropped (see PROJECT_SUMMARY.md)"
         )
     labels = report["label_counts"]
     if len(labels) == 2:

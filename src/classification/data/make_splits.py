@@ -4,7 +4,7 @@ Grouped by `dup_group_id` (normalized-text duplicate group) so that rows
 sharing text across category files always land in the same split --
 otherwise the same underlying post could appear in both train and test.
 Stratified by label at the group level via `StratifiedGroupKFold`. Fixed
-seed. See EXPERIMENT_LOG.md ("Decisions made") for the full rationale.
+seed. See PROJECT_SUMMARY.md ("Decisions made") for the full rationale.
 
 The TEST split produced here must not be touched again until final,
 frozen-configuration evaluation of each approach (no prompt iteration, no
